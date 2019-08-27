@@ -6,7 +6,7 @@
 ;;   the terms of this license.
 ;;   You must not remove this notice, or any other, from this software.
 
-(ns edamame.impl.toolsreader.v1v3v2.cljs.tools.reader
+(ns ^{:no-doc true} edamame.impl.toolsreader.v1v3v2.cljs.tools.reader
   (:refer-clojure :exclude [read read-line read-string char read+string
                             default-data-readers *default-data-reader-fn*
                             *data-readers* *suppress-read*])

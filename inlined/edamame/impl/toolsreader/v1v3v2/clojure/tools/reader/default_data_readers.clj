@@ -8,7 +8,7 @@
 
 ;;; copied from clojure.instant and clojure.uuid ;;;
 
-(ns edamame.impl.toolsreader.v1v3v2.clojure.tools.reader.default-data-readers
+(ns ^{:no-doc true} edamame.impl.toolsreader.v1v3v2.clojure.tools.reader.default-data-readers
   (:import [java.util Calendar Date GregorianCalendar TimeZone]
            [java.sql Timestamp]))
 
