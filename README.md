@@ -35,7 +35,7 @@ Locations are attached as metadata:
  {:row 3, :col 2})
 
 (->> "{:a {:b {:c [a b c]}}}"
-     p/parse-string
+     parse-string
      (tree-seq coll? #(if (map? %) (vals %) %))
      (map meta))
 ;;=>
