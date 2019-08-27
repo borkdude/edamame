@@ -4,7 +4,7 @@
 [![Clojars Project](https://img.shields.io/clojars/v/borkdude/edamame.svg)](https://clojars.org/borkdude/edamame)
 [![cljdoc badge](https://cljdoc.org/badge/borkdude/edamame)](https://cljdoc.org/d/borkdude/edamame/CURRENT)
 
-## Rationale
+## Features
 
 - Parse EDN values with location as metadata.
 - Pluggable dispatch table to extend EDN.
@@ -13,16 +13,6 @@ This library works with:
 
 - Clojure on the JVM
 - ClojureScript
-
-## Status
-
-Experimental. Breaking changes are expected to happen at this phase.
-
-## Installation
-
-Use as a dependency:
-
-[![Clojars Project](https://img.shields.io/clojars/v/borkdude/edamame.svg)](https://clojars.org/borkdude/edamame)
 
 ## Usage
 
@@ -59,6 +49,16 @@ Dispatch on dispatch characters:
     script/test/jvm
     script/test/node
     script/test/all
+
+## Status
+
+Experimental. Breaking changes are expected to happen at this phase.
+
+## Installation
+
+Use as a dependency:
+
+[![Clojars Project](https://img.shields.io/clojars/v/borkdude/edamame.svg)](https://clojars.org/borkdude/edamame)
 
 ## Credits
 
