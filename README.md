@@ -27,6 +27,19 @@ Locations are attached as metadata:
 ``` clojure
 (map meta (parse-string "[{:a 1} {:b 2}]))"
 ;;=> ({:row 1, :col 2} {:row 1, :col 9})
+
+(->> "{:a {:b {:c [a b c]}}}"
+     p/parse-string
+     (tree-seq coll? #(if (map? %) (vals %) %))
+     (map meta))
+;;=>
+({:row 1, :col 1}
+ {:row 1, :col 5}
+ {:row 1, :col 9}
+ {:row 1, :col 13}
+ {:row 1, :col 14}
+ {:row 1, :col 16}
+ {:row 1, :col 18})
 ```
 
 Dispatch on a character, even if it's unsupported in EDN:
