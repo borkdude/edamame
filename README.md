@@ -26,7 +26,8 @@ Locations are attached as metadata:
 
 ``` clojure
 (map meta (parse-string "[{:a 1} {:b 2}]))"
-;;=> ({:row 1, :col 2} {:row 1, :col 9})
+;;=>
+({:row 1, :col 2} {:row 1, :col 9})
 
 (->> "{:a {:b {:c [a b c]}}}"
      p/parse-string
