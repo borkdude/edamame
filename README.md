@@ -25,9 +25,14 @@ This library works with:
 Locations are attached as metadata:
 
 ``` clojure
-(map meta (parse-string "[{:a 1} {:b 2}]))"
+(def s "
+[{:a 1}
+ {:b 2}]))
+")
+(map meta (parse-string s))
 ;;=>
-({:row 1, :col 2} {:row 1, :col 9})
+({:row 2, :col 2}
+ {:row 3, :col 2})
 
 (->> "{:a {:b {:c [a b c]}}}"
      p/parse-string
