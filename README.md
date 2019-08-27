@@ -27,7 +27,7 @@ Locations are attached as metadata:
 ;;=> ({:row 1, :col 2} {:row 1, :col 9})
 ```
 
-Dispatch on a (unsupported) character:
+Dispatch on a character, even if it's unsupported in EDN:
 
 ``` clojure
 (parse-string "@foo" {:dispatch {\@ (fn [val] (list 'deref val))}})
