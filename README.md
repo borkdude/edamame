@@ -10,7 +10,7 @@ EDN parser with location metadata and pluggable dispatch table.
 
 This library can be useful when:
 
-- You want to include locations in feedback about EDN files
+- You want to include locations in feedback about EDN files.
 - You want to parse Clojure-like expressions and want to add support for unsupported EDN characters.
 
 This library came out of [sci](https://github.com/borkdude/sci), a small Clojure interpreter.
