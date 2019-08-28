@@ -6,6 +6,15 @@ EDN parser with location metadata and pluggable dispatch table.
 [![Clojars Project](https://img.shields.io/clojars/v/borkdude/edamame.svg)](https://clojars.org/borkdude/edamame)
 [![cljdoc badge](https://cljdoc.org/badge/borkdude/edamame)](https://cljdoc.org/d/borkdude/edamame/CURRENT)
 
+## Rationale
+
+This library can be useful when:
+
+- You want to include locations in feedback about EDN files
+- You want to parse Clojure-like expressions and want to add support for unsupported EDN characters.
+
+This library came out of [sci](https://github.com/borkdude/sci), a small Clojure interpreter.
+
 ## Features
 
 - Parse EDN values with location as metadata.
