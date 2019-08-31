@@ -66,16 +66,23 @@
 
 (defn handle-dispatch
   [ctx #?(:cljs ^not-native reader :default reader) f]
-  (let [;; dispatch-char (r/read-char reader) ;; ignore
-        next-val (parse-next ctx reader)]
+  (let [next-val (parse-next ctx reader)]
     (f next-val)))
+
+(defn delimiter? [c]
+  (case c
+    (\{ \( \[ \") true
+    false))
 
 (defn parse-sharp
   [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore sharp
   (let [c (r/peek-char reader)]
     (if-let [f (get-in ctx [:dispatch \# c])]
-      (handle-dispatch ctx reader f)
+      (do
+        (when-not (delimiter? c)
+          (r/read-char reader))
+        (handle-dispatch ctx reader f))
       (case c
         nil (throw-reader reader "Unexpected EOF.")
         \{ (parse-to-delimiter ctx reader \} #{})
