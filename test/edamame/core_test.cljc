@@ -43,7 +43,13 @@
           "{:a {:b {:c [a b c]}}}"
           p/parse-string
           (tree-seq coll? #(if (map? %) (vals %) %))
-          (map meta)))))
+          (map meta))))
+  (is (= '(slurp "foo") (p/parse-string "#=(slurp \"foo\")"
+                          {:dispatch
+                           {\# {\= identity}}})))
+  (is (= 'foo (p/parse-string "#'foo"
+                              {:dispatch
+                               {\# {\' identity}}}))))
 
 ;;;; Scratch
 
