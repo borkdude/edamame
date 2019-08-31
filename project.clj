@@ -1,7 +1,7 @@
 (defproject borkdude/edamame
   #=(clojure.string/trim
      #=(slurp "resources/EDAMAME_VERSION"))
-  :description "EDN with a weird taste."
+  :description "EDN parser with location metadata and pluggable dispatch table."
   :url "https://github.com/borkdude/edamame"
   :scm {:name "git"
         :url "https://github.com/borkdude/edamame"}
