@@ -13,24 +13,6 @@
 
 (declare parse-next)
 
-(defn whitespace?
-  [#?(:clj ^java.lang.Character c :default c)]
-  #?(:clj (and c (or (= c \,) (Character/isWhitespace c)))
-     :cljs (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
-
-(defn location [#?(:cljs ^not-native reader :default reader)]
-  {:row (r/get-line-number reader)
-   :col (r/get-column-number reader)})
-
-(defn parse-whitespace
-  [_ctx #?(:cljs ^not-native reader :default reader)]
-  (loop []
-    (let [c (r/read-char reader)]
-      (if (whitespace? c)
-        (recur)
-        (do (r/unread reader c)
-            reader)))))
-
 (defn parse-comment
   [#?(:cljs ^not-native reader :default reader)]
   (r/read-line reader)
@@ -113,10 +95,28 @@
                          ::expected-delimiter)))
         \; (parse-comment reader)
         \# (parse-sharp ctx reader)
-        (if (whitespace? c) (parse-whitespace ctx reader)
-            (edn/read ctx reader))))))
+        (edn/read ctx reader)))))
+
+(defn location [#?(:cljs ^not-native reader :default reader)]
+  {:row (r/get-line-number reader)
+   :col (r/get-column-number reader)})
+
+(defn whitespace?
+  [#?(:clj ^java.lang.Character c :default c)]
+  #?(:clj (and c (or (= c \,) (Character/isWhitespace c)))
+     :cljs (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
+
+(defn parse-whitespace
+  [_ctx #?(:cljs ^not-native reader :default reader)]
+  (loop []
+    (let [c (r/read-char reader)]
+      (if (whitespace? c)
+        (recur)
+        (do (r/unread reader c)
+            reader)))))
 
 (defn parse-next [ctx reader]
+  (parse-whitespace ctx reader) ;; skip leading whitespace
   (let [c (r/peek-char reader)
         loc (location reader)
         obj (dispatch ctx reader c)]
