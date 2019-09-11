@@ -7,7 +7,8 @@
       :cljs [edamame.impl.toolsreader.v1v3v2.cljs.tools.reader.edn :as edn])
    #?(:clj  [edamame.impl.toolsreader.v1v3v2.clojure.tools.reader.reader-types :as r]
       :cljs [edamame.impl.toolsreader.v1v3v2.cljs.tools.reader.reader-types :as r]))
-  #?(:clj (:import [java.io Closeable])))
+  #?(:clj (:import [java.io Closeable]))
+  #?(:cljs (:import [goog.string StringBuffer])))
 
 #?(:clj (set! *warn-on-reflection* true))
 
@@ -46,9 +47,33 @@
             " [at line " l ", column " c "]")
        (merge {:row l, :col c} data))))))
 
+(defn read-regex-pattern
+  "Modeled after tools.reader/read-regex."
+  [_ctx #?(:cljs ^not-native reader :default reader)]
+  (r/read-char reader) ;; ignore leading double-quote
+  (let [sb #?(:clj (StringBuilder.)
+              :cljs (goog.string.StringBuffer.))]
+    (loop [ch (r/read-char reader)]
+      (if (identical? \" ch)
+        #?(:clj (str sb)
+           :cljs (str sb))
+        (if (nil? ch)
+          (throw-reader reader "Error while parsing regex")
+          (do
+            (.append sb ch )
+            (when (identical? \\ ch)
+              (let [ch (r/read-char reader)]
+                (when (nil? ch)
+                  (throw-reader reader "Error while parsing regex"))
+                (.append sb ch)))
+            (recur (r/read-char reader))))))))
+
 (defn handle-dispatch
-  [ctx #?(:cljs ^not-native reader :default reader) f]
-  (let [next-val (parse-next ctx reader)]
+  [ctx #?(:cljs ^not-native reader :default reader) c sharp? f]
+  (let [regex? (and sharp? (identical? \" c))
+        next-val (if regex?
+                   (read-regex-pattern ctx reader)
+                   (parse-next ctx reader))]
     (f next-val)))
 
 (defn delimiter? [c]
@@ -64,7 +89,7 @@
       (do
         (when-not (delimiter? c)
           (r/read-char reader))
-        (handle-dispatch ctx reader f))
+        (handle-dispatch ctx reader c true f))
       (case c
         nil (throw-reader reader "Unexpected EOF.")
         \{ (parse-to-delimiter ctx reader \} #{})
@@ -79,7 +104,7 @@
     (if (fn? f)
       (do
         (r/read-char reader)
-        (handle-dispatch ctx reader f))
+        (handle-dispatch ctx reader c false f))
       (case c
         nil ::eof
         \( (parse-list ctx reader)
