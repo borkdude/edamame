@@ -3,10 +3,10 @@
   who contribured to those projects."
   {:no-doc true}
   (:require
-   #?(:clj  [edamame.impl.toolsreader.v1v3v2.clojure.tools.reader.edn :as edn]
-      :cljs [edamame.impl.toolsreader.v1v3v2.cljs.tools.reader.edn :as edn])
-   #?(:clj  [edamame.impl.toolsreader.v1v3v2.clojure.tools.reader.reader-types :as r]
-      :cljs [edamame.impl.toolsreader.v1v3v2.cljs.tools.reader.reader-types :as r]))
+   #?(:clj  [clojure.tools.reader.edn :as edn]
+      :cljs [cljs.tools.reader.edn :as edn])
+   #?(:clj  [clojure.tools.reader.reader-types :as r]
+      :cljs [cljs.tools.reader.reader-types :as r]))
   #?(:clj (:import [java.io Closeable]))
   #?(:cljs (:import [goog.string StringBuffer])))
 
