@@ -38,12 +38,16 @@
   (apply list (parse-to-delimiter ctx reader \))))
 
 (defn throw-reader
-  "Throw reader exception, including line line/column."
+  "Throw reader exception, including line line/column. line/column is
+  read from the reader but it can be overriden by passing loc
+  optional parameter."
   ([#?(:cljs ^:not-native reader :default reader) msg]
    (throw-reader reader msg nil))
   ([#?(:cljs ^:not-native reader :default reader) msg data]
-   (let [c (r/get-column-number reader)
-         l (r/get-line-number reader)]
+   (throw-reader reader msg data nil))
+  ([#?(:cljs ^:not-native reader :default reader) msg data loc]
+   (let [c (:col loc (r/get-column-number reader))
+         l (:row loc (r/get-line-number reader))]
      (throw
       (ex-info
        (str msg
@@ -84,6 +88,10 @@
     (\{ \( \[ \") true
     false))
 
+(defn location [#?(:cljs ^not-native reader :default reader)]
+  {:row (r/get-line-number reader)
+   :col (r/get-column-number reader)})
+
 (defn- duplicate-keys-error [msg coll]
   ;; https://github.com/clojure/tools.reader/blob/97d5dac9f5e7c04d8fe6c4a52cd77d6ced560d76/src/main/cljs/cljs/tools/reader/impl/errors.cljs#L233
   (letfn [(duplicates [seq]
@@ -96,19 +104,22 @@
              ": " (interpose ", " dups)))))
 
 (defn throw-dup-keys
-  [#?(:cljs ^not-native reader :default reader) kind ks]
+  [#?(:cljs ^not-native reader :default reader) loc kind ks]
   (throw-reader
    reader
    (duplicate-keys-error
     (str (s/capitalize (name kind)) " literal contains duplicate key")
-    ks)))
+    ks)
+   nil
+   loc))
 
 (defn parse-set
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [coll (parse-to-delimiter ctx reader \})
+  (let [start-loc (location reader)
+        coll (parse-to-delimiter ctx reader \})
         the-set (set coll)]
     (when-not (= (count coll) (count the-set))
-      (throw-dup-keys reader :set coll))
+      (throw-dup-keys reader start-loc :set coll))
     the-set))
 
 (defn parse-sharp
@@ -129,7 +140,7 @@
           (edn/read ctx reader))))))
 
 (defn throw-odd-map
-  [#?(:cljs ^not-native reader :default reader) elements]
+  [#?(:cljs ^not-native reader :default reader) loc elements]
   (throw-reader
    reader
    (str
@@ -137,16 +148,19 @@
     (i/inspect (first elements))
     " contains "
     (count elements)
-    " form(s). Map literals must contain an even number of forms.")))
+    " form(s). Map literals must contain an even number of forms.")
+   nil
+   loc))
 
 (defn parse-map
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [elements (parse-to-delimiter ctx reader \})
+  (let [start-loc (location reader)
+        elements (parse-to-delimiter ctx reader \})
         ks (take-nth 2 elements)]
     (when (odd? (count elements))
-      (throw-odd-map reader elements))
+      (throw-odd-map reader start-loc elements))
     (when-not (= (count (set ks)) (count ks))
-      (throw-dup-keys reader :map ks))
+      (throw-dup-keys reader start-loc :map ks))
     (apply hash-map elements)))
 
 (defn dispatch
@@ -172,10 +186,6 @@
         \; (parse-comment reader)
         \# (parse-sharp ctx reader)
         (edn/read ctx reader)))))
-
-(defn location [#?(:cljs ^not-native reader :default reader)]
-  {:row (r/get-line-number reader)
-   :col (r/get-column-number reader)})
 
 (defn whitespace?
   [#?(:clj ^java.lang.Character c :default c)]
