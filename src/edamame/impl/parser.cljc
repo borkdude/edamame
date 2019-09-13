@@ -6,7 +6,10 @@
    #?(:clj  [clojure.tools.reader.edn :as edn]
       :cljs [cljs.tools.reader.edn :as edn])
    #?(:clj  [clojure.tools.reader.reader-types :as r]
-      :cljs [cljs.tools.reader.reader-types :as r]))
+      :cljs [cljs.tools.reader.reader-types :as r])
+   #?(:clj  [clojure.tools.reader.impl.inspect :as i]
+      :cljs [cljs.tools.reader.impl.inspect :as i])
+   [clojure.string :as s])
   #?(:clj (:import [java.io Closeable]))
   #?(:cljs (:import [goog.string StringBuffer])))
 
@@ -81,6 +84,33 @@
     (\{ \( \[ \") true
     false))
 
+(defn- duplicate-keys-error [msg coll]
+  ;; https://github.com/clojure/tools.reader/blob/97d5dac9f5e7c04d8fe6c4a52cd77d6ced560d76/src/main/cljs/cljs/tools/reader/impl/errors.cljs#L233
+  (letfn [(duplicates [seq]
+            (for [[id freq] (frequencies seq)
+                  :when (> freq 1)]
+              id))]
+    (let [dups (duplicates coll)]
+      (apply str msg
+             (when (> (count dups) 1) "s")
+             ": " (interpose ", " dups)))))
+
+(defn throw-dup-keys
+  [#?(:cljs ^not-native reader :default reader) kind ks]
+  (throw-reader
+   reader
+   (duplicate-keys-error
+    (str (s/capitalize (name kind)) " literal contains duplicate key")
+    ks)))
+
+(defn parse-set
+  [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [coll (parse-to-delimiter ctx reader \})
+        the-set (set coll)]
+    (when-not (= (count coll) (count the-set))
+      (throw-dup-keys reader :set coll))
+    the-set))
+
 (defn parse-sharp
   [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore sharp
@@ -92,11 +122,32 @@
         (handle-dispatch ctx reader c true f))
       (case c
         nil (throw-reader reader "Unexpected EOF.")
-        \{ (parse-to-delimiter ctx reader \} #{})
+        \{ (parse-set ctx reader)
         \( (parse-list ctx reader)
         (do
           (r/unread reader \#)
           (edn/read ctx reader))))))
+
+(defn throw-odd-map
+  [#?(:cljs ^not-native reader :default reader) elements]
+  (throw-reader
+   reader
+   (str
+    "The map literal starting with "
+    (i/inspect (first elements))
+    " contains "
+    (count elements)
+    " form(s). Map literals must contain an even number of forms.")))
+
+(defn parse-map
+  [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [elements (parse-to-delimiter ctx reader \})
+        ks (take-nth 2 elements)]
+    (when (odd? (count elements))
+      (throw-odd-map reader elements))
+    (when-not (= (count (set ks)) (count ks))
+      (throw-dup-keys reader :map ks))
+    (apply hash-map elements)))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
@@ -109,7 +160,7 @@
         nil ::eof
         \( (parse-list ctx reader)
         \[ (parse-to-delimiter ctx reader \])
-        \{ (apply hash-map (parse-to-delimiter ctx reader \}))
+        \{ (parse-map ctx reader)
         (\} \] \)) (let [expected (::expected-delimiter ctx)]
                      (if (not= expected c)
                        (throw-reader reader
