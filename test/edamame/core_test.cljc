@@ -12,7 +12,16 @@
   (is (= '(1 2 3) (p/parse-string "(1 2 3)")))
   (is ((every-pred vector? #(= % [1 2 3])) (p/parse-string "[1 2 3]")))
   (is (= #{1 2 3} (p/parse-string "#{1 2 3}")))
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                        #"Set literal contains duplicate key: 1 \[at line 1, column 2\]"
+                        (p/parse-string "#{1 1}")))
   (is (= {:a 1 :b 2} (p/parse-string "{:a 1 :b 2}")))
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                        #"The map literal starting with :a contains 3 form\(s\). Map literals must contain an even number of forms. \[at line 1, column 1\]"
+                        (p/parse-string "{:a :b :c}")))
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                        #"Map literal contains duplicate key: :a \[at line 1, column 1\]"
+                        (p/parse-string "{:a :b :a :c}")))
   (is (= {:row 1 :col 2}  (meta (first (p/parse-string "[{:a 1 :b 2}]")))))
   (is (= {:foo true :row 1 :col 1} (meta (p/parse-string "^:foo {:a 1 :b 2}"))))
   (let [p (p/parse-string ";; foo\n{:a 1}")]
