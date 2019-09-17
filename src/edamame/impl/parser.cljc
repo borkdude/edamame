@@ -159,7 +159,7 @@
         ks (take-nth 2 elements)]
     (when (odd? (count elements))
       (throw-odd-map reader start-loc elements))
-    (when-not (= (count (set ks)) (count ks))
+    (when-not (apply distinct? ks)
       (throw-dup-keys reader start-loc :map ks))
     (apply hash-map elements)))
 
