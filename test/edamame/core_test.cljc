@@ -59,7 +59,11 @@
                            {\# {\= identity}}})))
   (is (= 'foo (p/parse-string "#'foo"
                               {:dispatch
-                               {\# {\' identity}}}))))
+                               {\# {\' identity}}})))
+  (doseq [s ["(" "{" "["]]
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                          #"EOF while reading"
+                          (p/parse-string s)))))
 
 ;;;; Scratch
 

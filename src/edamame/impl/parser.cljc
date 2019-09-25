@@ -22,21 +22,6 @@
   (r/read-line reader)
   reader)
 
-(defn parse-to-delimiter
-  ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
-   (parse-to-delimiter ctx reader delimiter []))
-  ([ctx #?(:cljs ^not-native reader :default reader) delimiter into]
-   (r/read-char reader) ;; ignore delimiter
-   (let [ctx (assoc ctx ::expected-delimiter delimiter)]
-     (loop [vals (transient into)]
-       (let [next-val (parse-next ctx reader)]
-         (if (#?(:clj identical? :cljs keyword-identical?) ::expected-delimiter next-val)
-           (persistent! vals)
-           (recur (conj! vals next-val))))))))
-
-(defn parse-list [ctx #?(:cljs ^not-native reader :default reader)]
-  (apply list (parse-to-delimiter ctx reader \))))
-
 (defn throw-reader
   "Throw reader exception, including line line/column. line/column is
   read from the reader but it can be overriden by passing loc
@@ -53,6 +38,26 @@
        (str msg
             " [at line " l ", column " c "]")
        (merge {:row l, :col c} data))))))
+
+(defn parse-to-delimiter
+  ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
+   (parse-to-delimiter ctx reader delimiter []))
+  ([ctx #?(:cljs ^not-native reader :default reader) delimiter into]
+   (r/read-char reader) ;; ignore delimiter
+   (let [ctx (assoc ctx ::expected-delimiter delimiter)]
+     (loop [vals (transient into)]
+       (let [next-val (parse-next ctx reader)]
+         ;; TODO: check for ::eof!
+         (cond
+           (#?(:clj identical? :cljs keyword-identical?) ::eof next-val)
+           (throw-reader reader "EOF while reading")
+           (#?(:clj identical? :cljs keyword-identical?) ::expected-delimiter next-val)
+           (persistent! vals)
+           :else
+           (recur (conj! vals next-val))))))))
+
+(defn parse-list [ctx #?(:cljs ^not-native reader :default reader)]
+  (apply list (parse-to-delimiter ctx reader \))))
 
 (defn read-regex-pattern
   "Modeled after tools.reader/read-regex."
@@ -203,16 +208,17 @@
 
 (defn parse-next [ctx reader]
   (parse-whitespace ctx reader) ;; skip leading whitespace
-  (let [c (r/peek-char reader)
-        loc (location reader)
-        obj (dispatch ctx reader c)]
-    (if (identical? reader obj)
-      (parse-next ctx reader)
-      (if #?(:clj
-             (instance? clojure.lang.IObj obj)
-             :cljs (satisfies? IWithMeta obj))
-        (vary-meta obj merge loc)
-        obj))))
+  (if-let [c (r/peek-char reader)]
+    (let [loc (location reader)
+          obj (dispatch ctx reader c)]
+      (if (identical? reader obj)
+        (parse-next ctx reader)
+        (if #?(:clj
+               (instance? clojure.lang.IObj obj)
+               :cljs (satisfies? IWithMeta obj))
+          (vary-meta obj merge loc)
+          obj)))
+    ::eof))
 
 (defn string-reader
   "Create reader for strings."
@@ -222,8 +228,9 @@
 
 (defn parse-string [s opts]
   (let [^Closeable r (string-reader s)
-        ctx (assoc opts ::expected-delimiter nil)]
-    (parse-next ctx r)))
+        ctx (assoc opts ::expected-delimiter nil)
+        v (parse-next ctx r)]
+    (if (identical? ::eof v) nil v)))
 
 (defn parse-string-all [s opts]
   (let [^Closeable r (string-reader s)
