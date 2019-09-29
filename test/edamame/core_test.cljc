@@ -1,7 +1,7 @@
 (ns edamame.core-test
   (:require
    [edamame.core :as p]
-   [clojure.test :as t :refer [deftest is]]))
+   [clojure.test :as t :refer [deftest is testing]]))
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
@@ -33,10 +33,10 @@
   (let [foo-sym (second (p/parse-string "(defn foo [])"))]
     (is (= {:row 1 :col 7} (meta foo-sym))))
   #?(:clj (is (= (first (p/parse-string "#(inc 1 2 %)"
-                                       {:dispatch
-                                        {\# {\( (fn [expr]
-                                                  (read-string (str "#" expr)))}}}))
-                'fn*)))
+                                        {:dispatch
+                                         {\# {\( (fn [expr]
+                                                   (read-string (str "#" expr)))}}}))
+                 'fn*)))
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
   (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" #(re-pattern %)}}}) "aaa1aaa")))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
@@ -55,15 +55,28 @@
           (tree-seq coll? #(if (map? %) (vals %) %))
           (map meta))))
   (is (= '(slurp "foo") (p/parse-string "#=(slurp \"foo\")"
-                          {:dispatch
-                           {\# {\= identity}}})))
+                                        {:dispatch
+                                         {\# {\= identity}}})))
   (is (= 'foo (p/parse-string "#'foo"
                               {:dispatch
                                {\# {\' identity}}})))
-  (doseq [s ["(" "{" "["]]
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                          #"EOF while reading"
-                          (p/parse-string s)))))
+  (testing "EOF while reading"
+    (doseq [s ["(" "{" "["]]
+      (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                            #"EOF while reading"
+                            (p/parse-string s)))))
+  (testing "read syntax-quote, unquote and unquote splicing"
+    (let [opts {:dispatch
+                {\` (fn [expr] (list 'syntax-quote expr))
+                 \~ {:default (fn [expr] (list 'unquote expr))
+                     \@ (fn [expr] (list 'unquote-splice expr))}
+                 \@ (fn [expr] (list 'deref expr))}}]
+      (is (= '(syntax-quote (list (unquote x) (unquote-splice [x x])))
+             (p/parse-string "`(list ~x ~@[x x])"
+                             opts)))
+      (is (= '(syntax-quote (list (unquote x) (unquote (deref (atom nil)))))
+             (p/parse-string "`(list ~x ~ @(atom nil))"
+                             opts))))))
 
 ;;;; Scratch
 

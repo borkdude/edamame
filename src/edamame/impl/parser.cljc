@@ -131,7 +131,7 @@
   [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore sharp
   (let [c (r/peek-char reader)]
-    (if-let [f (get-in ctx [:dispatch \# c])]
+    (if-let [f (or (get-in ctx [:dispatch \# c]))]
       (do
         (when-not (delimiter? c)
           (r/read-char reader))
@@ -168,29 +168,42 @@
       (throw-dup-keys reader start-loc :map ks))
     (apply hash-map elements)))
 
+(defn parse-unquote-splice [])
+
 (defn dispatch
-  [ctx #?(:cljs ^not-native reader :default reader) c]
-  (let [f (get-in ctx [:dispatch c])]
-    (if (fn? f)
-      (do
-        (r/read-char reader)
-        (handle-dispatch ctx reader c false f))
-      (case c
-        nil ::eof
-        \( (parse-list ctx reader)
-        \[ (parse-to-delimiter ctx reader \])
-        \{ (parse-map ctx reader)
-        (\} \] \)) (let [expected (::expected-delimiter ctx)]
-                     (if (not= expected c)
-                       (throw-reader reader
-                                     (str "Unmatched delimiter: " c)
-                                     ctx)
-                       (do
-                         (r/read-char reader) ;; read delimiter
-                         ::expected-delimiter)))
-        \; (parse-comment reader)
-        \# (parse-sharp ctx reader)
-        (edn/read ctx reader)))))
+  [{:keys [:dispatch] :as ctx} #?(:cljs ^not-native reader :default reader) path]
+  (let [sharp? (= [\#] path)]
+    (if sharp? (parse-sharp ctx reader)
+        (if-let [[c f]
+                 (or (when-let [v (get-in dispatch path)]
+                       [(last path) v])
+                     (when-let [v (get-in dispatch (conj (pop path) :default))]
+                       [nil v]))]
+          (cond
+            (map? f) (do (r/read-char reader)
+                         (recur ctx reader
+                                (conj path (r/peek-char reader))))
+            :else
+            (do
+              (when c
+                (r/read-char reader))
+              (handle-dispatch ctx reader c false f)))
+          (let [c (last path)]
+            (case c
+              nil ::eof
+              \( (parse-list ctx reader)
+              \[ (parse-to-delimiter ctx reader \])
+              \{ (parse-map ctx reader)
+              (\} \] \)) (let [expected (::expected-delimiter ctx)]
+                           (if (not= expected c)
+                             (throw-reader reader
+                                           (str "Unmatched delimiter: " c)
+                                           ctx)
+                             (do
+                               (r/read-char reader) ;; read delimiter
+                               ::expected-delimiter)))
+              \; (parse-comment reader)
+              (edn/read ctx reader)))))))
 
 (defn whitespace?
   [#?(:clj ^java.lang.Character c :default c)]
@@ -210,7 +223,7 @@
   (parse-whitespace ctx reader) ;; skip leading whitespace
   (if-let [c (r/peek-char reader)]
     (let [loc (location reader)
-          obj (dispatch ctx reader c)]
+          obj (dispatch ctx reader [c])]
       (if (identical? reader obj)
         (parse-next ctx reader)
         (if #?(:clj
