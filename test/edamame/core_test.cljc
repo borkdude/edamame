@@ -22,6 +22,8 @@
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                         #"Map literal contains duplicate key: :a \[at line 1, column 1\]"
                         (p/parse-string "{:a :b :a :c}")))
+  (testing "edamame can parse the empty map"
+    (is (= {} (p/parse-string "{}"))))
   (is (= {:row 1 :col 2}  (meta (first (p/parse-string "[{:a 1 :b 2}]")))))
   (is (= {:foo true :row 1 :col 1} (meta (p/parse-string "^:foo {:a 1 :b 2}"))))
   (let [p (p/parse-string ";; foo\n{:a 1}")]

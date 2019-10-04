@@ -161,11 +161,13 @@
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [start-loc (location reader)
         elements (parse-to-delimiter ctx reader \})
-        ks (take-nth 2 elements)]
-    (when (odd? (count elements))
-      (throw-odd-map reader start-loc elements))
-    (when-not (apply distinct? ks)
-      (throw-dup-keys reader start-loc :map ks))
+        c (count elements)]
+    (when (pos? c)
+      (when (odd? c)
+        (throw-odd-map reader start-loc elements))
+      (let [ks (take-nth 2 elements)]
+        (when-not (apply distinct? ks)
+          (throw-dup-keys reader start-loc :map ks))))
     (apply hash-map elements)))
 
 (defn parse-unquote-splice [])
