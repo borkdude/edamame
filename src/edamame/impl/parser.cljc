@@ -46,11 +46,7 @@
    (let [row (r/get-line-number reader)
          col (r/get-column-number reader)
          opened (r/read-char reader)]
-     (let [ctx (assoc ctx
-                      ::expected-delimiter delimiter
-                      ::open-delimiter {:row row
-                                        :col col
-                                        :opened opened})]
+     (let [ctx (assoc ctx ::expected-delimiter delimiter)]
        (loop [vals (transient into)]
          (let [;; if next-val is uneval, we get back the expected delimiter...
                next-val (parse-next ctx reader)]
