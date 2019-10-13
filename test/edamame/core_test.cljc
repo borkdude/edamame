@@ -1,7 +1,8 @@
 (ns edamame.core-test
   (:require
    [edamame.core :as p]
-   [clojure.test :as t :refer [deftest is testing]]))
+   [clojure.test :as t :refer [deftest is testing]]
+   #?(:clj [clojure.edn :as edn])))
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
@@ -94,4 +95,8 @@
 
 (comment
   (t/run-tests)
+  #?(:clj
+     (let [edn-string (slurp "deps.edn")]
+       (time (dotimes [_ 10000]
+               (p/parse-string edn-string)))))
   )
