@@ -85,7 +85,10 @@
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected: ]"
                           (p/parse-string "[}")))
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected ]"
-                          (p/parse-string "  [   ")))))
+                          (p/parse-string "  [   ")))
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                          #"Unmatched delimiter: ] [at line 1, column 3]"
+                          (p/parse-string "  ]   ")))))
 
 ;;;; Scratch
 

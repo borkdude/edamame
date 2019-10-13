@@ -207,7 +207,8 @@
               (\} \] \)) (let [expected (::expected-delimiter ctx)]
                            (if (not= expected c)
                              (throw-reader reader
-                                           (str "Unmatched delimiter: " c ", expected: " expected ".")
+                                           (str "Unmatched delimiter: " c
+                                                (when expected (str ", expected: " expected ".")))
                                            ctx)
                              (do
                                (r/read-char reader) ;; read delimiter
