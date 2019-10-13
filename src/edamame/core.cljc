@@ -29,4 +29,4 @@
 ;;;; Scratch
 
 (comment
-  )
+  (parse-string "(1 2 3 #_4)"))

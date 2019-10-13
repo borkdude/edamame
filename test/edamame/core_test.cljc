@@ -78,7 +78,14 @@
                              opts)))
       (is (= '(syntax-quote (list (unquote x) (unquote (deref (atom nil)))))
              (p/parse-string "`(list ~x ~ @(atom nil))"
-                             opts))))))
+                             opts)))))
+  (testing "uneval works in delimited expression"
+    (is (= '[1 2 3] (p/parse-string "(1 2 3 #_4)"))))
+  (testing "unmatched delimiter"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected: ]"
+                          (p/parse-string "[}")))
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected ]"
+                          (p/parse-string "  [   ")))))
 
 ;;;; Scratch
 
