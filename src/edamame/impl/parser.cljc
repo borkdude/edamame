@@ -46,7 +46,9 @@
    (let [row (r/get-line-number reader)
          col (r/get-column-number reader)
          opened (r/read-char reader)]
-     (let [ctx (assoc ctx ::expected-delimiter delimiter)]
+     (let [ctx (assoc ctx
+                      ::expected-delimiter delimiter
+                      ::opened-delimiter {:char opened :row row :col col})]
        (loop [vals (transient into)]
          (let [;; if next-val is uneval, we get back the expected delimiter...
                next-val (parse-next ctx reader)]
@@ -208,7 +210,10 @@
                            (if (not= expected c)
                              (throw-reader reader
                                            (str "Unmatched delimiter: " c
-                                                (when expected (str ", expected: " expected ".")))
+                                                (when expected
+                                                  (str ", expected: " expected
+                                                       (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
+                                                         (str " to match " char " at " [row col])))))
                                            ctx)
                              (do
                                (r/read-char reader) ;; read delimiter
