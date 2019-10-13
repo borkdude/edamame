@@ -147,8 +147,8 @@
         \{ (parse-set ctx reader)
         \( (parse-list ctx reader)
         \_ (do
-             ;; ignore next form and return the one after it
-             (edn/read ctx reader)
+             (r/read-char reader) ;; read _
+             (edn/read ctx reader) ;; ignore next form
              (parse-next ctx reader))
         (do
           (r/unread reader \#)
