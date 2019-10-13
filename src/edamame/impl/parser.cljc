@@ -43,18 +43,26 @@
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
    (parse-to-delimiter ctx reader delimiter []))
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter into]
-   (r/read-char reader) ;; ignore delimiter
-   (let [ctx (assoc ctx ::expected-delimiter delimiter)]
-     (loop [vals (transient into)]
-       (let [next-val (parse-next ctx reader)]
-         ;; TODO: check for ::eof!
-         (cond
-           (#?(:clj identical? :cljs keyword-identical?) ::eof next-val)
-           (throw-reader reader "EOF while reading")
-           (#?(:clj identical? :cljs keyword-identical?) ::expected-delimiter next-val)
-           (persistent! vals)
-           :else
-           (recur (conj! vals next-val))))))))
+   (let [row (r/get-line-number reader)
+         col (r/get-column-number reader)
+         opened (r/read-char reader)]
+     (let [ctx (assoc ctx
+                      ::expected-delimiter delimiter
+                      ::open-delimiter {:row row
+                                        :col col
+                                        :opened opened})]
+       (loop [vals (transient into)]
+         (let [;; if next-val is uneval, we get back the expected delimiter...
+               next-val (parse-next ctx reader)]
+           (cond
+             (#?(:clj identical? :cljs keyword-identical?) ::eof next-val)
+             (throw-reader
+              reader
+              (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]"))
+             (#?(:clj identical? :cljs keyword-identical?) ::expected-delimiter next-val)
+             (persistent! vals)
+             :else
+             (recur (conj! vals next-val)))))))))
 
 (defn parse-list [ctx #?(:cljs ^not-native reader :default reader)]
   (apply list (parse-to-delimiter ctx reader \))))
@@ -137,9 +145,13 @@
           (r/read-char reader))
         (handle-dispatch ctx reader c true f))
       (case c
-        nil (throw-reader reader "Unexpected EOF.")
+        nil (throw-reader reader (str "Unexpected EOF."))
         \{ (parse-set ctx reader)
         \( (parse-list ctx reader)
+        \_ (do
+             ;; ignore next form and return the one after it
+             (edn/read ctx reader)
+             (parse-next ctx reader))
         (do
           (r/unread reader \#)
           (edn/read ctx reader))))))
@@ -199,7 +211,7 @@
               (\} \] \)) (let [expected (::expected-delimiter ctx)]
                            (if (not= expected c)
                              (throw-reader reader
-                                           (str "Unmatched delimiter: " c)
+                                           (str "Unmatched delimiter: " c ", expected: " expected ".")
                                            ctx)
                              (do
                                (r/read-char reader) ;; read delimiter
