@@ -45,22 +45,22 @@
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter into]
    (let [row (r/get-line-number reader)
          col (r/get-column-number reader)
-         opened (r/read-char reader)]
-     (let [ctx (assoc ctx
-                      ::expected-delimiter delimiter
-                      ::opened-delimiter {:char opened :row row :col col})]
-       (loop [vals (transient into)]
-         (let [;; if next-val is uneval, we get back the expected delimiter...
-               next-val (parse-next ctx reader)]
-           (cond
-             (#?(:clj identical? :cljs keyword-identical?) ::eof next-val)
-             (throw-reader
-              reader
-              (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]"))
-             (#?(:clj identical? :cljs keyword-identical?) ::expected-delimiter next-val)
-             (persistent! vals)
-             :else
-             (recur (conj! vals next-val)))))))))
+         opened (r/read-char reader)
+         ctx (assoc ctx
+                    ::expected-delimiter delimiter
+                    ::opened-delimiter {:char opened :row row :col col})]
+     (loop [vals (transient into)]
+       (let [;; if next-val is uneval, we get back the expected delimiter...
+             next-val (parse-next ctx reader)]
+         (cond
+           (#?(:clj identical? :cljs keyword-identical?) ::eof next-val)
+           (throw-reader
+            reader
+            (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]"))
+           (#?(:clj identical? :cljs keyword-identical?) ::expected-delimiter next-val)
+           (persistent! vals)
+           :else
+           (recur (conj! vals next-val))))))))
 
 (defn parse-list [ctx #?(:cljs ^not-native reader :default reader)]
   (apply list (parse-to-delimiter ctx reader \))))
@@ -134,14 +134,21 @@
     the-set))
 
 (defn parse-sharp
-  [ctx #?(:cljs ^not-native reader :default reader)]
-  (r/read-char reader) ;; ignore sharp
-  (let [c (r/peek-char reader)]
-    (if-let [f (or (get-in ctx [:dispatch \# c]))]
-      (do
-        (when-not (delimiter? c)
-          (r/read-char reader))
-        (handle-dispatch ctx reader c true f))
+  [ctx #?(:cljs ^not-native reader :default reader) path]
+  (let [c (r/peek-char reader)
+        sharp-dispatch (get-in ctx [:dispatch \#])
+        old-path path
+        path (conj path c)]
+    (if-let [[c f]
+             (or (when-let [v (get-in sharp-dispatch path)]
+                   [c v])
+                 (when-let [v (get-in sharp-dispatch (conj old-path :default))]
+                   [nil v]))]
+      (if (map? f) (do (r/read-char reader)
+                       (recur ctx reader path))
+          (do (when (and c (not (delimiter? c)))
+                (r/read-char reader))
+              (handle-dispatch ctx reader c true f)))
       (case c
         nil (throw-reader reader (str "Unexpected EOF."))
         \{ (parse-set ctx reader)
@@ -185,7 +192,9 @@
 (defn dispatch
   [{:keys [:dispatch] :as ctx} #?(:cljs ^not-native reader :default reader) path]
   (let [sharp? (= [\#] path)]
-    (if sharp? (parse-sharp ctx reader)
+    (if sharp? (do
+                 (r/read-char reader) ;; ignore sharp
+                 (parse-sharp ctx reader []))
         (if-let [[c f]
                  (or (when-let [v (get-in dispatch path)]
                        [(last path) v])

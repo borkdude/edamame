@@ -90,7 +90,15 @@
                           (p/parse-string "  [   ")))
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"Unmatched delimiter: \] \[at line 1, column 3\]"
-                          (p/parse-string "  ]   ")))))
+                          (p/parse-string "  ]   "))))
+  (testing "reader conditionals"
+    (let [opts {:dispatch {\# {\? {:default (fn [val]
+                                              (list 'reader-conditional val false))
+                                   \@ (fn [val] (list 'reader-conditional val true))}}}}]
+      (is (= '(reader-conditional (:clj :a :bb :b) false)
+             (p/parse-string "#?(:clj :a :bb :b)" opts)))
+      (is (= '(reader-conditional (:clj :a :bb :b) true)
+             (p/parse-string "#?@(:clj :a :bb :b)" opts))))))
 
 ;;;; Scratch
 
