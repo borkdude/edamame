@@ -9,11 +9,35 @@
       :cljs [cljs.tools.reader.reader-types :as r])
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
+   #?(:cljs [cljs.tools.reader.impl.utils :refer [reader-conditional]])
    [clojure.string :as s])
   #?(:clj (:import [java.io Closeable]))
   #?(:cljs (:import [goog.string StringBuffer])))
 
 #?(:clj (set! *warn-on-reflection* true))
+
+;;;; tools.reader
+
+(defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [tools-reader-opts (:tools.reader/opts ctx)]
+    (edn/read tools-reader-opts reader)))
+
+(defn dispatch-macro? [ch]
+  (contains? #{\^  ;; deprecated
+               \'
+               \(
+               \{
+               \"
+               \!
+               \_
+               \?
+               \:
+               \#} ch))
+
+;;;; tools.reader
+
+(defn kw-identical? [kw v]
+  (#?(:clj identical? :cljs keyword-identical?) kw v))
 
 (declare parse-next)
 
@@ -39,6 +63,11 @@
             " [at line " l ", column " c "]")
        (merge {:row l, :col c} data))))))
 
+(def non-match ::nil)
+
+(defn non-match? [v]
+  (kw-identical? v non-match))
+
 (defn parse-to-delimiter
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
    (parse-to-delimiter ctx reader delimiter []))
@@ -51,14 +80,19 @@
                     ::opened-delimiter {:char opened :row row :col col})]
      (loop [vals (transient into)]
        (let [;; if next-val is uneval, we get back the expected delimiter...
-             next-val (parse-next ctx reader)]
+             next-val (parse-next ctx reader)
+             cond-splice? (some-> next-val meta ::cond-splice)]
          (cond
-           (#?(:clj identical? :cljs keyword-identical?) ::eof next-val)
+           (kw-identical? ::eof next-val)
            (throw-reader
             reader
             (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]"))
-           (#?(:clj identical? :cljs keyword-identical?) ::expected-delimiter next-val)
+           (kw-identical? ::expected-delimiter next-val)
            (persistent! vals)
+           cond-splice? (do (doseq [v next-val]
+                              (conj! vals v))
+                            (recur vals))
+           (non-match? next-val) (recur vals)
            :else
            (recur (conj! vals next-val))))))))
 
@@ -133,6 +167,39 @@
       (throw-dup-keys reader start-loc :set coll))
     the-set))
 
+(defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [features (get ctx :features)]
+    (loop [match non-match]
+      (let [end? (= \) (r/peek-char reader))]
+        (if end?
+          (do
+            (r/read-char reader) ;; ignore closing \)
+            match)
+          (let [k (parse-next ctx reader)
+                match? (or
+                        (kw-identical? k :default)
+                        (and (non-match? match)
+                             (contains? features k)))]
+            (if match? (recur (parse-next ctx reader))
+                (do
+                  (parse-next (assoc ctx ::suppress true)
+                              reader)
+                  (recur match)))))))))
+
+(defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [preserve? (kw-identical? :preserve (:read-cond ctx))
+        splice? (= \@ (r/peek-char reader))]
+    (when splice? (r/read-char reader))
+    (if preserve?
+      (reader-conditional (parse-next ctx reader) splice?)
+      (do
+        (r/read-char reader) ;; skip \(
+        (let [match (parse-first-matching-condition ctx reader)]
+          (cond (non-match? match) reader
+                splice? (vary-meta match
+                                   #(assoc % ::cond-splice true))
+                :else match))))))
+
 (defn parse-sharp
   [ctx #?(:cljs ^not-native reader :default reader) path]
   (let [c (r/peek-char reader)
@@ -155,11 +222,29 @@
         \( (parse-list ctx reader)
         \_ (do
              (r/read-char reader) ;; read _
-             (edn/read ctx reader) ;; ignore next form
+             (edn-read ctx reader) ;; ignore next form
              (parse-next ctx reader))
-        (do
-          (r/unread reader \#)
-          (edn/read ctx reader))))))
+        \? (do
+             (when-not (:read-cond ctx)
+               (throw-reader
+                reader
+                (str "Conditional read not allowed.")))
+             (r/read-char reader) ;; ignore ?
+             (parse-reader-conditional ctx reader))
+        ;; catch-all
+        (if (dispatch-macro? c)
+          (do (r/unread reader \#)
+              (edn-read ctx reader))
+          ;; reader tag
+          (let [suppress? (::suppress ctx)]
+            (if suppress?
+              (do
+                ;; read symbol
+                (parse-next ctx reader)
+                ;; read form
+                (parse-next ctx reader))
+              (do (r/unread reader \#)
+                  (edn-read ctx reader)))))))))
 
 (defn throw-odd-map
   [#?(:cljs ^not-native reader :default reader) loc elements]
@@ -228,7 +313,7 @@
                                (r/read-char reader) ;; read delimiter
                                ::expected-delimiter)))
               \; (parse-comment reader)
-              (edn/read ctx reader)))))))
+              (edn-read ctx reader)))))))
 
 (defn whitespace?
   [#?(:clj ^java.lang.Character c :default c)]
@@ -268,14 +353,14 @@
   (let [^Closeable r (string-reader s)
         ctx (assoc opts ::expected-delimiter nil)
         v (parse-next ctx r)]
-    (if (identical? ::eof v) nil v)))
+    (if (kw-identical? ::eof v) nil v)))
 
 (defn parse-string-all [s opts]
   (let [^Closeable r (string-reader s)
         ctx (assoc opts ::expected-delimiter nil)]
     (loop [ret (transient [])]
       (let [next-val (parse-next ctx r)]
-        (if (#?(:clj identical? :cljs keyword-identical?) ::eof next-val)
+        (if (kw-identical? ::eof next-val)
           (persistent! ret)
           (recur (conj! ret next-val)))))))
 
