@@ -73,6 +73,16 @@ Dispatch on dispatch characters:
 ;;=> (fn* [p1__11574#] (inc 1 2 p1__11574#))
 ```
 
+Process reader conditionals:
+
+``` clojure
+(parse-string "[1 2 #?@(:cljs [3 4])]" {:features #{:cljs} :read-cond :allow})
+;;=> [1 2 3 4]
+
+(parse-string "[1 2 #?@(:cljs [3 4])]" {:features #{:cljs} :read-cond :preserve})
+;;=> [1 2 #?@(:cljs [3 4])]
+```
+
 ## Test
 
     script/test/jvm

@@ -43,7 +43,7 @@
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
   (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" #(re-pattern %)}}}) "aaa1aaa")))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
-  (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:readers {'foo/bar (fn [v] (str v))}})))
+  (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:tools.reader/opts {:readers {'foo/bar (fn [v] (str v))}}})))
   (is (= [1 2 3] (p/parse-string-all "1 2 3")))
   (is (= '({:row 1, :col 1}
            {:row 1, :col 5}
@@ -91,14 +91,37 @@
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"Unmatched delimiter: \] \[at line 1, column 3\]"
                           (p/parse-string "  ]   "))))
-  (testing "reader conditionals"
+  (testing "reader conditional dispatch config"
     (let [opts {:dispatch {\# {\? {:default (fn [val]
                                               (list 'reader-conditional val false))
                                    \@ (fn [val] (list 'reader-conditional val true))}}}}]
       (is (= '(reader-conditional (:clj :a :bb :b) false)
              (p/parse-string "#?(:clj :a :bb :b)" opts)))
       (is (= '(reader-conditional (:clj :a :bb :b) true)
-             (p/parse-string "#?@(:clj :a :bb :b)" opts))))))
+             (p/parse-string "#?@(:clj :a :bb :b)" opts)))))
+  (testing "reader conditional processing"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                          #"allow"
+                          (p/parse-string "#?(:clj 1)")))
+    (is (= [1 2 3 5] (p/parse-string "[1 2 #?(:bb 3 :clj 4) 5]" {:features #{:bb}
+                                                                 :read-cond :allow})))
+    (is (= [1 2 4 5] (p/parse-string "[1 2 #?(:clj 3 :default 4) 5]" {:features #{:bb}
+                                                                      :read-cond :allow})))
+    (is (= "[1 2 #?@(:bb 3 :clj 4) 5]" (pr-str (p/parse-string "[1 2 #?@(:bb 3 :clj 4) 5]" {:features #{:bb}
+                                                                                            :read-cond :preserve}))))
+    (testing "don't crash on unknown reader tag in irrelevant branch"
+      (is (= [1 2] (p/parse-string "[1 2 #?@(:cljs [1 2 3] :cljx #foo/bar 1)]"
+                                   {:features #{:bb}
+                                    :read-cond :allow}))))
+    (is (= [1 2 3 4 5] (p/parse-string-all "1 2 #?(:clj 4 :bb 3) #?(:clj 5 :default 4) 5"
+                                           {:features #{:bb}
+                                            :read-cond :allow})))
+    (is (= {:a :b} (p/parse-string "{#?@(:bb [:a :b])}"
+                                           {:features #{:bb}
+                                            :read-cond :allow})))
+    (is (= {} (p/parse-string "{#?@(:bb [:a :b])}"
+                              {:features #{:clj}
+                               :read-cond :allow})))))
 
 ;;;; Scratch
 

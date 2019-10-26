@@ -11,8 +11,12 @@
   parsed EDN value when encountering the char. Map may be nested for
   dispatch characters. See README.md for examples.
 
-  Additional arguments to tools.reader like `:readers` for passing
-  reader tag functions."
+  `:read-cond`: - `:allow` to process reader conditionals, or
+                  `:preserve` to keep all branches
+  `:features`: - persistent set of feature keywords for reader conditionals (e.g. `#{:clj}`).
+
+  Additional arguments to tools.reader may be passed with
+  `:tools.reader/opts`, like `:readers` for passing reader tag functions."
   ([s]
    (p/parse-string s nil))
   ([s opts]
