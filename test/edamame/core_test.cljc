@@ -107,6 +107,14 @@
                                                                  :read-cond :allow})))
     (is (= [1 2 4 5] (p/parse-string "[1 2 #?(:clj 3 :default 4) 5]" {:features #{:bb}
                                                                       :read-cond :allow})))
+    (is (= [1 2 3 5] (p/parse-string "[1 2 #?(:bb 3 :default 4) 5]" {:features #{:bb}
+                                                                     :read-cond :allow})))
+    (is (= [1 2 3 5] (p/parse-string "[1 2 #?(:default 4 :bb 3) 5]" {:features #{:bb}
+                                                                     :read-cond :allow})))
+    (is (= [1 2 4 5] (p/parse-string "[1 2 #?(:bb 3 :default 4) 5]" {:features #{:clj}
+                                                                     :read-cond :allow})))
+    (is (= [1 2 4 5] (p/parse-string "[1 2 #?(:default 4 :bb 3) 5]" {:features #{:clj}
+                                                                     :read-cond :allow})))
     (is (= "[1 2 #?@(:bb 3 :clj 4) 5]" (pr-str (p/parse-string "[1 2 #?@(:bb 3 :clj 4) 5]" {:features #{:bb}
                                                                                             :read-cond :preserve}))))
     (testing "don't crash on unknown reader tag in irrelevant branch"

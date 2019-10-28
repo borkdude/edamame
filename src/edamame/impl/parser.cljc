@@ -169,22 +169,26 @@
 
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
   (let [features (get ctx :features)]
-    (loop [match non-match]
+    (loop [match non-match
+           default-match? false]
       (let [end? (= \) (r/peek-char reader))]
         (if end?
           (do
             (r/read-char reader) ;; ignore closing \)
             match)
           (let [k (parse-next ctx reader)
-                match? (or
-                        (kw-identical? k :default)
-                        (and (non-match? match)
-                             (contains? features k)))]
-            (if match? (recur (parse-next ctx reader))
+                match? (or (and default-match?
+                                (contains? features k))
+                           (and (non-match? match)
+                                (or (contains? features k)
+                                    (kw-identical? k :default))))]
+            (if match? (recur (parse-next ctx reader)
+                              (or default-match?
+                                  (kw-identical? k :default)))
                 (do
                   (parse-next (assoc ctx ::suppress true)
                               reader)
-                  (recur match)))))))))
+                  (recur match default-match?)))))))))
 
 (defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
   (let [preserve? (kw-identical? :preserve (:read-cond ctx))
