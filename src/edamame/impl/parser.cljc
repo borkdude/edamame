@@ -176,10 +176,9 @@
             (r/read-char reader) ;; ignore closing \)
             match)
           (let [k (parse-next ctx reader)
-                match? (or
-                        (kw-identical? k :default)
-                        (and (non-match? match)
-                             (contains? features k)))]
+                match? (and (non-match? match)
+                            (or (contains? features k)
+                                (kw-identical? k :default)))]
             (if match? (recur (parse-next ctx reader))
                 (do
                   (parse-next (assoc ctx ::suppress true)
