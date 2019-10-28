@@ -302,15 +302,22 @@
               \{ (parse-map ctx reader)
               (\} \] \)) (let [expected (::expected-delimiter ctx)]
                            (if (not= expected c)
-                             (throw-reader reader
-                                           (str "Unmatched delimiter: " c
-                                                (when expected
-                                                  (str ", expected: " expected
-                                                       (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
-                                                         (str " to match " char " at " [row col])))))
-                                           ctx)
+                             (let [loc (location reader)]
+                               (r/read-char reader) ;; ignore unexpected
+                                                    ;; delimiter to be able to
+                                                    ;; continue reading, fix for
+                                                    ;; babashka socket REPL
+                               (throw-reader reader
+                                             (str "Unmatched delimiter: " c
+                                                  (when expected
+                                                    (str ", expected: " expected
+                                                         (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
+                                                           (str " to match " char " at " [row col])))))
+                                             ctx
+                                             loc))
                              (do
-                               (r/read-char reader) ;; read delimiter
+                               ;; read delimiter
+                               (r/read-char reader)
                                ::expected-delimiter)))
               \; (parse-comment reader)
               (edn-read ctx reader)))))))
