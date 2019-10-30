@@ -12,6 +12,8 @@
 
   `:fn`: parse function literals (`#(inc %)`). If `true`, will be parsed as `(fn [%1] (inc %))`.
 
+  `:quote`: parse quoted expression `'foo`. If `true`, will be parsed as `(quote foo)`.
+
   `:read-eval`: parse read-eval (`=(+ 1 2 3)`). If `true`, the
   resulting expression will be parsed as `(read-eval (+ 1 2 3))`.
 

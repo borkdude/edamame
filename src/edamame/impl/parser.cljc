@@ -227,7 +227,7 @@
                  (list 'read-eval next-val))))
            (throw-reader
             reader
-            (str "Var literal not allowed. Use the `:read-eval` option")))
+            (str "Read-eval not allowed. Use the `:read-eval` option")))
       \{ (parse-set ctx reader)
       ;; \( (parse-list ctx reader)
       \_ (do
@@ -311,7 +311,7 @@
                      (list 'quote next-val))))
                (throw-reader
                 reader
-                (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
+                (str "Quote not allowed. Use the `:quote` option")))
           \` (if-let [v (get ctx :syntax-quote)]
                (do
                  (r/read-char reader) ;; skip `
@@ -432,12 +432,13 @@
         opts (if (:all opts)
                (merge {:deref true
                        :fn true
-                       :regex true
-                       :var true
+                       :quote true
                        :read-eval true
+                       :regex true
                        :syntax-quote true
                        :unquote true
-                       :unquote-splicing true} opts)
+                       :unquote-splicing true
+                       :var true} opts)
                opts)]
     opts))
 
