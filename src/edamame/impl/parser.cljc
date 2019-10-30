@@ -317,6 +317,16 @@
                (throw-reader
                 reader
                 (str "Deref not allowed. Use the `:deref` option")))
+          \' (if-let [v (get ctx :quote)]
+               (do
+                 (r/read-char reader) ;; skip '
+                 (let [next-val (parse-next ctx reader)]
+                   (if (ifn? v)
+                     (v next-val)
+                     (list 'quote next-val))))
+               (throw-reader
+                reader
+                (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
           \` (if-let [v (get ctx :syntax-quote)]
                (do
                  (r/read-char reader) ;; skip `

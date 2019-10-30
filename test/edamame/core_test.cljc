@@ -6,8 +6,8 @@
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
-  (is (= 'foo (p/parse-string "foo" {:dispatch {\' (fn [val]
-                                                     (list 'quote val))}})))
+  (is (= 'foo (p/parse-string "foo")))
+
   (is (= :foo (p/parse-string ":foo")))
   (is (= :foo/bar (p/parse-string ":foo/bar")))
   (is (= '(1 2 3) (p/parse-string "(1 2 3)")))
@@ -126,6 +126,10 @@
   (is (= 'foo (p/parse-string "#'foo"
                               {:dispatch
                                {\# {\' identity}}}))))
+
+(deftest quote-test
+  (is (= '(quote foo) (p/parse-string "'foo" {:dispatch {\' (fn [val]
+                                                              (list 'quote val))}}))))
 
 ;;;; Scratch
 
