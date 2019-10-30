@@ -25,19 +25,5 @@
         var-args-sym '%&
         arg-list (vec (concat fixed-names (when var-args?
                                             ['& var-args-sym])))
-        destructure-vec (vec (interleave fixed-names fixed-names))
-        destructure-vec (if var-args?
-                          (conj destructure-vec var-args-sym var-args-sym)
-                          destructure-vec)
-        form (list 'fn arg-list expr)
-
-        #_{:sci/binding-vector arg-list
-              ;; body gets macroexpanded after read phase
-              :sci/body [expr]
-              :sci/fixed-arity (count fixed-names)
-              :sci/destructure-vec destructure-vec
-              :sci/arg-list arg-list
-              :sci/fixed-names fixed-names
-              :sci/var-arg-name (when var-args? '%&)}]
+        form (list 'fn arg-list expr)]
     form))
-

@@ -1,8 +1,7 @@
 (ns edamame.core-test
   (:require
-   [edamame.core :as p]
    [clojure.test :as t :refer [deftest is testing]]
-   #?(:clj [clojure.edn :as edn])))
+   [edamame.core :as p]))
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
@@ -35,11 +34,6 @@
   (is (= '(defn foo []) (p/parse-string "(defn foo [])")))
   (let [foo-sym (second (p/parse-string "(defn foo [])"))]
     (is (= {:row 1 :col 7} (meta foo-sym))))
-  #?(:clj (is (= (first (p/parse-string "#(inc 1 2 %)"
-                                        {:dispatch
-                                         {\# {\( (fn [expr]
-                                                   (read-string (str "#" expr)))}}}))
-                 'fn*)))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
   (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:tools.reader/opts {:readers {'foo/bar (fn [v] (str v))}}})))
   (is (= [1 2 3] (p/parse-string-all "1 2 3")))
@@ -130,6 +124,25 @@
 (deftest quote-test
   (is (= '(quote foo) (p/parse-string "'foo" {:dispatch {\' (fn [val]
                                                               (list 'quote val))}}))))
+
+(deftest fn-test
+  #?(:clj (is (= (first (p/parse-string "#(inc 1 2 %)"
+                                        {:dispatch
+                                         {\# {\( (fn [expr]
+                                                   (read-string (str "#" expr)))}}}))
+                 'fn*)))
+  (is (= (p/parse-string "#(inc %1 %)"
+                         {:fn true})
+         '(fn [%1] (inc %1 %1))))
+  (is (= (p/parse-string "#(inc %1 %)"
+                         {:fn true})
+         '(fn [%1] (inc %1 %1))))
+  (is (= (p/parse-string "#(apply + % %1 %3 %&)"
+                         {:fn true})
+         '(fn [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
+  (is (= (p/parse-string "#(apply + % %1 %3 %&)"
+                         {:all true})
+         '(fn [%1 %2 %3 & %&] (apply + %1 %1 %3 %&)))))
 
 ;;;; Scratch
 

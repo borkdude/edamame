@@ -17,8 +17,6 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-(declare handle-dispatch)
-
 ;;;; tools.reader
 
 (defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
@@ -122,19 +120,6 @@
                   (throw-reader reader "Error while parsing regex"))
                 (.append sb ch)))
             (recur (r/read-char reader))))))))
-
-#_(defn handle-dispatch
-    [ctx #?(:cljs ^not-native reader :default reader) c sharp? f]
-    (let [regex? (and sharp? (identical? \" c))
-          next-val (if regex?
-                     (read-regex-pattern ctx reader)
-                     (parse-next ctx reader))]
-      (f next-val)))
-
-(defn delimiter? [c]
-  (case c
-    (\{ \( \[ \") true
-    false))
 
 (defn location [#?(:cljs ^not-native reader :default reader)]
   {:row (r/get-line-number reader)
@@ -338,25 +323,25 @@
                 reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
           \~
-          (if-let [v (get ctx :syntax-unquote)]
+          (if-let [v (get ctx :unquote)]
             (do
               (r/read-char reader) ;; skip `
               (let [nc (r/peek-char reader)]
                 (if (identical? nc \@)
-                  (if-let [v (get ctx :syntax-unquote-splice)]
+                  (if-let [v (get ctx :unquote-splicing)]
                     (do
                       (r/read-char reader) ;; ignore @
                       (let [next-val (parse-next ctx reader)]
                         (if (ifn? v)
                           (v next-val)
-                          (list 'syntax-unquote-splice next-val))))
+                          (list 'unquote-splicing next-val))))
                     (throw-reader
                      reader
                      (str "Syntax unquote splice not allowed. Use the `:syntax-unquote-splice` option")))
                   (let [next-val (parse-next ctx reader)]
                     (if (ifn? v)
                       (v next-val)
-                      (list 'syntax-unquote next-val))))))
+                      (list 'unquote next-val))))))
             (throw-reader
              reader
              (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
@@ -420,44 +405,51 @@
    (r/string-push-back-reader s)))
 
 (defn normalize-opts [opts]
-  (let [dispatch (:dispatch opts)]
-    ;; (prn "DISP" dispatch)
-    (into (dissoc opts :dispatch)
-          [(when-let [v (get-in dispatch [\@])]
-             [:deref v])
-           (when-let [v (get-in dispatch [\`])]
-             [:syntax-quote v])
-           (when-let [v (get-in dispatch [\~])]
-             (if (fn? v)
-               [:syntax-unquote v]
-               [:syntax-unquote (:default v)]))
-           (when-let [v (get-in dispatch [\~ \@])]
-             [:syntax-unquote-splice v])
-           (when-let [v (get-in dispatch [\'])]
-             ;; TODO
-             [:quote v])
-           (when-let [v (get-in dispatch [\# \(])]
-             [:fn v])
-           (when-let [v (get-in dispatch [\# \'])]
-             [:var v])
-           (when-let [v (get-in dispatch [\# \=])]
-             [:read-eval v])
-           (when-let [v (get-in dispatch [\# \"])]
-             [:regex v])])))
+  (let [opts (if-let [dispatch (:dispatch opts)]
+               (into (dissoc opts :dispatch)
+                     [(when-let [v (get-in dispatch [\@])]
+                        [:deref v])
+                      (when-let [v (get-in dispatch [\`])]
+                        [:syntax-quote v])
+                      (when-let [v (get-in dispatch [\~])]
+                        (if (fn? v)
+                          [:unquote v]
+                          (when-let [v (:default v)]
+                            [:unquote v])))
+                      (when-let [v (get-in dispatch [\~ \@])]
+                        [:unquote-splicing v])
+                      (when-let [v (get-in dispatch [\'])]
+                        [:quote v])
+                      (when-let [v (get-in dispatch [\# \(])]
+                        [:fn v])
+                      (when-let [v (get-in dispatch [\# \'])]
+                        [:var v])
+                      (when-let [v (get-in dispatch [\# \=])]
+                        [:read-eval v])
+                      (when-let [v (get-in dispatch [\# \"])]
+                        [:regex v])])
+               opts)
+        opts (if (:all opts)
+               (merge {:deref true
+                       :fn true
+                       :regex true
+                       :var true
+                       :read-eval true
+                       :syntax-quote true
+                       :unquote true
+                       :unquote-splicing true} opts)
+               opts)]
+    opts))
 
 (defn parse-string [s opts]
-  (let [opts (if (:dispatch opts) ;; backwards compatiblity
-               (normalize-opts opts)
-               opts)
+  (let [opts (normalize-opts opts)
         ^Closeable r (string-reader s)
         ctx (assoc opts ::expected-delimiter nil)
         v (parse-next ctx r)]
     (if (kw-identical? ::eof v) nil v)))
 
 (defn parse-string-all [s opts]
-  (let [opts (if (:dispatch opts) ;; backwards compatiblity
-               (normalize-opts opts)
-               opts)
+  (let [opts (normalize-opts opts)
         ^Closeable r (string-reader s)
         ctx (assoc opts ::expected-delimiter nil)]
     (loop [ret (transient [])]
