@@ -91,7 +91,7 @@ Examples
 ;;=> (fn [%1] (alter-var-root (var foo) %1))
 ```
 
-Note that default options are overridable with functions:
+Note that standard behavior is overridable with functions:
 
 ``` clojure
 (parse-string "#\"foo\"" {:regex #(list 're-pattern %)})
