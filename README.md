@@ -66,7 +66,7 @@ form from a string and `parse-string-all` which parses all forms from a
 string. Both functions take the same options. See the docstring of
 `parse-string` for all the options.
 
-Examples
+Examples:
 
 ``` clojure
 (parse-string "@foo" {:deref true})
