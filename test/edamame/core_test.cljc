@@ -40,8 +40,6 @@
                                          {\# {\( (fn [expr]
                                                    (read-string (str "#" expr)))}}}))
                  'fn*)))
-  (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
-  (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" #(re-pattern %)}}}) "aaa1aaa")))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
   (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:tools.reader/opts {:readers {'foo/bar (fn [v] (str v))}}})))
   (is (= [1 2 3] (p/parse-string-all "1 2 3")))
@@ -60,9 +58,6 @@
   (is (= '(slurp "foo") (p/parse-string "#=(slurp \"foo\")"
                                         {:dispatch
                                          {\# {\= identity}}})))
-  (is (= 'foo (p/parse-string "#'foo"
-                              {:dispatch
-                               {\# {\' identity}}})))
   (testing "EOF while reading"
     (doseq [s ["(" "{" "["]]
       (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
@@ -91,14 +86,6 @@
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"Unmatched delimiter: \] \[at line 1, column 3\]"
                           (p/parse-string "  ]   "))))
-  (testing "reader conditional dispatch config"
-    (let [opts {:dispatch {\# {\? {:default (fn [val]
-                                              (list 'reader-conditional val false))
-                                   \@ (fn [val] (list 'reader-conditional val true))}}}}]
-      (is (= '(reader-conditional (:clj :a :bb :b) false)
-             (p/parse-string "#?(:clj :a :bb :b)" opts)))
-      (is (= '(reader-conditional (:clj :a :bb :b) true)
-             (p/parse-string "#?@(:clj :a :bb :b)" opts)))))
   (testing "reader conditional processing"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"allow"
@@ -125,11 +112,20 @@
                                            {:features #{:bb}
                                             :read-cond :allow})))
     (is (= {:a :b} (p/parse-string "{#?@(:bb [:a :b])}"
-                                           {:features #{:bb}
-                                            :read-cond :allow})))
+                                   {:features #{:bb}
+                                    :read-cond :allow})))
     (is (= {} (p/parse-string "{#?@(:bb [:a :b])}"
                               {:features #{:clj}
                                :read-cond :allow})))))
+
+(deftest regex-test
+  (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
+  (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" #(re-pattern %)}}}) "aaa1aaa"))))
+
+(deftest var-test
+  (is (= 'foo (p/parse-string "#'foo"
+                              {:dispatch
+                               {\# {\' identity}}}))))
 
 ;;;; Scratch
 
