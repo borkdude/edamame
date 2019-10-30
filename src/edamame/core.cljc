@@ -12,14 +12,11 @@
 
   `:fn`: parse function literals (`#(inc %)`). If `true`, will be parsed as `(fn [%1] (inc %))`.
 
-  `:regex`: parse regex literals (`#\"foo\"`). If `true`, defaults to
-  `re-pattern`.
-
-  `:var`: parse var literals (`#'foo`). If `true`, the resulting
-  expression will be parsed as `(var foo)`.
-
   `:read-eval`: parse read-eval (`=(+ 1 2 3)`). If `true`, the
   resulting expression will be parsed as `(read-eval (+ 1 2 3))`.
+
+  `:regex`: parse regex literals (`#\"foo\"`). If `true`, defaults to
+  `re-pattern`.
 
   `:syntax-quote`: parse syntax-quote (`(+ 1 2 3)`). If `true`, the
   resulting expression will be parsed as `(syntax-quote (+ 1 2 3))`.
@@ -30,6 +27,9 @@
 
   `:unquote-splicing`: parse syntax-unquote-splicing (`~@[1 2 3]`). If `true`,
   the resulting expression will be parsed as `(unquote-splicing [1 2 3])`.
+
+  `:var`: parse var literals (`#'foo`). If `true`, the resulting
+  expression will be parsed as `(var foo)`.
 
   `:all`: when `true`, the above options will be set to `true` unless
   explicitly provided.
