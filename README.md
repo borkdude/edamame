@@ -11,14 +11,15 @@ EDN parser with location metadata and pluggable dispatch table.
 This library can be useful when:
 
 - You want to include locations in feedback about EDN files.
-- You want to parse Clojure-like expressions and want to add support for unsupported EDN characters.
+- You want to parse Clojure-like expressions without any evalution.
 
 This library came out of [sci](https://github.com/borkdude/sci), a small Clojure interpreter.
 
 ## Features
 
 - Parse EDN values with location as metadata.
-- Pluggable dispatch table to extend EDN.
+- Is able to parse Clojure code without evaluation
+- Configurable
 
 This library works with:
 
@@ -30,6 +31,8 @@ This library works with:
 ``` clojure
 (require '[edamame.core :refer [parse-string]])
 ```
+
+### Location metadata
 
 Locations are attached as metadata:
 
@@ -56,21 +59,43 @@ Locations are attached as metadata:
  {:row 1, :col 18})
 ```
 
-Dispatch on a character, even if it's unsupported in EDN:
+### Parser options
+
+Edamame's API consists of two functions: `parse-string` which parses a the first
+form from a string and `parse-string-all` which parses all forms from a
+string. Both functions take the same options. See the docstring of
+`parse-string` for all the options.
+
+Examples
 
 ``` clojure
-(parse-string "@foo" {:dispatch {\@ (fn [val] (list 'deref val))}})
+(parse-string "@foo" {:deref true})
 ;;=> (deref foo)
-```
 
-Dispatch on dispatch characters:
+(parse-string "#(* % %1 %2)" {:fn true})
+;;=> (fn [%1 %2] (* %1 %1 %2))
 
-``` clojure
-(parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}})
+(parse-string "#=(+ 1 2 3)" {:read-eval true})
+;;=> (read-eval (+ 1 2 3))
+
+(parse-string "#\"foo\"" {:regex true})
 ;;=> #"foo"
 
-(parse-string "#(inc 1 2 %)" {:dispatch {\# {\( (fn [expr] (read-string (str "#" expr)))}}})
-;;=> (fn* [p1__11574#] (inc 1 2 p1__11574#))
+(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote true :unquote true :unquote-splicing true})
+;;=> (syntax-quote (+ 1 2 3 (unquote x) (unquote-splicing y)))
+
+(parse-string "#'foo" {:var true})
+;;=> (var foo)
+
+(parse-string "#(alter-var-root #'foo %)" {:all true})
+;;=> (fn [%1] (alter-var-root (var foo) %1))
+```
+
+Note that default options are overridable with functions:
+
+``` clojure
+(parse-string "#\"foo\"" {:regex #(list 're-pattern %)})
+(re-pattern "foo")
 ```
 
 Process reader conditionals:

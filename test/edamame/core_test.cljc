@@ -1,13 +1,12 @@
 (ns edamame.core-test
   (:require
-   [edamame.core :as p]
    [clojure.test :as t :refer [deftest is testing]]
-   #?(:clj [clojure.edn :as edn])))
+   [edamame.core :as p]))
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
-  (is (= 'foo (p/parse-string "foo" {:dispatch {\' (fn [val]
-                                                     (list 'quote val))}})))
+  (is (= 'foo (p/parse-string "foo")))
+
   (is (= :foo (p/parse-string ":foo")))
   (is (= :foo/bar (p/parse-string ":foo/bar")))
   (is (= '(1 2 3) (p/parse-string "(1 2 3)")))
@@ -35,13 +34,6 @@
   (is (= '(defn foo []) (p/parse-string "(defn foo [])")))
   (let [foo-sym (second (p/parse-string "(defn foo [])"))]
     (is (= {:row 1 :col 7} (meta foo-sym))))
-  #?(:clj (is (= (first (p/parse-string "#(inc 1 2 %)"
-                                        {:dispatch
-                                         {\# {\( (fn [expr]
-                                                   (read-string (str "#" expr)))}}}))
-                 'fn*)))
-  (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
-  (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" #(re-pattern %)}}}) "aaa1aaa")))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
   (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:tools.reader/opts {:readers {'foo/bar (fn [v] (str v))}}})))
   (is (= [1 2 3] (p/parse-string-all "1 2 3")))
@@ -60,9 +52,6 @@
   (is (= '(slurp "foo") (p/parse-string "#=(slurp \"foo\")"
                                         {:dispatch
                                          {\# {\= identity}}})))
-  (is (= 'foo (p/parse-string "#'foo"
-                              {:dispatch
-                               {\# {\' identity}}})))
   (testing "EOF while reading"
     (doseq [s ["(" "{" "["]]
       (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
@@ -91,14 +80,6 @@
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"Unmatched delimiter: \] \[at line 1, column 3\]"
                           (p/parse-string "  ]   "))))
-  (testing "reader conditional dispatch config"
-    (let [opts {:dispatch {\# {\? {:default (fn [val]
-                                              (list 'reader-conditional val false))
-                                   \@ (fn [val] (list 'reader-conditional val true))}}}}]
-      (is (= '(reader-conditional (:clj :a :bb :b) false)
-             (p/parse-string "#?(:clj :a :bb :b)" opts)))
-      (is (= '(reader-conditional (:clj :a :bb :b) true)
-             (p/parse-string "#?@(:clj :a :bb :b)" opts)))))
   (testing "reader conditional processing"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"allow"
@@ -125,11 +106,43 @@
                                            {:features #{:bb}
                                             :read-cond :allow})))
     (is (= {:a :b} (p/parse-string "{#?@(:bb [:a :b])}"
-                                           {:features #{:bb}
-                                            :read-cond :allow})))
+                                   {:features #{:bb}
+                                    :read-cond :allow})))
     (is (= {} (p/parse-string "{#?@(:bb [:a :b])}"
                               {:features #{:clj}
                                :read-cond :allow})))))
+
+(deftest regex-test
+  (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
+  (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" #(re-pattern %)}}}) "aaa1aaa"))))
+
+(deftest var-test
+  (is (= 'foo (p/parse-string "#'foo"
+                              {:dispatch
+                               {\# {\' identity}}}))))
+
+(deftest quote-test
+  (is (= '(quote foo) (p/parse-string "'foo" {:dispatch {\' (fn [val]
+                                                              (list 'quote val))}}))))
+
+(deftest fn-test
+  #?(:clj (is (= (first (p/parse-string "#(inc 1 2 %)"
+                                        {:dispatch
+                                         {\# {\( (fn [expr]
+                                                   (read-string (str "#" expr)))}}}))
+                 'fn*)))
+  (is (= (p/parse-string "#(inc %1 %)"
+                         {:fn true})
+         '(fn [%1] (inc %1 %1))))
+  (is (= (p/parse-string "#(inc %1 %)"
+                         {:fn true})
+         '(fn [%1] (inc %1 %1))))
+  (is (= (p/parse-string "#(apply + % %1 %3 %&)"
+                         {:fn true})
+         '(fn [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
+  (is (= (p/parse-string "#(apply + % %1 %3 %&)"
+                         {:all true})
+         '(fn [%1 %2 %3 & %&] (apply + %1 %1 %3 %&)))))
 
 ;;;; Scratch
 

@@ -10,7 +10,8 @@
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
    #?(:cljs [cljs.tools.reader.impl.utils :refer [reader-conditional]])
-   [clojure.string :as s])
+   [clojure.string :as s]
+   [edamame.impl.read-fn :refer [read-fn]])
   #?(:clj (:import [java.io Closeable]))
   #?(:cljs (:import [goog.string StringBuffer])))
 
@@ -120,19 +121,6 @@
                 (.append sb ch)))
             (recur (r/read-char reader))))))))
 
-(defn handle-dispatch
-  [ctx #?(:cljs ^not-native reader :default reader) c sharp? f]
-  (let [regex? (and sharp? (identical? \" c))
-        next-val (if regex?
-                   (read-regex-pattern ctx reader)
-                   (parse-next ctx reader))]
-    (f next-val)))
-
-(defn delimiter? [c]
-  (case c
-    (\{ \( \[ \") true
-    false))
-
 (defn location [#?(:cljs ^not-native reader :default reader)]
   {:row (r/get-line-number reader)
    :col (r/get-column-number reader)})
@@ -200,50 +188,73 @@
                 :else match))))))
 
 (defn parse-sharp
-  [ctx #?(:cljs ^not-native reader :default reader) path]
-  (let [c (r/peek-char reader)
-        sharp-dispatch (get-in ctx [:dispatch \#])
-        old-path path
-        path (conj path c)]
-    (if-let [[c f]
-             (or (when-let [v (get-in sharp-dispatch path)]
-                   [c v])
-                 (when-let [v (get-in sharp-dispatch (conj old-path :default))]
-                   [nil v]))]
-      (if (map? f) (do (r/read-char reader)
-                       (recur ctx reader path))
-          (do (when (and c (not (delimiter? c)))
-                (r/read-char reader))
-              (handle-dispatch ctx reader c true f)))
-      (case c
-        nil (throw-reader reader (str "Unexpected EOF."))
-        \{ (parse-set ctx reader)
-        \( (parse-list ctx reader)
-        \_ (do
-             (r/read-char reader) ;; read _
-             (edn-read ctx reader) ;; ignore next form
-             (parse-next ctx reader))
-        \? (do
-             (when-not (:read-cond ctx)
-               (throw-reader
-                reader
-                (str "Conditional read not allowed.")))
-             (r/read-char reader) ;; ignore ?
-             (parse-reader-conditional ctx reader))
-        ;; catch-all
-        (if (dispatch-macro? c)
-          (do (r/unread reader \#)
-              (edn-read ctx reader))
-          ;; reader tag
-          (let [suppress? (::suppress ctx)]
-            (if suppress?
-              (do
-                ;; read symbol
-                (parse-next ctx reader)
-                ;; read form
-                (parse-next ctx reader))
-              (do (r/unread reader \#)
-                  (edn-read ctx reader)))))))))
+  [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [c (r/peek-char reader)]
+    (case c
+      nil (throw-reader reader (str "Unexpected EOF."))
+      \" (if-let [v (get ctx :regex)]
+           (let [pat (read-regex-pattern ctx reader)]
+             (if (ifn? v)
+               (v pat)
+               (re-pattern pat)))
+           (throw-reader
+            reader
+            (str "Regex not allowed. Use the `:regex` option")))
+      \( (if-let [v (get ctx :fn)]
+           (let [fn-expr (parse-list ctx reader)]
+             (if (ifn? v)
+               (v fn-expr)
+               (read-fn fn-expr)))
+           (throw-reader
+            reader
+            (str "Function literal not allowed. Use the `:fn` option")))
+      \' (if-let [v (get ctx :var)]
+           (do
+             (r/read-char reader) ;; ignore quote
+             (let [next-val (parse-next ctx reader)]
+               (if (ifn? v)
+                 (v next-val)
+                 (list 'var next-val))))
+           (throw-reader
+            reader
+            (str "Var literal not allowed. Use the `:var` option")))
+      \= (if-let [v (get ctx :read-eval)]
+           (do
+             (r/read-char reader) ;; ignore =
+             (let [next-val (parse-next ctx reader)]
+               (if (ifn? v)
+                 (v next-val)
+                 (list 'read-eval next-val))))
+           (throw-reader
+            reader
+            (str "Read-eval not allowed. Use the `:read-eval` option")))
+      \{ (parse-set ctx reader)
+      ;; \( (parse-list ctx reader)
+      \_ (do
+           (r/read-char reader) ;; read _
+           (edn-read ctx reader) ;; ignore next form
+           (parse-next ctx reader))
+      \? (do
+           (when-not (:read-cond ctx)
+             (throw-reader
+              reader
+              (str "Conditional read not allowed.")))
+           (r/read-char reader) ;; ignore ?
+           (parse-reader-conditional ctx reader))
+      ;; catch-all
+      (if (dispatch-macro? c)
+        (do (r/unread reader \#)
+            (edn-read ctx reader))
+        ;; reader tag
+        (let [suppress? (::suppress ctx)]
+          (if suppress?
+            (do
+              ;; read symbol
+              (parse-next ctx reader)
+              ;; read form
+              (parse-next ctx reader))
+            (do (r/unread reader \#)
+                (edn-read ctx reader))))))))
 
 (defn throw-odd-map
   [#?(:cljs ^not-native reader :default reader) loc elements]
@@ -274,52 +285,90 @@
 (defn parse-unquote-splice [])
 
 (defn dispatch
-  [{:keys [:dispatch] :as ctx} #?(:cljs ^not-native reader :default reader) path]
-  (let [sharp? (= [\#] path)]
+  [ctx #?(:cljs ^not-native reader :default reader) c]
+  (let [sharp? (= \# c)]
     (if sharp? (do
                  (r/read-char reader) ;; ignore sharp
-                 (parse-sharp ctx reader []))
-        (if-let [[c f]
-                 (or (when-let [v (get-in dispatch path)]
-                       [(last path) v])
-                     (when-let [v (get-in dispatch (conj (pop path) :default))]
-                       [nil v]))]
-          (cond
-            (map? f) (do (r/read-char reader)
-                         (recur ctx reader
-                                (conj path (r/peek-char reader))))
-            :else
+                 (parse-sharp ctx reader))
+        (case c
+          nil ::eof
+          \@ (if-let [v (get ctx :deref)]
+               (do
+                 (r/read-char reader) ;; skip @
+                 (let [next-val (parse-next ctx reader)]
+                   (if (ifn? v)
+                     (v next-val)
+                     (list 'deref next-val))))
+               (throw-reader
+                reader
+                (str "Deref not allowed. Use the `:deref` option")))
+          \' (if-let [v (get ctx :quote)]
+               (do
+                 (r/read-char reader) ;; skip '
+                 (let [next-val (parse-next ctx reader)]
+                   (if (ifn? v)
+                     (v next-val)
+                     (list 'quote next-val))))
+               (throw-reader
+                reader
+                (str "Quote not allowed. Use the `:quote` option")))
+          \` (if-let [v (get ctx :syntax-quote)]
+               (do
+                 (r/read-char reader) ;; skip `
+                 (let [next-val (parse-next ctx reader)]
+                   (if (ifn? v)
+                     (v next-val)
+                     (list 'syntax-quote next-val))))
+               (throw-reader
+                reader
+                (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
+          \~
+          (if-let [v (get ctx :unquote)]
             (do
-              (when c
-                (r/read-char reader))
-              (handle-dispatch ctx reader c false f)))
-          (let [c (last path)]
-            (case c
-              nil ::eof
-              \( (parse-list ctx reader)
-              \[ (parse-to-delimiter ctx reader \])
-              \{ (parse-map ctx reader)
-              (\} \] \)) (let [expected (::expected-delimiter ctx)]
-                           (if (not= expected c)
-                             (let [loc (location reader)]
-                               (r/read-char reader) ;; ignore unexpected
-                                                    ;; delimiter to be able to
-                                                    ;; continue reading, fix for
-                                                    ;; babashka socket REPL
-                               (throw-reader reader
-                                             (str "Unmatched delimiter: " c
-                                                  (when expected
-                                                    (str ", expected: " expected
-                                                         (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
-                                                           (str " to match " char " at " [row col])))))
-                                             ctx
-                                             loc))
-                             (do
-                               ;; read delimiter
-                               (r/read-char reader)
-                               ::expected-delimiter)))
-              \; (parse-comment reader)
-              (edn-read ctx reader)))))))
+              (r/read-char reader) ;; skip `
+              (let [nc (r/peek-char reader)]
+                (if (identical? nc \@)
+                  (if-let [v (get ctx :unquote-splicing)]
+                    (do
+                      (r/read-char reader) ;; ignore @
+                      (let [next-val (parse-next ctx reader)]
+                        (if (ifn? v)
+                          (v next-val)
+                          (list 'unquote-splicing next-val))))
+                    (throw-reader
+                     reader
+                     (str "Syntax unquote splice not allowed. Use the `:syntax-unquote-splice` option")))
+                  (let [next-val (parse-next ctx reader)]
+                    (if (ifn? v)
+                      (v next-val)
+                      (list 'unquote next-val))))))
+            (throw-reader
+             reader
+             (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
+          \( (parse-list ctx reader)
+          \[ (parse-to-delimiter ctx reader \])
+          \{ (parse-map ctx reader)
+          (\} \] \)) (let [expected (::expected-delimiter ctx)]
+                       (if (not= expected c)
+                         (let [loc (location reader)]
+                           (r/read-char reader) ;; ignore unexpected
+                           ;; delimiter to be able to
+                           ;; continue reading, fix for
+                           ;; babashka socket REPL
+                           (throw-reader reader
+                                         (str "Unmatched delimiter: " c
+                                              (when expected
+                                                (str ", expected: " expected
+                                                     (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
+                                                       (str " to match " char " at " [row col])))))
+                                         ctx
+                                         loc))
+                         (do
+                           ;; read delimiter
+                           (r/read-char reader)
+                           ::expected-delimiter)))
+          \; (parse-comment reader)
+          (edn-read ctx reader)))))
 
 (defn whitespace?
   [#?(:clj ^java.lang.Character c :default c)]
@@ -339,7 +388,7 @@
   (parse-whitespace ctx reader) ;; skip leading whitespace
   (if-let [c (r/peek-char reader)]
     (let [loc (location reader)
-          obj (dispatch ctx reader [c])]
+          obj (dispatch ctx reader c)]
       (if (identical? reader obj)
         (parse-next ctx reader)
         (if #?(:clj
@@ -355,14 +404,54 @@
   (r/indexing-push-back-reader
    (r/string-push-back-reader s)))
 
+(defn normalize-opts [opts]
+  (let [opts (if-let [dispatch (:dispatch opts)]
+               (into (dissoc opts :dispatch)
+                     [(when-let [v (get-in dispatch [\@])]
+                        [:deref v])
+                      (when-let [v (get-in dispatch [\`])]
+                        [:syntax-quote v])
+                      (when-let [v (get-in dispatch [\~])]
+                        (if (fn? v)
+                          [:unquote v]
+                          (when-let [v (:default v)]
+                            [:unquote v])))
+                      (when-let [v (get-in dispatch [\~ \@])]
+                        [:unquote-splicing v])
+                      (when-let [v (get-in dispatch [\'])]
+                        [:quote v])
+                      (when-let [v (get-in dispatch [\# \(])]
+                        [:fn v])
+                      (when-let [v (get-in dispatch [\# \'])]
+                        [:var v])
+                      (when-let [v (get-in dispatch [\# \=])]
+                        [:read-eval v])
+                      (when-let [v (get-in dispatch [\# \"])]
+                        [:regex v])])
+               opts)
+        opts (if (:all opts)
+               (merge {:deref true
+                       :fn true
+                       :quote true
+                       :read-eval true
+                       :regex true
+                       :syntax-quote true
+                       :unquote true
+                       :unquote-splicing true
+                       :var true} opts)
+               opts)]
+    opts))
+
 (defn parse-string [s opts]
-  (let [^Closeable r (string-reader s)
+  (let [opts (normalize-opts opts)
+        ^Closeable r (string-reader s)
         ctx (assoc opts ::expected-delimiter nil)
         v (parse-next ctx r)]
     (if (kw-identical? ::eof v) nil v)))
 
 (defn parse-string-all [s opts]
-  (let [^Closeable r (string-reader s)
+  (let [opts (normalize-opts opts)
+        ^Closeable r (string-reader s)
         ctx (assoc opts ::expected-delimiter nil)]
     (loop [ret (transient [])]
       (let [next-val (parse-next ctx r)]
