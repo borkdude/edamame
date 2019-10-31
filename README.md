@@ -1,6 +1,6 @@
 # Edamame
 
-Configurable EDN parser with location metadata.
+Configurable EDN/Clojure parser with location metadata.
 
 [![CircleCI](https://circleci.com/gh/borkdude/edamame/tree/master.svg?style=shield)](https://circleci.com/gh/borkdude/edamame/tree/master)
 [![Clojars Project](https://img.shields.io/clojars/v/borkdude/edamame.svg)](https://clojars.org/borkdude/edamame)
