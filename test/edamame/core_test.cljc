@@ -123,7 +123,9 @@
 
 (deftest quote-test
   (is (= '(quote foo) (p/parse-string "'foo" {:dispatch {\' (fn [val]
-                                                              (list 'quote val))}}))))
+                                                              (list 'quote val))}})))
+  (is (= (symbol "'") (p/parse-string "'")))
+  (is (= (symbol "'foo") (p/parse-string "'foo"))))
 
 (deftest fn-test
   #?(:clj (is (= (first (p/parse-string "#(inc 1 2 %)"
