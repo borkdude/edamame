@@ -72,6 +72,9 @@ Examples:
 (parse-string "@foo" {:deref true})
 ;;=> (deref foo)
 
+(parse-string "'bar" {:quote true})
+;;=> (quote bar)
+
 (parse-string "#(* % %1 %2)" {:fn true})
 ;;=> (fn [%1 %2] (* %1 %1 %2))
 
