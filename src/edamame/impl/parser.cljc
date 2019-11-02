@@ -309,9 +309,8 @@
                    (if (ifn? v)
                      (v next-val)
                      (list 'quote next-val))))
-               (throw-reader
-                reader
-                (str "Quote not allowed. Use the `:quote` option")))
+               ;; quote is allowed in normal EDN
+               (edn-read ctx reader))
           \` (if-let [v (get ctx :syntax-quote)]
                (do
                  (r/read-char reader) ;; skip `
