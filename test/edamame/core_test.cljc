@@ -180,6 +180,9 @@
                            :auto-resolve '{:current cljs.core}
                            :tools.reader/opts {:readers cljs-tags/*cljs-data-readers*}})))
 
+(deftest readers-test
+  (is (= '(js [1 2 3]) (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}}))))
+
 ;;;; Scratch
 
 (comment

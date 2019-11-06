@@ -42,6 +42,12 @@
                   `:preserve` to keep all branches
   `:features`: - persistent set of feature keywords for reader conditionals (e.g. `#{:clj}`).
 
+  `:auto-resolve`: map of alias to namespace symbols for
+  auto-resolving keywords. Use `:current` as the alias for the current
+  namespace.
+
+  `:readers`: data readers.
+
   Additional arguments to tools.reader may be passed with
   `:tools.reader/opts`, like `:readers` for passing reader tag functions.
 

@@ -488,6 +488,9 @@
                        :unquote true
                        :unquote-splicing true
                        :var true} opts)
+               opts)
+        opts (if-let [readers (:readers opts)]
+               (update-in opts [:tools.reader/opts :readers] merge readers)
                opts)]
     opts))
 
