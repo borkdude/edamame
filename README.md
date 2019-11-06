@@ -24,6 +24,7 @@ This library came out of [sci](https://github.com/borkdude/sci), a small Clojure
 This library works with:
 
 - Clojure on the JVM
+- GraalVM compiled binaries
 - ClojureScript
 
 ## Usage
