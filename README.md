@@ -136,7 +136,7 @@ To create options from a namespace in the process where edamame is called from:
 ;;=> [:user/foo :clojure.string/foo]
 ```
 
-Passing data reader:
+Passing data readers:
 
 ``` clojure
 (parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})
