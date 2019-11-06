@@ -18,7 +18,7 @@ This library came out of [sci](https://github.com/borkdude/sci), a small Clojure
 ## Features
 
 - Parse EDN values with location as metadata.
-- Is able to parse Clojure code without evaluation
+- Parse Clojure code without evaluation
 - Configurable
 
 This library works with:
