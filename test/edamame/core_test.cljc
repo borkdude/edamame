@@ -156,6 +156,10 @@
   (is (= '{:row 1, :col 1, :end-row 1, :end-col 34, :arglists (quote ([& items]))}
          (meta (p/parse-string "^{:arglists '([& items])} [1 2 3]" {:all true})))))
 
+(deftest auto-resolve
+  (is (= '[:user/foo :clojure.string/foo]
+         (p/parse-string "[::foo ::str/foo]" {:auto-resolve '{:current user str clojure.string}}))))
+
 ;;;; Scratch
 
 (comment

@@ -230,7 +230,6 @@
             reader
             (str "Read-eval not allowed. Use the `:read-eval` option")))
       \{ (parse-set ctx reader)
-      ;; \( (parse-list ctx reader)
       \_ (do
            (r/read-char reader) ;; read _
            (parse-next ctx reader) ;; ignore next form
@@ -283,7 +282,44 @@
           (throw-dup-keys reader start-loc :map ks))))
     (apply hash-map elements)))
 
-(defn parse-unquote-splice [])
+
+(defn get-auto-resolve
+  ([ctx reader next-val]
+   (get-auto-resolve ctx reader next-val nil))
+  ([ctx reader next-val msg]
+   (if-let [v (get ctx :auto-resolve)]
+     v
+     (throw-reader reader
+                   (or msg "Use `:auto-resolve` to resolve aliases.")
+                   {:expr (str ":" next-val)}))))
+
+(defn auto-resolve
+  ([m kns reader next-val] (auto-resolve m kns reader next-val nil))
+  ([m kns reader next-val msg]
+   (if-let [kns (m kns)]
+     kns
+     (throw-reader reader
+                   (or msg (str "Alias `" (symbol kns) "` not found in `:auto-resolve`"))
+                   {:expr (str ":" next-val)}))))
+
+(defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
+  (do
+    (r/read-char reader) ;; ignore :
+    (let [next-val (edn-read ctx reader)]
+      (if (keyword? next-val)
+        (if-let [kns (namespace next-val)]
+          (let [f (get-auto-resolve ctx reader next-val)]
+            (let [kns (auto-resolve f (symbol kns) reader next-val)]
+              (keyword (str kns) (name next-val))))
+          ;; resolve current ns
+          (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+            (let [kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+              (keyword (str kns) (name next-val)))))
+        ;; must be a symbol, if so, does not need auto-resolve
+        (if-let [sns (namespace next-val)]
+          (keyword sns (name next-val))
+          ;; unqualified keyword
+          (keyword (name next-val)))))))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
@@ -375,6 +411,7 @@
                      val-val (vary-meta (parse-next ctx reader)
                                         merge meta-val)]
                  val-val))
+          \: (parse-keyword ctx reader)
           (edn-read ctx reader)))))
 
 (defn whitespace?

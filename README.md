@@ -111,6 +111,13 @@ Process reader conditionals:
 ;;=> [1 2 #?@(:cljs [3 4])]
 ```
 
+Auto-resolve keywords:
+
+``` clojure
+(parse-string "[::foo ::str/foo]" {:auto-resolve '{:current user str clojure.string}})
+;;=> [:user/foo :clojure.string/foo]
+```
+
 ## Test
 
     script/test/jvm
