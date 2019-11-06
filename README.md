@@ -119,6 +119,23 @@ Auto-resolve keywords:
 ;;=> [:user/foo :clojure.string/foo]
 ```
 
+To create options from a namespace in the process where edamame is called from:
+
+``` clojure
+(defn auto-resolves [ns]
+  (as-> (ns-aliases ns) $
+    (assoc $ :current (ns-name *ns*))
+    (zipmap (keys $)
+            (map ns-name (vals $)))))
+
+(require '[clojure.string :as str]) ;; create example alias
+
+(auto-resolves *ns*) ;;=> {str clojure.string, :current user}
+
+(parse-string "[::foo ::str/foo]" {:auto-resolve (auto-resolves *ns*)})
+;;=> [:user/foo :clojure.string/foo]
+```
+
 ## Test
 
     script/test/jvm
