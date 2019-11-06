@@ -13,7 +13,8 @@
   :profiles {:clojure-1.9.0 {:dependencies [[org.clojure/clojure "1.9.0"]]}
              :clojure-1.10.1 {:dependencies [[org.clojure/clojure "1.10.1"]]}
              :test {:jvm-opts ["-Djdk.attach.allowAttachSelf"]
-                    :dependencies [[clj-commons/conch "0.9.2"]
+                    :dependencies [[org.clojure/clojurescript "1.10.520"]
+                                   [clj-commons/conch "0.9.2"]
                                    [criterium "0.4.5"]
                                    [com.clojure-goes-fast/clj-async-profiler "0.4.0"]]}
              :uberjar {:global-vars {*assert* false}
