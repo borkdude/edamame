@@ -148,6 +148,10 @@
                          {:all true})
          '(fn [%1 %2 %3 & %&] (apply + %1 %1 %3 %&)))))
 
+(deftest location-test
+  (is (= '({:row 1, :col 13, :end-row 1, :end-col 17})
+         (map meta (p/parse-string "[#_#_ ar gu ment]")))))
+
 ;;;; Scratch
 
 (comment
