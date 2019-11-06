@@ -1,7 +1,8 @@
 (ns edamame.core-test
   (:require
    [clojure.test :as t :refer [deftest is testing]]
-   [edamame.core :as p]))
+   [edamame.core :as p]
+   #?(:clj [clojure.java.io :as io])))
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
@@ -159,6 +160,18 @@
 (deftest auto-resolve
   (is (= '[:user/foo :clojure.string/foo]
          (p/parse-string "[::foo ::str/foo]" {:auto-resolve '{:current user str clojure.string}}))))
+
+#?(:cljs
+   (do (def fs (js/require "fs"))
+       (def readFileSync (.-readFileSync fs))
+       (def path (js/require "path"))
+       (def join (.-join path))))
+
+(deftest parse-clojure-core
+  (is (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
+                             :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
+                          {:all true
+                           :auto-resolve '{:current clojure.core}})))
 
 ;;;; Scratch
 
