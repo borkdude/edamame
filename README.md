@@ -42,21 +42,21 @@ Locations are attached as metadata:
  {:b 2}]")
 (map meta (parse-string s))
 ;;=>
-({:row 2, :col 2}
- {:row 3, :col 2})
+({:row 2, :col 2, :end-row 2, :end-col 8}
+ {:row 3, :col 2, :end-row 3, :end-col 8})
 
 (->> "{:a {:b {:c [a b c]}}}"
      parse-string
      (tree-seq coll? #(if (map? %) (vals %) %))
      (map meta))
 ;;=>
-({:row 1, :col 1}
- {:row 1, :col 5}
- {:row 1, :col 9}
- {:row 1, :col 13}
- {:row 1, :col 14}
- {:row 1, :col 16}
- {:row 1, :col 18})
+({:row 1, :col 1, :end-row 1, :end-col 23}
+ {:row 1, :col 5, :end-row 1, :end-col 22}
+ {:row 1, :col 9, :end-row 1, :end-col 21}
+ {:row 1, :col 13, :end-row 1, :end-col 20}
+ {:row 1, :col 14, :end-row 1, :end-col 15}
+ {:row 1, :col 16, :end-row 1, :end-col 17}
+ {:row 1, :col 18, :end-row 1, :end-col 19})
 ```
 
 ### Parser options

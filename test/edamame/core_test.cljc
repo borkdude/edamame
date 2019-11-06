@@ -24,26 +24,28 @@
                         (p/parse-string "{:a :b :a :c}")))
   (testing "edamame can parse the empty map"
     (is (= {} (p/parse-string "{}"))))
-  (is (= {:row 1 :col 2}  (meta (first (p/parse-string "[{:a 1 :b 2}]")))))
-  (is (= {:foo true :row 1 :col 1} (meta (p/parse-string "^:foo {:a 1 :b 2}"))))
+  (is (= {:row 1 :col 2, :end-row 1, :end-col 13}
+         (meta (first (p/parse-string "[{:a 1 :b 2}]")))))
+  (is (= {:foo true :row 1 :col 1, :end-row 1, :end-col 18}
+         (meta (p/parse-string "^:foo {:a 1 :b 2}"))))
   (let [p (p/parse-string ";; foo\n{:a 1}")]
     (is (= {:a 1} p))
-    (is (= {:row 2 :col 1} (meta p))))
+    (is (= {:row 2 :col 1 :end-row 2, :end-col 7} (meta p))))
   (is (= '(deref foo) (p/parse-string "@foo" {:dispatch {\@ (fn [val]
                                                               (list 'deref val))}})))
   (is (= '(defn foo []) (p/parse-string "(defn foo [])")))
   (let [foo-sym (second (p/parse-string "(defn foo [])"))]
-    (is (= {:row 1 :col 7} (meta foo-sym))))
+    (is (= {:row 1 :col 7 :end-row 1, :end-col 10} (meta foo-sym))))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
   (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:tools.reader/opts {:readers {'foo/bar (fn [v] (str v))}}})))
   (is (= [1 2 3] (p/parse-string-all "1 2 3")))
-  (is (= '({:row 1, :col 1}
-           {:row 1, :col 5}
-           {:row 1, :col 9}
-           {:row 1, :col 13}
-           {:row 1, :col 14}
-           {:row 1, :col 16}
-           {:row 1, :col 18})
+  (is (= '({:row 1, :col 1, :end-row 1, :end-col 23}
+           {:row 1, :col 5, :end-row 1, :end-col 22}
+           {:row 1, :col 9, :end-row 1, :end-col 21}
+           {:row 1, :col 13, :end-row 1, :end-col 20}
+           {:row 1, :col 14, :end-row 1, :end-col 15}
+           {:row 1, :col 16, :end-row 1, :end-col 17}
+           {:row 1, :col 18, :end-row 1, :end-col 19})
          (->>
           "{:a {:b {:c [a b c]}}}"
           p/parse-string

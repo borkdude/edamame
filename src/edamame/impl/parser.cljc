@@ -393,7 +393,12 @@
         (if #?(:clj
                (instance? clojure.lang.IObj obj)
                :cljs (satisfies? IWithMeta obj))
-          (vary-meta obj merge loc)
+          (let [end-loc (location reader)]
+            (vary-meta obj #(assoc %
+                                   :row (:row loc)
+                                   :col (:col loc)
+                                   :end-row (:row end-loc)
+                                   :end-col (:col end-loc))))
           obj)))
     ::eof))
 
