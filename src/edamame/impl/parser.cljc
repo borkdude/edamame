@@ -9,7 +9,8 @@
       :cljs [cljs.tools.reader.reader-types :as r])
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
-   #?(:cljs [cljs.tools.reader.impl.utils :refer [reader-conditional]])
+   #?(:clj [clojure.tools.reader.impl.utils :refer [desugar-meta]]
+      :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta]])
    [clojure.string :as s]
    [edamame.impl.read-fn :refer [read-fn]])
   #?(:clj (:import [java.io Closeable]))
@@ -232,8 +233,8 @@
       ;; \( (parse-list ctx reader)
       \_ (do
            (r/read-char reader) ;; read _
-           (edn-read ctx reader) ;; ignore next form
-           reader #_(parse-next ctx reader))
+           (parse-next ctx reader) ;; ignore next form
+           reader)
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader
@@ -367,6 +368,13 @@
                            (r/read-char reader)
                            ::expected-delimiter)))
           \; (parse-comment reader)
+          \^ (do
+               (r/read-char reader) ;; ignore ^
+               (let [meta-val (parse-next ctx reader)
+                     meta-val (desugar-meta meta-val)
+                     val-val (vary-meta (parse-next ctx reader)
+                                        merge meta-val)]
+                 val-val))
           (edn-read ctx reader)))))
 
 (defn whitespace?

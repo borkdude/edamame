@@ -152,6 +152,10 @@
   (is (= '({:row 1, :col 13, :end-row 1, :end-col 17})
          (map meta (p/parse-string "[#_#_ ar gu ment]")))))
 
+(deftest meta-test
+  (is (= '{:row 1, :col 1, :end-row 1, :end-col 34, :arglists (quote ([& items]))}
+         (meta (p/parse-string "^{:arglists '([& items])} [1 2 3]" {:all true})))))
+
 ;;;; Scratch
 
 (comment
