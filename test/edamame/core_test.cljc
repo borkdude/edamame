@@ -163,9 +163,9 @@
 
 #?(:cljs
    (do (def fs (js/require "fs"))
-       (def readFileSync (.-readFileSync fs))
+       (def readFileSync (aget fs "readFileSync"))
        (def path (js/require "path"))
-       (def join (.-join path))))
+       (def join (aget path "join"))))
 
 (deftest parse-clojure-core
   (is (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
