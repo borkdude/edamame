@@ -37,6 +37,10 @@
 
 ;;;; tools.reader
 
+(defn location [#?(:cljs ^not-native reader :default reader)]
+  {:row (r/get-line-number reader)
+   :col (r/get-column-number reader)})
+
 (defn kw-identical? [kw v]
   (#?(:clj identical? :cljs keyword-identical?) kw v))
 
@@ -120,10 +124,6 @@
                   (throw-reader reader "Error while parsing regex"))
                 (.append sb ch)))
             (recur (r/read-char reader))))))))
-
-(defn location [#?(:cljs ^not-native reader :default reader)]
-  {:row (r/get-line-number reader)
-   :col (r/get-column-number reader)})
 
 (defn- duplicate-keys-error [msg coll]
   ;; https://github.com/clojure/tools.reader/blob/97d5dac9f5e7c04d8fe6c4a52cd77d6ced560d76/src/main/cljs/cljs/tools/reader/impl/errors.cljs#L233
@@ -233,7 +233,7 @@
       \_ (do
            (r/read-char reader) ;; read _
            (edn-read ctx reader) ;; ignore next form
-           (parse-next ctx reader))
+           reader #_(parse-next ctx reader))
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader
@@ -374,7 +374,7 @@
   #?(:clj (and c (or (= c \,) (Character/isWhitespace c)))
      :cljs (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
 
-(defn parse-whitespace
+(defn skip-leading-whitespace
   [_ctx #?(:cljs ^not-native reader :default reader)]
   (loop []
     (let [c (r/read-char reader)]
@@ -384,7 +384,7 @@
             reader)))))
 
 (defn parse-next [ctx reader]
-  (parse-whitespace ctx reader) ;; skip leading whitespace
+  (skip-leading-whitespace ctx reader)
   (if-let [c (r/peek-char reader)]
     (let [loc (location reader)
           obj (dispatch ctx reader c)]
