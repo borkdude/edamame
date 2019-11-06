@@ -2,7 +2,9 @@
   (:require
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
-   #?(:clj [clojure.java.io :as io])))
+   #?(:clj [clojure.java.io :as io])
+   #?(:cljs [goog.object :as gobj])
+   [cljs.tagged-literals :as cljs-tags]))
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
@@ -163,15 +165,20 @@
 
 #?(:cljs
    (do (def fs (js/require "fs"))
-       (def readFileSync (aget fs "readFileSync"))
+       (def readFileSync (gobj/get fs "readFileSync"))
        (def path (js/require "path"))
-       (def join (aget path "join"))))
+       (def join (gobj/get path "join"))))
 
 (deftest parse-clojure-core
   (is (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
                              :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
                           {:all true
-                           :auto-resolve '{:current clojure.core}})))
+                           :auto-resolve '{:current clojure.core}}))
+  (is (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
+                             :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
+                          {:all true
+                           :auto-resolve '{:current cljs.core}
+                           :tools.reader/opts {:readers cljs-tags/*cljs-data-readers*}})))
 
 ;;;; Scratch
 
