@@ -183,6 +183,12 @@
 (deftest readers-test
   (is (= '(js [1 2 3]) (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}}))))
 
+(deftest namespaced-map-test
+  ;; TODO: fix locations of namespaced maps
+  (is (= #:foo{:a 1} (p/parse-string "#:foo{:a 1}")))
+  (is (= {:bar/dude 1, :foo.foo/a 1}
+         (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}}))) )
+
 ;;;; Scratch
 
 (comment

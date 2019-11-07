@@ -9,8 +9,8 @@
       :cljs [cljs.tools.reader.reader-types :as r])
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
-   #?(:clj [clojure.tools.reader.impl.utils :refer [desugar-meta]]
-      :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta]])
+   #?(:clj [clojure.tools.reader.impl.utils :refer [desugar-meta namespace-keys]]
+      :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta namespace-keys]])
    [clojure.string :as s]
    [edamame.impl.read-fn :refer [read-fn]])
   #?(:clj (:import [java.io Closeable]))
@@ -188,6 +188,39 @@
                                    #(assoc % ::cond-splice true))
                 :else match))))))
 
+(defn get-auto-resolve
+  ([ctx reader next-val]
+   (get-auto-resolve ctx reader next-val nil))
+  ([ctx reader next-val msg]
+   (if-let [v (get ctx :auto-resolve)]
+     v
+     (throw-reader reader
+                   (or msg "Use `:auto-resolve` to resolve aliases.")
+                   {:expr (str ":" next-val)}))))
+
+(defn auto-resolve
+  ([m kns reader next-val] (auto-resolve m kns reader next-val nil))
+  ([m kns reader next-val msg]
+   (if-let [kns (m kns)]
+     kns
+     (throw-reader reader
+                   (or msg (str "Alias `" (symbol kns) "` not found in `:auto-resolve`"))
+                   {:expr (str ":" next-val)}))))
+
+(defn parse-namespaced-map [ctx reader]
+  (let [prefix (edn-read ctx reader)
+        the-map (parse-next ctx reader)]
+    (if (keyword? prefix)
+      ;; autoresolved
+      (let [ns (symbol (name prefix))
+            f (get-auto-resolve ctx reader ns)
+            resolved-ns (auto-resolve f ns reader prefix)]
+        (zipmap (namespace-keys (str resolved-ns) (keys the-map))
+                (vals the-map)))
+      (let [resolved-ns (name prefix)]
+        (zipmap (namespace-keys resolved-ns (keys the-map))
+                (vals the-map))))))
+
 (defn parse-sharp
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [c (r/peek-char reader)]
@@ -241,6 +274,9 @@
               (str "Conditional read not allowed.")))
            (r/read-char reader) ;; ignore ?
            (parse-reader-conditional ctx reader))
+      \: (do
+           (r/read-char reader) ;; ignore :
+           (parse-namespaced-map ctx reader))
       ;; catch-all
       (if (dispatch-macro? c)
         (do (r/unread reader \#)
@@ -281,26 +317,6 @@
         (when-not (apply distinct? ks)
           (throw-dup-keys reader start-loc :map ks))))
     (apply hash-map elements)))
-
-
-(defn get-auto-resolve
-  ([ctx reader next-val]
-   (get-auto-resolve ctx reader next-val nil))
-  ([ctx reader next-val msg]
-   (if-let [v (get ctx :auto-resolve)]
-     v
-     (throw-reader reader
-                   (or msg "Use `:auto-resolve` to resolve aliases.")
-                   {:expr (str ":" next-val)}))))
-
-(defn auto-resolve
-  ([m kns reader next-val] (auto-resolve m kns reader next-val nil))
-  ([m kns reader next-val msg]
-   (if-let [kns (m kns)]
-     kns
-     (throw-reader reader
-                   (or msg (str "Alias `" (symbol kns) "` not found in `:auto-resolve`"))
-                   {:expr (str ":" next-val)}))))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (do
