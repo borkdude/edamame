@@ -52,6 +52,20 @@
   (r/read-line reader)
   reader)
 
+(defn whitespace?
+  [#?(:clj ^java.lang.Character c :default c)]
+  #?(:clj (and c (or (= c \,) (Character/isWhitespace c)))
+     :cljs (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
+
+(defn skip-whitespace
+  [_ctx #?(:cljs ^not-native reader :default reader)]
+  (loop []
+    (let [c (r/read-char reader)]
+      (if (whitespace? c)
+        (recur)
+        (do (r/unread reader c)
+            reader)))))
+
 (defn throw-reader
   "Throw reader exception, including line line/column. line/column is
   read from the reader but it can be overriden by passing loc
@@ -159,11 +173,11 @@
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
   (let [features (get ctx :features)]
     (loop [match non-match]
+      (skip-whitespace ctx reader)
       (let [end? (= \) (r/peek-char reader))]
         (if end?
-          (do
-            (r/read-char reader) ;; ignore closing \)
-            match)
+          (do (r/read-char reader) ;; ignore closing \)
+              match)
           (let [k (parse-next ctx reader)
                 match? (and (non-match? match)
                             (or (contains? features k)
@@ -430,22 +444,8 @@
           \: (parse-keyword ctx reader)
           (edn-read ctx reader)))))
 
-(defn whitespace?
-  [#?(:clj ^java.lang.Character c :default c)]
-  #?(:clj (and c (or (= c \,) (Character/isWhitespace c)))
-     :cljs (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
-
-(defn skip-leading-whitespace
-  [_ctx #?(:cljs ^not-native reader :default reader)]
-  (loop []
-    (let [c (r/read-char reader)]
-      (if (whitespace? c)
-        (recur)
-        (do (r/unread reader c)
-            reader)))))
-
 (defn parse-next [ctx reader]
-  (skip-leading-whitespace ctx reader)
+  (skip-whitespace ctx reader)
   (if-let [c (r/peek-char reader)]
     (let [loc (location reader)
           obj (dispatch ctx reader c)]

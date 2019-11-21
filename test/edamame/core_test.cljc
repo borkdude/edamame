@@ -115,7 +115,11 @@
                                     :read-cond :allow})))
     (is (= {} (p/parse-string "{#?@(:bb [:a :b])}"
                               {:features #{:clj}
-                               :read-cond :allow})))))
+                               :read-cond :allow})))
+    (testing "detect end in presence of whitespace"
+      (is (= 2 (p/parse-string "#?(:bb 1 :clj 2 \n )"
+                               {:features #{:clj}
+                                :read-cond :allow}))))))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
