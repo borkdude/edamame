@@ -145,7 +145,7 @@ Passing data readers:
 
 ## Test
 
-Ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew). Then run the following:
+For the node tests, ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew). For the JVM tests you will require [leiningen](https://leiningen.org/) to be installed. Then run the following:
 
     script/test/jvm
     script/test/node
