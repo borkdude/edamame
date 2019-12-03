@@ -81,7 +81,9 @@
       (ex-info
        (str msg
             " [at line " l ", column " c "]")
-       (merge {:row l, :col c} data))))))
+       (merge {:type :edamame/error
+               :row l
+               :col c} data))))))
 
 (def non-match ::nil)
 
