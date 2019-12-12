@@ -193,6 +193,12 @@
   (is (= {:bar/dude 1, :foo.foo/a 1}
          (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}}))) )
 
+(deftest exception-test
+  (is (= (try (p/parse-string "(")
+              (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) e
+                (ex-data e)))
+         {:type :edamame/error, :row 1, :col 1})))
+
 ;;;; Scratch
 
 (comment
