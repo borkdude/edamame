@@ -403,14 +403,14 @@
                           (list 'unquote-splicing next-val))))
                     (throw-reader
                      reader
-                     (str "Syntax unquote splice not allowed. Use the `:syntax-unquote-splice` option")))
+                     (str "Syntax unquote splice not allowed. Use the `:unquote-splicing` option")))
                   (let [next-val (parse-next ctx reader)]
                     (if (ifn? v)
                       (v next-val)
                       (list 'unquote next-val))))))
             (throw-reader
              reader
-             (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
+             (str "Syntax unquote not allowed. Use the `:unquote` option")))
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
           \{ (parse-map ctx reader)
