@@ -85,9 +85,6 @@ Examples:
 (parse-string "#\"foo\"" {:regex true})
 ;;=> #"foo"
 
-```
-
-``` clojure
 (parse-string "#'foo" {:var true})
 ;;=> (var foo)
 
