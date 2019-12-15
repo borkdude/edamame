@@ -433,7 +433,7 @@
                        (swap! gensyms assoc form generated)
                        generated))
                    :else
-                   (let [f (:qualify-fn ctx)]
+                   (let [f (-> ctx :syntax-quote :qualify-fn)]
                      ((or f identity) form)))))
      (unquote? form) (second form)
      (unquote-splicing? form) (throw (new #?(:cljs js/Error :clj IllegalStateException)
@@ -465,13 +465,8 @@
      form
 
      :else (list 'quote form))
-   #_(add-meta form)))
-
-#_(defn read-syntax-quote
-    [ctx #?(:cljs ^not-native reader :default reader)]
-    (let [ctx (assoc ctx :gensym-env {})]
-      (-> (read* rdr true nil opts pending-forms)
-          syntax-quote*)))
+   #_(add-meta form) ;; TODO?
+   ))
 
 ;;;; End syntax-quote
 
@@ -506,11 +501,11 @@
                (do
                  (r/read-char reader) ;; skip `
                  (let [next-val (parse-next ctx reader)]
-                   (if (ifn? v)
+                   (if (fn? v)
                      (v next-val)
                      (let [gensyms (atom {})
                            ctx (assoc ctx :gensyms gensyms)]
-                       (syntax-quote* ctx reader next-val #_(list 'syntax-quote next-val))))))
+                       (syntax-quote* ctx reader next-val)))))
                (throw-reader
                 reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
