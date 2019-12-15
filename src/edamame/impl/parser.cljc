@@ -11,7 +11,7 @@
       :cljs [cljs.tools.reader.impl.inspect :as i])
    #?(:clj [clojure.tools.reader.impl.utils :refer [desugar-meta namespace-keys]]
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta namespace-keys]])
-   [clojure.string :as s]
+   [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]])
   #?(:clj (:import [java.io Closeable]))
   #?(:cljs (:import [goog.string StringBuffer])))
@@ -158,7 +158,7 @@
   (throw-reader
    reader
    (duplicate-keys-error
-    (str (s/capitalize (name kind)) " literal contains duplicate key")
+    (str (str/capitalize (name kind)) " literal contains duplicate key")
     ks)
    nil
    loc))
@@ -409,21 +409,32 @@
       (seq (persistent! key-vals)))))
 
 #_(defn- add-meta [form ret]
-  (if (and #?(:clj (instance? clojure.lang.IObj form)
-              :cljs (instance? IMeta form))
-           (seq (dissoc (meta form) :line :column :end-line :end-column :file :source)))
-    (list 'clojure.core/with-meta ret (syntax-quote* (meta form)))
-    ret))
+    (if (and #?(:clj (instance? clojure.lang.IObj form)
+                :cljs (instance? IMeta form))
+             (seq (dissoc (meta form) :line :column :end-line :end-column :file :source)))
+      (list 'clojure.core/with-meta ret (syntax-quote* (meta form)))
+      ret))
 
-(defn- syntax-quote* [ctx #?(:cljs ^not-native reader :default reader) form]
+(defn- syntax-quote* [{:keys [:gensyms] :as ctx}
+                      #?(:cljs ^not-native reader :default reader) form]
   (->>
    (cond
      (special-symbol? form) (list 'quote form)
      (symbol? form)
      (list 'quote
-           (if (special-symbol? form) form
-               (let [f (:qualify-fn ctx)]
-                 ((or f identity) form))))
+           (let [sym-name (name form)]
+             (cond (special-symbol? form) form
+                   (str/ends-with? sym-name "#")
+                   (if-let [generated (get @gensyms form)]
+                     generated
+                     (let [n (subs sym-name 0 (dec (count sym-name)))
+                           generated (gensym (str n "__"))
+                           generated (symbol (str (name generated) "__auto__"))]
+                       (swap! gensyms assoc form generated)
+                       generated))
+                   :else
+                   (let [f (:qualify-fn ctx)]
+                     ((or f identity) form)))))
      (unquote? form) (second form)
      (unquote-splicing? form) (throw (new #?(:cljs js/Error :clj IllegalStateException)
                                           "unquote-splice not in list"))
@@ -457,10 +468,10 @@
    #_(add-meta form)))
 
 #_(defn read-syntax-quote
-  [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [ctx (assoc ctx :gensym-env {})]
-    (-> (read* rdr true nil opts pending-forms)
-        syntax-quote*)))
+    [ctx #?(:cljs ^not-native reader :default reader)]
+    (let [ctx (assoc ctx :gensym-env {})]
+      (-> (read* rdr true nil opts pending-forms)
+          syntax-quote*)))
 
 ;;;; End syntax-quote
 
@@ -497,7 +508,9 @@
                  (let [next-val (parse-next ctx reader)]
                    (if (ifn? v)
                      (v next-val)
-                     (syntax-quote* ctx reader next-val #_(list 'syntax-quote next-val)))))
+                     (let [gensyms (atom {})
+                           ctx (assoc ctx :gensyms gensyms)]
+                       (syntax-quote* ctx reader next-val #_(list 'syntax-quote next-val))))))
                (throw-reader
                 reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
