@@ -11,8 +11,9 @@
       :cljs [cljs.tools.reader.impl.inspect :as i])
    #?(:clj [clojure.tools.reader.impl.utils :refer [desugar-meta namespace-keys]]
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta namespace-keys]])
-   [clojure.string :as s]
-   [edamame.impl.read-fn :refer [read-fn]])
+   [clojure.string :as str]
+   [edamame.impl.read-fn :refer [read-fn]]
+   [edamame.impl.syntax-quote :refer [syntax-quote]])
   #?(:clj (:import [java.io Closeable]))
   #?(:cljs (:import [goog.string StringBuffer])))
 
@@ -158,7 +159,7 @@
   (throw-reader
    reader
    (duplicate-keys-error
-    (str (s/capitalize (name kind)) " literal contains duplicate key")
+    (str (str/capitalize (name kind)) " literal contains duplicate key")
     ks)
    nil
    loc))
@@ -215,6 +216,7 @@
                    {:expr (str ":" next-val)}))))
 
 (defn auto-resolve
+  "Returns namespace for given alias."
   ([m kns reader next-val] (auto-resolve m kns reader next-val nil))
   ([m kns reader next-val msg]
    (if-let [kns (m kns)]
@@ -335,23 +337,22 @@
     (apply hash-map elements)))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
-  (do
-    (r/read-char reader) ;; ignore :
-    (let [next-val (edn-read ctx reader)]
-      (if (keyword? next-val)
-        (if-let [kns (namespace next-val)]
-          (let [f (get-auto-resolve ctx reader next-val)]
-            (let [kns (auto-resolve f (symbol kns) reader next-val)]
-              (keyword (str kns) (name next-val))))
-          ;; resolve current ns
-          (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-            (let [kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-              (keyword (str kns) (name next-val)))))
-        ;; must be a symbol, if so, does not need auto-resolve
-        (if-let [sns (namespace next-val)]
-          (keyword sns (name next-val))
-          ;; unqualified keyword
-          (keyword (name next-val)))))))
+  (r/read-char reader) ;; ignore :
+  (let [next-val (edn-read ctx reader)]
+    (if (keyword? next-val)
+      (if-let [kns (namespace next-val)]
+        (let [f (get-auto-resolve ctx reader next-val)
+              kns (auto-resolve f (symbol kns) reader next-val)]
+          (keyword (str kns) (name next-val)))
+        ;; resolve current ns
+        (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")
+              kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+          (keyword (str kns) (name next-val))))
+      ;; must be a symbol, if so, does not need auto-resolve
+      (if-let [sns (namespace next-val)]
+        (keyword sns (name next-val))
+        ;; unqualified keyword
+        (keyword (name next-val))))))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
@@ -384,19 +385,27 @@
                (do
                  (r/read-char reader) ;; skip `
                  (let [next-val (parse-next ctx reader)]
-                   (if (ifn? v)
+                   (if (fn? v)
                      (v next-val)
-                     (list 'syntax-quote next-val))))
+                     (let [gensyms (atom {})
+                           ctx (assoc ctx :gensyms gensyms)
+                           ret (syntax-quote ctx reader next-val)]
+                       ret))))
                (throw-reader
                 reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
           \~
-          (if-let [v (get ctx :unquote)]
+          (if-let [v (and (get ctx :syntax-quote)
+                          (or (get ctx :unquote)
+                              true))]
             (do
               (r/read-char reader) ;; skip `
               (let [nc (r/peek-char reader)]
                 (if (identical? nc \@)
-                  (if-let [v (get ctx :unquote-splicing)]
+                  (if-let [v (and
+                              (get ctx :syntax-quote)
+                              (or (get ctx :unquote-splicing)
+                                  true))]
                     (do
                       (r/read-char reader) ;; ignore @
                       (let [next-val (parse-next ctx reader)]
@@ -405,14 +414,14 @@
                           (list 'unquote-splicing next-val))))
                     (throw-reader
                      reader
-                     (str "Syntax unquote splice not allowed. Use the `:unquote-splicing` option")))
+                     (str "Syntax unquote splice not allowed. Use the `:syntax-quote` option")))
                   (let [next-val (parse-next ctx reader)]
                     (if (ifn? v)
                       (v next-val)
                       (list 'unquote next-val))))))
             (throw-reader
              reader
-             (str "Syntax unquote not allowed. Use the `:unquote` option")))
+             (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
           \{ (parse-map ctx reader)
@@ -503,8 +512,6 @@
                        :read-eval true
                        :regex true
                        :syntax-quote true
-                       :unquote true
-                       :unquote-splicing true
                        :var true} opts)
                opts)
         opts (if-let [readers (:readers opts)]

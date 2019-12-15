@@ -199,6 +199,17 @@
                 (ex-data e)))
          {:type :edamame/error, :row 1, :col 1})))
 
+(deftest syntax-quote-test
+  ;; NOTE: most of the syntax quote functionality is tested in sci
+  (let [auto-gensyms (re-seq #"x__\d+__auto__"
+                             (str (p/parse-string "`(let [x# 1] `~x#)" {:syntax-quote true})))]
+    (is (= 2 (count auto-gensyms)))
+    (is (= 1 (count (distinct auto-gensyms)))))
+  (is (= '(quote user/x)
+         (p/parse-string "`x" {:syntax-quote {:resolve-symbol
+                                              (fn [sym]
+                                                (symbol "user" (str sym)))}}))))
+
 ;;;; Scratch
 
 (comment

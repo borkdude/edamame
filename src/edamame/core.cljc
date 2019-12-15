@@ -20,15 +20,10 @@
   `:regex`: parse regex literals (`#\"foo\"`). If `true`, defaults to
   `re-pattern`.
 
-  `:syntax-quote`: parse syntax-quote (`(+ 1 2 3)`). If `true`, the
-  resulting expression will be parsed as `(syntax-quote (+ 1 2 3))`.
-
-  `:unquote`: parse syntax-unquote (`~(+ 1 2 3)`). If `true`,
-  the resulting expression will be parsed as `(unquote (+ 1 2
-  3))`.
-
-  `:unquote-splicing`: parse syntax-unquote-splicing (`~@[1 2 3]`). If `true`,
-  the resulting expression will be parsed as `(unquote-splicing [1 2 3])`.
+  `:syntax-quote`: parse syntax-quote (`(+ 1 2 3)`). Symbols get
+  qualified using `:resolve-symbol` which defaults to `identity`:
+  `(parse-string \"`x\" {:syntax-quote {:resolve-symbol #(symbol \"user\" (str %))}})
+  ;;=> (quote user/x)`.
 
   `:var`: parse var literals (`#'foo`). If `true`, the resulting
   expression will be parsed as `(var foo)`.
