@@ -215,6 +215,7 @@
                    {:expr (str ":" next-val)}))))
 
 (defn auto-resolve
+  "Returns namespace for given alias."
   ([m kns reader next-val] (auto-resolve m kns reader next-val nil))
   ([m kns reader next-val msg]
    (if-let [kns (m kns)]
@@ -335,23 +336,133 @@
     (apply hash-map elements)))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
-  (do
-    (r/read-char reader) ;; ignore :
-    (let [next-val (edn-read ctx reader)]
-      (if (keyword? next-val)
-        (if-let [kns (namespace next-val)]
-          (let [f (get-auto-resolve ctx reader next-val)]
-            (let [kns (auto-resolve f (symbol kns) reader next-val)]
-              (keyword (str kns) (name next-val))))
-          ;; resolve current ns
-          (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-            (let [kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-              (keyword (str kns) (name next-val)))))
-        ;; must be a symbol, if so, does not need auto-resolve
-        (if-let [sns (namespace next-val)]
-          (keyword sns (name next-val))
-          ;; unqualified keyword
-          (keyword (name next-val)))))))
+  (r/read-char reader) ;; ignore :
+  (let [next-val (edn-read ctx reader)]
+    (if (keyword? next-val)
+      (if-let [kns (namespace next-val)]
+        (let [f (get-auto-resolve ctx reader next-val)
+              kns (auto-resolve f (symbol kns) reader next-val)]
+          (keyword (str kns) (name next-val)))
+        ;; resolve current ns
+        (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")
+              kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+          (keyword (str kns) (name next-val))))
+      ;; must be a symbol, if so, does not need auto-resolve
+      (if-let [sns (namespace next-val)]
+        (keyword sns (name next-val))
+        ;; unqualified keyword
+        (keyword (name next-val))))))
+
+;;;; Begin syntax-quote
+
+(defn unquote? [form]
+  (and (seq? form)
+       (= (first form) 'unquote)))
+
+(defn- unquote-splicing? [form]
+  (and (seq? form)
+       (= (first form) 'unquote-splicing)))
+
+(declare syntax-quote*)
+
+(defn- expand-list
+  "Expand a list by resolving its syntax quotes and unquotes"
+  [ctx #?(:cljs ^not-native reader :default reader) s]
+  (loop [s (seq s) r (transient [])]
+    (if s
+      (let [item (first s)
+            ret (conj! r
+                       (cond
+                         (unquote? item)          (list 'clojure.core/list (second item))
+                         (unquote-splicing? item) (second item)
+                         :else                    (list 'clojure.core/list (syntax-quote* ctx reader item))))]
+        (recur (next s) ret))
+      (seq (persistent! r)))))
+
+(defn- syntax-quote-coll [ctx #?(:cljs ^not-native reader :default reader) type coll]
+  ;; We use sequence rather than seq here to fix http://dev.clojure.org/jira/browse/CLJ-1444
+  ;; But because of http://dev.clojure.org/jira/browse/CLJ-1586 we still need to call seq on the form
+  (let [res (list 'clojure.core/sequence
+                  (list 'clojure.core/seq
+                        (cons 'clojure.core/concat
+                              (expand-list ctx reader coll))))]
+    (if type
+      (list 'clojure.core/apply type res)
+      res)))
+
+(defn map-func
+  "Decide which map type to use, array-map if less than 16 elements"
+  [coll]
+  (if (>= (count coll) 16)
+    'clojure.core/hash-map
+    'clojure.core/array-map))
+
+(defn- flatten-map
+  "Flatten a map into a seq of alternate keys and values"
+  [form]
+  (loop [s (seq form) key-vals (transient [])]
+    (if s
+      (let [e (first s)]
+        (recur (next s) (-> key-vals
+                            (conj! (key e))
+                            (conj! (val e)))))
+      (seq (persistent! key-vals)))))
+
+#_(defn- add-meta [form ret]
+  (if (and #?(:clj (instance? clojure.lang.IObj form)
+              :cljs (instance? IMeta form))
+           (seq (dissoc (meta form) :line :column :end-line :end-column :file :source)))
+    (list 'clojure.core/with-meta ret (syntax-quote* (meta form)))
+    ret))
+
+(defn- syntax-quote* [ctx #?(:cljs ^not-native reader :default reader) form]
+  (->>
+   (cond
+     (special-symbol? form) (list 'quote form)
+     (symbol? form)
+     (list 'quote
+           (if (special-symbol? form) form
+               (let [f (:qualify-fn ctx)]
+                 ((or f identity) form))))
+     (unquote? form) (second form)
+     (unquote-splicing? form) (throw (new #?(:cljs js/Error :clj IllegalStateException)
+                                          "unquote-splice not in list"))
+
+     (coll? form)
+     (cond
+       (instance? #?(:clj clojure.lang.IRecord :cljs IRecord) form) form
+       (map? form) (syntax-quote-coll ctx reader (map-func form) (flatten-map form))
+       (vector? form) (list 'clojure.core/vec (syntax-quote-coll ctx reader nil form))
+       (set? form) (syntax-quote-coll ctx reader 'clojure.core/hash-set form)
+       (or (seq? form) (list? form))
+       (let [seq (seq form)]
+         (if seq
+           (syntax-quote-coll ctx reader nil seq)
+           '(clojure.core/list)))
+
+       :else (throw (new #?(:clj UnsupportedOperationException
+                            :cljs js/Error) "Unknown Collection type")))
+
+     (or (keyword? form)
+         (number? form)
+         (char? form)
+         (string? form)
+         (nil? form)
+         (boolean? form)
+         #?(:clj (instance? java.util.regex.Pattern form)
+            :cljs (regexp? form)))
+     form
+
+     :else (list 'quote form))
+   #_(add-meta form)))
+
+#_(defn read-syntax-quote
+  [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [ctx (assoc ctx :gensym-env {})]
+    (-> (read* rdr true nil opts pending-forms)
+        syntax-quote*)))
+
+;;;; End syntax-quote
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
@@ -386,7 +497,7 @@
                  (let [next-val (parse-next ctx reader)]
                    (if (ifn? v)
                      (v next-val)
-                     (list 'syntax-quote next-val))))
+                     (syntax-quote* ctx reader next-val #_(list 'syntax-quote next-val)))))
                (throw-reader
                 reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
