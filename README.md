@@ -85,14 +85,25 @@ Examples:
 (parse-string "#\"foo\"" {:regex true})
 ;;=> #"foo"
 
-(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote true :unquote true :unquote-splicing true})
-;;=> (syntax-quote (+ 1 2 3 (unquote x) (unquote-splicing y)))
+```
 
+``` clojure
 (parse-string "#'foo" {:var true})
 ;;=> (var foo)
 
 (parse-string "#(alter-var-root #'foo %)" {:all true})
 ;;=> (fn [%1] (alter-var-root (var foo) %1))
+```
+
+Syntax quoting can be enabled using the `:syntax-quote` option. By default
+symbols are left untouched, unless `:qualify-fn` is provided:
+
+```
+(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote true})
+;;=> (clojure.core/sequence (clojure.core/seq (clojure.core/concat (clojure.core/list (quote +)) (clojure.core/list 1) (clojure.core/list 2) (clojure.core/list 3) (clojure.core/list x) y)))
+
+(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote {:qualify-fn #(symbol "user" (name %))}})
+;;=> (clojure.core/sequence (clojure.core/seq (clojure.core/concat (clojure.core/list (quote user/+)) (clojure.core/list 1) (clojure.core/list 2) (clojure.core/list 3) (clojure.core/list x) y)))
 ```
 
 Note that standard behavior is overridable with functions:

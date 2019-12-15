@@ -511,12 +511,17 @@
                 reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
           \~
-          (if-let [v (get ctx :unquote)]
+          (if-let [v (and (get ctx :syntax-quote)
+                          (or (get ctx :unquote)
+                              true))]
             (do
               (r/read-char reader) ;; skip `
               (let [nc (r/peek-char reader)]
                 (if (identical? nc \@)
-                  (if-let [v (get ctx :unquote-splicing)]
+                  (if-let [v (and
+                              (get ctx :syntax-quote)
+                              (or (get ctx :unquote-splicing)
+                                  true))]
                     (do
                       (r/read-char reader) ;; ignore @
                       (let [next-val (parse-next ctx reader)]
@@ -525,14 +530,14 @@
                           (list 'unquote-splicing next-val))))
                     (throw-reader
                      reader
-                     (str "Syntax unquote splice not allowed. Use the `:unquote-splicing` option")))
+                     (str "Syntax unquote splice not allowed. Use the `:syntax-quote` option")))
                   (let [next-val (parse-next ctx reader)]
                     (if (ifn? v)
                       (v next-val)
                       (list 'unquote next-val))))))
             (throw-reader
              reader
-             (str "Syntax unquote not allowed. Use the `:unquote` option")))
+             (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
           \{ (parse-map ctx reader)
@@ -623,8 +628,6 @@
                        :read-eval true
                        :regex true
                        :syntax-quote true
-                       :unquote true
-                       :unquote-splicing true
                        :var true} opts)
                opts)
         opts (if-let [readers (:readers opts)]
