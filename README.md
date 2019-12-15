@@ -96,7 +96,7 @@ Syntax quoting can be enabled using the `:syntax-quote` option. Symbols are
 resolved to fully qualified symbols using `:resolve-symbol` which is set to
 `identity` by default:
 
-```
+``` clojure
 (parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote true})
 ;;=> (clojure.core/sequence (clojure.core/seq (clojure.core/concat (clojure.core/list (quote +)) (clojure.core/list 1) (clojure.core/list 2) (clojure.core/list 3) (clojure.core/list x) y)))
 
