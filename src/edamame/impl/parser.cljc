@@ -433,7 +433,7 @@
                        (swap! gensyms assoc form generated)
                        generated))
                    :else
-                   (let [f (-> ctx :syntax-quote :qualify-fn)]
+                   (let [f (-> ctx :syntax-quote :resolve-symbol)]
                      ((or f identity) form)))))
      (unquote? form) (second form)
      (unquote-splicing? form) (throw (new #?(:cljs js/Error :clj IllegalStateException)
