@@ -497,21 +497,19 @@
                      (list 'quote next-val))))
                ;; quote is allowed in normal EDN
                (edn-read ctx reader))
-          \` (do
-               (prn ">>" (get ctx :syntax-quote))
-               (if-let [v (get ctx :syntax-quote)]
-                 (do
-                   (prn "V" v)
-                   (r/read-char reader) ;; skip `
-                   (let [next-val (parse-next ctx reader)]
-                     (if (fn? v)
-                       (v next-val)
-                       (let [gensyms (atom {})
-                             ctx (assoc ctx :gensyms gensyms)]
-                         (syntax-quote* ctx reader next-val)))))
-                 (throw-reader
-                  reader
-                  (str "Syntax quote not allowed. Use the `:syntax-quote` option"))))
+          \` (if-let [v (get ctx :syntax-quote)]
+               (do
+                 (r/read-char reader) ;; skip `
+                 (let [next-val (parse-next ctx reader)]
+                   (if (fn? v)
+                     (v next-val)
+                     (let [gensyms (atom {})
+                           ctx (assoc ctx :gensyms gensyms)
+                           ret (syntax-quote* ctx reader next-val)]
+                       ret))))
+               (throw-reader
+                reader
+                (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
           \~
           (if-let [v (get ctx :unquote)]
             (do
@@ -569,7 +567,6 @@
           (edn-read ctx reader)))))
 
 (defn parse-next [ctx reader]
-  (prn "parse next")
   (skip-whitespace ctx reader)
   (if-let [c (r/peek-char reader)]
     (let [loc (location reader)
