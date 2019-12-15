@@ -1,7 +1,7 @@
 (ns edamame.impl.syntax-quote
-  {:no-doc true}
   "Taken and adapted from
   https://github.com/clojure/tools.reader/blob/master/src/main/clojure/clojure/tools/reader.clj"
+  {:no-doc true}
   (:require [clojure.string :as str]))
 
 (defn unquote? [form]
