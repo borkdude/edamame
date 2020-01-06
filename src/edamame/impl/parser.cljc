@@ -127,7 +127,7 @@
   [_ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore leading double-quote
   (let [sb #?(:clj (StringBuilder.)
-              :cljs (goog.string.StringBuffer.))]
+              :cljs (StringBuffer.))]
     (loop [ch (r/read-char reader)]
       (if (identical? \" ch)
         #?(:clj (str sb)
@@ -338,21 +338,26 @@
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :
+  (when (whitespace? (r/peek-char reader))
+    (throw-reader reader (str "Invalid token: :")))
   (let [next-val (edn-read ctx reader)]
-    (if (keyword? next-val)
-      (if-let [kns (namespace next-val)]
-        (let [f (get-auto-resolve ctx reader next-val)
-              kns (auto-resolve f (symbol kns) reader next-val)]
-          (keyword (str kns) (name next-val)))
-        ;; resolve current ns
-        (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")
-              kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-          (keyword (str kns) (name next-val))))
-      ;; must be a symbol, if so, does not need auto-resolve
-      (if-let [sns (namespace next-val)]
-        (keyword sns (name next-val))
-        ;; unqualified keyword
-        (keyword (name next-val))))))
+    (cond (keyword? next-val)
+          (if-let [kns (namespace next-val)]
+            (let [f (get-auto-resolve ctx reader next-val)
+                  kns (auto-resolve f (symbol kns) reader next-val)]
+              (keyword (str kns) (name next-val)))
+            ;; resolve current ns
+            (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")
+                  kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+              (keyword (str kns) (name next-val))))
+          ;; must be a symbol, if so, does not need auto-resolve
+          (symbol? next-val)
+          (if-let [sns (namespace next-val)]
+            (keyword sns (name next-val))
+            ;; unqualified keyword
+            (keyword (name next-val)))
+          (nil? next-val) :nil
+          :else (throw-reader reader (str "Invalid token: " next-val)))))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]

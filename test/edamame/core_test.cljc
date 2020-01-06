@@ -210,6 +210,13 @@
                                               (fn [sym]
                                                 (symbol "user" (str sym)))}}))))
 
+(deftest edge-cases-test
+  (is (= '(quote x) (p/parse-string "' x" {:quote true})))
+  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                        #"(?i)invalid token" (p/parse-string ": x")))
+  (testing "#40"
+    (is (= :nil (p/parse-string ":nil")))))
+
 ;;;; Scratch
 
 (comment
