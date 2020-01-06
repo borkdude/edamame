@@ -357,7 +357,7 @@
             ;; unqualified keyword
             (keyword (name next-val)))
           (nil? next-val) :nil
-          :else (throw-reader reader (str "Invalid token: " next-val)))))
+          :else (keyword (str next-val)))))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]

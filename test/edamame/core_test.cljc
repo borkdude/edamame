@@ -215,7 +215,9 @@
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
                         #"(?i)invalid token" (p/parse-string ": x")))
   (testing "#40"
-    (is (= :nil (p/parse-string ":nil")))))
+    (is (= :nil (p/parse-string ":nil")))
+    (is (= :123 (p/parse-string ":123")))
+    (is (= :false (p/parse-string ":false")))))
 
 ;;;; Scratch
 
