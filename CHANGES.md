@@ -1,5 +1,9 @@
 ## Breaking changes
 
+### 0.0.10
+
+- Function literals now expand into a call to `fn*` instead of `fn`
+
 ### 0.0.8
 
 - Options to tools.reader, like `:readers` for passing reader tag functions, now
