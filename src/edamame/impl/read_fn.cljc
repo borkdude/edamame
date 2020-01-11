@@ -25,5 +25,5 @@
         var-args-sym '%&
         arg-list (vec (concat fixed-names (when var-args?
                                             ['& var-args-sym])))
-        form (list 'fn arg-list expr)]
+        form (list 'fn* arg-list expr)]
     form))

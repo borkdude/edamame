@@ -144,16 +144,16 @@
                  'fn*)))
   (is (= (p/parse-string "#(inc %1 %)"
                          {:fn true})
-         '(fn [%1] (inc %1 %1))))
+         '(fn* [%1] (inc %1 %1))))
   (is (= (p/parse-string "#(inc %1 %)"
                          {:fn true})
-         '(fn [%1] (inc %1 %1))))
+         '(fn* [%1] (inc %1 %1))))
   (is (= (p/parse-string "#(apply + % %1 %3 %&)"
                          {:fn true})
-         '(fn [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
+         '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
   (is (= (p/parse-string "#(apply + % %1 %3 %&)"
                          {:all true})
-         '(fn [%1 %2 %3 & %&] (apply + %1 %1 %3 %&)))))
+         '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&)))))
 
 (deftest location-test
   (is (= '({:row 1, :col 13, :end-row 1, :end-col 17})
