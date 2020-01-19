@@ -19,11 +19,6 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-(def ^:dynamic *row-key* :row)
-(def ^:dynamic *col-key* :col)
-(def ^:dynamic *end-row-key* :end-row)
-(def ^:dynamic *end-col-key* :end-col)
-
 ;;;; tools.reader
 
 (defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
@@ -179,7 +174,7 @@
     the-set))
 
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [features (get ctx :features)]
+  (let [features (:features ctx)]
     (loop [match non-match]
       (skip-whitespace ctx reader)
       (let [end? (= \) (r/peek-char reader))]
@@ -214,7 +209,7 @@
   ([ctx reader next-val]
    (get-auto-resolve ctx reader next-val nil))
   ([ctx reader next-val msg]
-   (if-let [v (get ctx :auto-resolve)]
+   (if-let [v (:auto-resolve ctx)]
      v
      (throw-reader reader
                    (or msg "Use `:auto-resolve` to resolve aliases.")
@@ -249,7 +244,7 @@
   (let [c (r/peek-char reader)]
     (case c
       nil (throw-reader reader (str "Unexpected EOF."))
-      \" (if-let [v (get ctx :regex)]
+      \" (if-let [v (:regex ctx)]
            (let [pat (read-regex-pattern ctx reader)]
              (if (ifn? v)
                (v pat)
@@ -257,7 +252,7 @@
            (throw-reader
             reader
             (str "Regex not allowed. Use the `:regex` option")))
-      \( (if-let [v (get ctx :fn)]
+      \( (if-let [v (:fn ctx)]
            (let [fn-expr (parse-list ctx reader)]
              (if (ifn? v)
                (v fn-expr)
@@ -265,7 +260,7 @@
            (throw-reader
             reader
             (str "Function literal not allowed. Use the `:fn` option")))
-      \' (if-let [v (get ctx :var)]
+      \' (if-let [v (:var ctx)]
            (do
              (r/read-char reader) ;; ignore quote
              (let [next-val (parse-next ctx reader)]
@@ -275,7 +270,7 @@
            (throw-reader
             reader
             (str "Var literal not allowed. Use the `:var` option")))
-      \= (if-let [v (get ctx :read-eval)]
+      \= (if-let [v (:read-eval ctx)]
            (do
              (r/read-char reader) ;; ignore =
              (let [next-val (parse-next ctx reader)]
@@ -372,7 +367,7 @@
                  (parse-sharp ctx reader))
         (case c
           nil ::eof
-          \@ (if-let [v (get ctx :deref)]
+          \@ (if-let [v (:deref ctx)]
                (do
                  (r/read-char reader) ;; skip @
                  (let [next-val (parse-next ctx reader)]
@@ -382,7 +377,7 @@
                (throw-reader
                 reader
                 (str "Deref not allowed. Use the `:deref` option")))
-          \' (if-let [v (get ctx :quote)]
+          \' (if-let [v (:quote ctx)]
                (do
                  (r/read-char reader) ;; skip '
                  (let [next-val (parse-next ctx reader)]
@@ -391,7 +386,7 @@
                      (list 'quote next-val))))
                ;; quote is allowed in normal EDN
                (edn-read ctx reader))
-          \` (if-let [v (get ctx :syntax-quote)]
+          \` (if-let [v (:syntax-quote ctx)]
                (do
                  (r/read-char reader) ;; skip `
                  (let [next-val (parse-next ctx reader)]
@@ -405,16 +400,16 @@
                 reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
           \~
-          (if-let [v (and (get ctx :syntax-quote)
-                          (or (get ctx :unquote)
+          (if-let [v (and (:syntax-quote ctx)
+                          (or (:unquote ctx)
                               true))]
             (do
               (r/read-char reader) ;; skip `
               (let [nc (r/peek-char reader)]
                 (if (identical? nc \@)
                   (if-let [v (and
-                              (get ctx :syntax-quote)
-                              (or (get ctx :unquote-splicing)
+                              (:syntax-quote ctx)
+                              (or (:unquote-splicing ctx)
                                   true))]
                     (do
                       (r/read-char reader) ;; ignore @
@@ -477,10 +472,10 @@
                :cljs (satisfies? IWithMeta obj))
           (let [end-loc (location reader)]
             (vary-meta obj #(assoc %
-                                   *row-key* (:row loc)
-                                   *col-key* (:col loc)
-                                   *end-row-key* (:row end-loc)
-                                   *end-col-key* (:col end-loc))))
+                                   (:row-key ctx) (:row loc)
+                                   (:col-key ctx) (:col loc)
+                                   (:end-row-key ctx) (:row end-loc)
+                                   (:end-col-key ctx) (:col end-loc))))
           obj)))
     ::eof))
 
@@ -489,6 +484,12 @@
   [s]
   (r/indexing-push-back-reader
    (r/string-push-back-reader s)))
+
+(defrecord Options [dispatch deref syntax-quote unquote
+                    unquote-splicing quote fn var
+                    read-eval regex
+                    row-key col-key
+                    end-row-key end-col-key])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
@@ -524,10 +525,15 @@
                        :syntax-quote true
                        :var true} opts)
                opts)
+        opts (cond-> opts
+               (not (:row-key opts)) (assoc :row-key :row)
+               (not (:end-row-key opts)) (assoc :end-row-key :end-row)
+               (not (:col-key opts)) (assoc :col-key :col)
+               (not (:end-col-key opts)) (assoc :end-col-key :end-col))
         opts (if-let [readers (:readers opts)]
                (update-in opts [:tools.reader/opts :readers] merge readers)
                opts)]
-    opts))
+    (map->Options opts)))
 
 (defn parse-string [s opts]
   (let [opts (normalize-opts opts)

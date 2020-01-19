@@ -174,15 +174,17 @@
        (def join (gobj/get path "join"))))
 
 (deftest parse-clojure-core
-  (is (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
-                             :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
-                          {:all true
-                           :auto-resolve '{:current clojure.core}}))
-  (is (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
-                             :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
-                          {:all true
-                           :auto-resolve '{:current cljs.core}
-                           :tools.reader/opts {:readers cljs-tags/*cljs-data-readers*}})))
+  (is (nil? (time (dotimes [_ 10]
+                    (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
+                                           :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
+                                        {:all true
+                                         :auto-resolve '{:current clojure.core}})))))
+  (is (nil? (time (dotimes [_ 10]
+                    (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
+                                           :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
+                                        {:all true
+                                         :auto-resolve '{:current cljs.core}
+                                         :tools.reader/opts {:readers cljs-tags/*cljs-data-readers*}}))))))
 
 (deftest readers-test
   (is (= '(js [1 2 3]) (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}}))))
