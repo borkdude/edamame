@@ -19,6 +19,11 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
+(def ^:dynamic *row-key* :row)
+(def ^:dynamic *col-key* :col)
+(def ^:dynamic *end-row-key* :end-row)
+(def ^:dynamic *end-col-key* :end-col)
+
 ;;;; tools.reader
 
 (defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
@@ -472,10 +477,10 @@
                :cljs (satisfies? IWithMeta obj))
           (let [end-loc (location reader)]
             (vary-meta obj #(assoc %
-                                   :row (:row loc)
-                                   :col (:col loc)
-                                   :end-row (:row end-loc)
-                                   :end-col (:col end-loc))))
+                                   *row-key* (:row loc)
+                                   *col-key* (:col loc)
+                                   *end-row-key* (:row end-loc)
+                                   *end-col-key* (:col end-loc))))
           obj)))
     ::eof))
 
