@@ -347,19 +347,19 @@
     (when (whitespace? init-c)
       (throw-reader reader (str "Invalid token: :")))
     (let [^String token (read-token reader :keyword init-c)
-          auto-resolve? (identical? \: (.charAt token 0))
-          token (if auto-resolve? (subs token 1) token)
-          [token-ns token-name] (parse-symbol token)]
-      (cond auto-resolve?
-            (if token-ns
-              (let [f (get-auto-resolve ctx reader token)
-                    kns (auto-resolve f (symbol token-ns) reader token-ns)]
-                (keyword (str kns) token-name))
-              ;; resolve current ns
-              (let [f (get-auto-resolve ctx reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")
-                    kns (auto-resolve f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-                (keyword (str kns) token-name)))
-            :else (keyword token)))))
+          auto-resolve? (identical? \: (.charAt token 0))]
+      (if auto-resolve?
+        (let [token (if auto-resolve? (subs token 1) token)
+              [token-ns token-name] (parse-symbol token)]
+          (if token-ns
+            (let [f (get-auto-resolve ctx reader token)
+                  kns (auto-resolve f (symbol token-ns) reader token-ns)]
+              (keyword (str kns) token-name))
+            ;; resolve current ns
+            (let [f (get-auto-resolve ctx reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")
+                  kns (auto-resolve f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+              (keyword (str kns) token-name))))
+        (keyword token)))))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
