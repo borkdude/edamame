@@ -11,6 +11,8 @@
       :cljs [cljs.tools.reader.impl.inspect :as i])
    #?(:clj [clojure.tools.reader.impl.utils :refer [desugar-meta namespace-keys]]
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta namespace-keys]])
+   #?(:clj [clojure.tools.reader.impl.commons :as commons]
+      :cljs [cljs.tools.reader.impl.commons :as commons])
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
@@ -37,7 +39,10 @@
                \:
                \#} ch))
 
-;;;; tools.reader
+(def read-token #'edn/read-token)
+(def parse-symbol #'commons/parse-symbol)
+
+;;;; end tools.reader
 
 (defn location [#?(:cljs ^not-native reader :default reader)]
   {:row (r/get-line-number reader)
@@ -341,30 +346,20 @@
   (let [init-c (r/read-char reader)]
     (when (whitespace? init-c)
       (throw-reader reader (str "Invalid token: :")))
-    (let [sym (#'edn/read-symbol reader init-c) #_(edn-read ctx reader)
-          sym-name (str sym)]
-      (cond (and sym (str/starts-with? sym-name ":")) ;;(keyword? next-val)
-            (let [sym (symbol (subs sym-name 1))
-                  sym-name (name sym)]
-              (if-let [kns (namespace sym)]
-                (let [f (get-auto-resolve ctx reader (keyword sym))
-                      kns (auto-resolve f (symbol kns) reader (keyword sym))]
-                  (keyword (str kns) sym-name))
-                ;; resolve current ns
-                (let [f (get-auto-resolve ctx reader (keyword sym) "Use `:auto-resolve` + `:current` to resolve current namespace.")
-                      kns (auto-resolve f :current reader (keyword sym) "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-                  (keyword (str kns) sym-name))))
-            ;; must be a symbol, if so, does not need auto-resolve
-            ;; (nil? sym) :nil
-            :else (keyword (pr-str sym))
-            #_#_:else #_(symbol? next-val)
-            (if-let [sns (namespace sym #_next-val)]
-              (keyword sns sym-name #_(name next-val))
-              ;; unqualified keyword
-              (keyword sym-name #_(name next-val)))
-             ;; :nil
-            ;; :else (keyword (str next-val))
-            ))))
+    (let [^String token (read-token reader :keyword init-c)
+          auto-resolve? (identical? \: (.charAt token 0))
+          token (if auto-resolve? (subs token 1) token)
+          [token-ns token-name] (parse-symbol token)]
+      (cond auto-resolve?
+            (if token-ns
+              (let [f (get-auto-resolve ctx reader token)
+                    kns (auto-resolve f (symbol token-ns) reader token-ns)]
+                (keyword (str kns) token-name))
+              ;; resolve current ns
+              (let [f (get-auto-resolve ctx reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")
+                    kns (auto-resolve f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+                (keyword (str kns) token-name)))
+            :else (keyword token)))))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
