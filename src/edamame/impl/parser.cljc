@@ -338,26 +338,33 @@
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :
-  (when (whitespace? (r/peek-char reader))
-    (throw-reader reader (str "Invalid token: :")))
-  (let [next-val (edn-read ctx reader)]
-    (cond (keyword? next-val)
-          (if-let [kns (namespace next-val)]
-            (let [f (get-auto-resolve ctx reader next-val)
-                  kns (auto-resolve f (symbol kns) reader next-val)]
-              (keyword (str kns) (name next-val)))
-            ;; resolve current ns
-            (let [f (get-auto-resolve ctx reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")
-                  kns (auto-resolve f :current reader next-val "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-              (keyword (str kns) (name next-val))))
-          ;; must be a symbol, if so, does not need auto-resolve
-          (symbol? next-val)
-          (if-let [sns (namespace next-val)]
-            (keyword sns (name next-val))
-            ;; unqualified keyword
-            (keyword (name next-val)))
-          (nil? next-val) :nil
-          :else (keyword (str next-val)))))
+  (let [init-c (r/read-char reader)]
+    (when (whitespace? init-c)
+      (throw-reader reader (str "Invalid token: :")))
+    (let [sym (#'edn/read-symbol reader init-c) #_(edn-read ctx reader)
+          sym-name (str sym)]
+      (cond (and sym (str/starts-with? sym-name ":")) ;;(keyword? next-val)
+            (let [sym (symbol (subs sym-name 1))
+                  sym-name (name sym)]
+              (if-let [kns (namespace sym)]
+                (let [f (get-auto-resolve ctx reader (keyword sym))
+                      kns (auto-resolve f (symbol kns) reader (keyword sym))]
+                  (keyword (str kns) sym-name))
+                ;; resolve current ns
+                (let [f (get-auto-resolve ctx reader (keyword sym) "Use `:auto-resolve` + `:current` to resolve current namespace.")
+                      kns (auto-resolve f :current reader (keyword sym) "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+                  (keyword (str kns) sym-name))))
+            ;; must be a symbol, if so, does not need auto-resolve
+            ;; (nil? sym) :nil
+            :else (keyword (pr-str sym))
+            #_#_:else #_(symbol? next-val)
+            (if-let [sns (namespace sym #_next-val)]
+              (keyword sns sym-name #_(name next-val))
+              ;; unqualified keyword
+              (keyword sym-name #_(name next-val)))
+             ;; :nil
+            ;; :else (keyword (str next-val))
+            ))))
 
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
