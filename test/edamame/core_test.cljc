@@ -219,7 +219,9 @@
   (testing "#40"
     (is (= :nil (p/parse-string ":nil")))
     (is (= :123 (p/parse-string ":123")))
-    (is (= :false (p/parse-string ":false")))))
+    (is (= :false (p/parse-string ":false"))))
+  (testing "#43"
+    (is (= :5K (p/parse-string ":5K")))))
 
 ;;;; Scratch
 
