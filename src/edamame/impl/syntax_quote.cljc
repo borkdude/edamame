@@ -109,7 +109,7 @@
 (defn- add-meta [ctx reader form ret]
   (if (and #?(:clj (instance? clojure.lang.IObj form)
               :cljs (instance? IMeta form))
-           (seq (dissoc (meta form) :line :column :end-line :end-column :file :source)))
+           (seq (dissoc (meta form) (:row-key ctx) (:col-key ctx) (:end-row-key ctx) (:end-col-key ctx))))
     (list 'clojure.core/with-meta ret (syntax-quote* ctx reader (meta form)))
     ret))
 
