@@ -225,7 +225,9 @@
 
 (deftest preserve-meta-test
   (is (:foo (meta (p/parse-string "^:foo []"))))
-  #?(:clj (is (:foo (meta (eval (p/parse-string "`^:foo []" {:syntax-quote true})))))))
+  (let [with-meta-val (p/parse-string "`^:foo []" {:syntax-quote true})]
+    #?(:clj (is (:foo (meta (eval with-meta-val))))
+       :cljs (= 'clojure.core/with-meta (first with-meta-val)))))
 
 ;;;; Scratch
 
