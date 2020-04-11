@@ -57,16 +57,8 @@
                             (conj! (val e)))))
       (seq (persistent! key-vals)))))
 
-;; TODO?
-#_(defn- add-meta [form ret]
-    (if (and #?(:clj (instance? clojure.lang.IObj form)
-                :cljs (instance? IMeta form))
-             (seq (dissoc (meta form) :line :column :end-line :end-column :file :source)))
-      (list 'clojure.core/with-meta ret (syntax-quote* (meta form)))
-      ret))
-
-(defn syntax-quote [{:keys [:gensyms] :as ctx}
-                    #?(:cljs ^not-native reader :default reader) form]
+(defn- syntax-quote* [{:keys [:gensyms] :as ctx}
+                     #?(:cljs ^not-native reader :default reader) form]
   (cond
     (special-symbol? form) (list 'quote form)
     (symbol? form)
@@ -112,7 +104,15 @@
         #?(:clj (instance? java.util.regex.Pattern form)
            :cljs (regexp? form)))
     form
+    :else (list 'quote form)))
 
-    :else (list 'quote form))
-  #_(add-meta form) ;; TODO?
-  )
+(defn- add-meta [ctx reader form ret]
+  (if (and #?(:clj (instance? clojure.lang.IObj form)
+              :cljs (instance? IMeta form))
+           (seq (dissoc (meta form) :line :column :end-line :end-column :file :source)))
+    (list 'clojure.core/with-meta ret (syntax-quote* ctx reader (meta form)))
+    ret))
+
+(defn syntax-quote [ctx reader form]
+  (let [ret (syntax-quote* ctx reader form)]
+    (add-meta ctx reader form ret)))

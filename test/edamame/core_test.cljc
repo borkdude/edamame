@@ -224,7 +224,8 @@
     (is (= :5K (p/parse-string ":5K")))))
 
 (deftest preserve-meta-test
-  (is (:foo (meta (p/parse-string "^:foo []")))))
+  (is (:foo (meta (p/parse-string "^:foo []"))))
+  #?(:clj (is (:foo (meta (eval (p/parse-string "`^:foo []" {:syntax-quote true})))))))
 
 ;;;; Scratch
 
