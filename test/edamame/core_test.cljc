@@ -116,7 +116,13 @@
     (is (= {} (p/parse-string "{#?@(:bb [:a :b])}"
                               {:features #{:clj}
                                :read-cond :allow})))
-    (testing "detect end in presence of whitespace"
+    (testing "whitespace issues"
+      (is (= 2 (p/parse-string "#? (:bb 1 :clj 2 \n )"
+                               {:features #{:clj}
+                                :read-cond :allow})))
+      (is (= 2 (p/parse-string "#?( :bb 1 :clj 2 \n )"
+                               {:features #{:clj}
+                                :read-cond :allow})))
       (is (= 2 (p/parse-string "#?(:bb 1 :clj 2 \n )"
                                {:features #{:clj}
                                 :read-cond :allow}))))))

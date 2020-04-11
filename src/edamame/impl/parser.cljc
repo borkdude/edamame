@@ -197,6 +197,7 @@
                   (recur match)))))))))
 
 (defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
+  (skip-whitespace ctx reader)
   (let [preserve? (kw-identical? :preserve (:read-cond ctx))
         splice? (= \@ (r/peek-char reader))]
     (when splice? (r/read-char reader))
