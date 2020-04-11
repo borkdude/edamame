@@ -223,6 +223,9 @@
   (testing "#43"
     (is (= :5K (p/parse-string ":5K")))))
 
+(deftest preserve-meta-test
+  (is (:foo (meta (p/parse-string "^:foo []")))))
+
 ;;;; Scratch
 
 (comment
