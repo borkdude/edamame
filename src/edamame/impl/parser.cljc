@@ -64,14 +64,14 @@
      :cljs (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
 
 (defn skip-whitespace
+  "Skips whitespace. Returns reader. If end of stream is reached, returns nil."
   [_ctx #?(:cljs ^not-native reader :default reader)]
   (loop []
-    (if-let [c (r/read-char reader)]
+    (when-let [c (r/read-char reader)]
       (if (whitespace? c)
         (recur)
         (do (r/unread reader c)
-            reader))
-      ::eof)))
+            reader)))))
 
 (defn throw-reader
   "Throw reader exception, including line line/column. line/column is
@@ -465,24 +465,23 @@
           (edn-read ctx reader)))))
 
 (defn parse-next [ctx reader]
-  (if (kw-identical? ::eof (skip-whitespace ctx reader))
-    ::eof
-    (if-let [c (r/peek-char reader)]
-      (let [loc (location reader)
-            obj (dispatch ctx reader c)]
-        (if (identical? reader obj)
-          (parse-next ctx reader)
-          (if #?(:clj
-                 (instance? clojure.lang.IObj obj)
-                 :cljs (satisfies? IWithMeta obj))
-            (let [end-loc (location reader)]
-              (vary-meta obj #(assoc %
-                                     (:row-key ctx) (:row loc)
-                                     (:col-key ctx) (:col loc)
-                                     (:end-row-key ctx) (:row end-loc)
-                                     (:end-col-key ctx) (:col end-loc))))
-            obj)))
-      ::eof)))
+  (if-let [c (and (skip-whitespace ctx reader)
+                  (r/peek-char reader))]
+    (let [loc (location reader)
+          obj (dispatch ctx reader c)]
+      (if (identical? reader obj)
+        (parse-next ctx reader)
+        (if #?(:clj
+               (instance? clojure.lang.IObj obj)
+               :cljs (satisfies? IWithMeta obj))
+          (let [end-loc (location reader)]
+            (vary-meta obj #(assoc %
+                                   (:row-key ctx) (:row loc)
+                                   (:col-key ctx) (:col loc)
+                                   (:end-row-key ctx) (:row end-loc)
+                                   (:end-col-key ctx) (:col end-loc))))
+          obj)))
+    ::eof))
 
 (defn string-reader
   "Create reader for strings."
