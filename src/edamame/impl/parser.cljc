@@ -66,11 +66,12 @@
 (defn skip-whitespace
   [_ctx #?(:cljs ^not-native reader :default reader)]
   (loop []
-    (let [c (r/read-char reader)]
+    (if-let [c (r/read-char reader)]
       (if (whitespace? c)
         (recur)
         (do (r/unread reader c)
-            reader)))))
+            reader))
+      ::eof)))
 
 (defn throw-reader
   "Throw reader exception, including line line/column. line/column is
@@ -464,23 +465,24 @@
           (edn-read ctx reader)))))
 
 (defn parse-next [ctx reader]
-  (skip-whitespace ctx reader)
-  (if-let [c (r/peek-char reader)]
-    (let [loc (location reader)
-          obj (dispatch ctx reader c)]
-      (if (identical? reader obj)
-        (parse-next ctx reader)
-        (if #?(:clj
-               (instance? clojure.lang.IObj obj)
-               :cljs (satisfies? IWithMeta obj))
-          (let [end-loc (location reader)]
-            (vary-meta obj #(assoc %
-                                   (:row-key ctx) (:row loc)
-                                   (:col-key ctx) (:col loc)
-                                   (:end-row-key ctx) (:row end-loc)
-                                   (:end-col-key ctx) (:col end-loc))))
-          obj)))
-    ::eof))
+  (if (kw-identical? ::eof (skip-whitespace ctx reader))
+    ::eof
+    (if-let [c (r/peek-char reader)]
+      (let [loc (location reader)
+            obj (dispatch ctx reader c)]
+        (if (identical? reader obj)
+          (parse-next ctx reader)
+          (if #?(:clj
+                 (instance? clojure.lang.IObj obj)
+                 :cljs (satisfies? IWithMeta obj))
+            (let [end-loc (location reader)]
+              (vary-meta obj #(assoc %
+                                     (:row-key ctx) (:row loc)
+                                     (:col-key ctx) (:col loc)
+                                     (:end-row-key ctx) (:row end-loc)
+                                     (:end-col-key ctx) (:col end-loc))))
+            obj)))
+      ::eof)))
 
 (defn string-reader
   "Create reader for strings."

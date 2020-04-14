@@ -202,10 +202,12 @@
          (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}}))) )
 
 (deftest exception-test
-  (is (= (try (p/parse-string "(")
-              (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) e
-                (ex-data e)))
-         {:type :edamame/error, :row 1, :col 1})))
+  (is (let [d (try (p/parse-string-all "())")
+                   (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) e
+                     (ex-data e)))]
+        (is (= (:type d) :edamame/error,))
+        (is (= (:row d) 1))
+        (is (= (:col d) 3)))))
 
 (deftest syntax-quote-test
   ;; NOTE: most of the syntax quote functionality is tested in sci
