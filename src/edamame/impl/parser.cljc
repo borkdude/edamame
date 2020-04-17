@@ -260,7 +260,7 @@
             reader
             (str "Regex not allowed. Use the `:regex` option")))
       \( (if-let [v (:fn ctx)]
-           (let [fn-expr (parse-list ctx reader)]
+           (let [fn-expr (parse-next ctx reader)]
              (if (ifn? v)
                (v fn-expr)
                (read-fn fn-expr)))

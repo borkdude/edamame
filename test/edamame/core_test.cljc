@@ -159,7 +159,12 @@
          '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
   (is (= (p/parse-string "#(apply + % %1 %3 %&)"
                          {:all true})
-         '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&)))))
+         '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
+  (let [[_fn _args expr] (p/parse-string "#(+ (/ 1 %))"
+                                         {:all true})]
+    (is (= {:row 1, :col 2, :end-row 1, :end-col 13} (meta expr)))
+    (is (= {:row 1, :col 3, :end-row 1, :end-col 4} (meta (first expr))))
+    (is (= {:row 1, :col 5, :end-row 1, :end-col 12} (meta (second expr))))))
 
 (deftest location-test
   (is (= '({:row 1, :col 13, :end-row 1, :end-col 17})
