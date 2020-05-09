@@ -199,18 +199,23 @@
 
 (defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
   (skip-whitespace ctx reader)
-  (let [preserve? (kw-identical? :preserve (:read-cond ctx))
+  (let [opt (:read-cond ctx)
         splice? (= \@ (r/peek-char reader))]
     (when splice? (r/read-char reader))
-    (if preserve?
-      (reader-conditional (parse-next ctx reader) splice?)
-      (do
-        (r/read-char reader) ;; skip \(
-        (let [match (parse-first-matching-condition ctx reader)]
-          (cond (non-match? match) reader
-                splice? (vary-meta match
-                                   #(assoc % ::cond-splice true))
-                :else match))))))
+    (cond (kw-identical? :preserve opt)
+          (reader-conditional (parse-next ctx reader) splice?)
+          (fn? opt)
+          (opt (vary-meta
+                (parse-next ctx reader)
+                assoc :edamame/read-cond-splicing splice?))
+          :else
+          (do
+            (r/read-char reader) ;; skip \(
+            (let [match (parse-first-matching-condition ctx reader)]
+              (cond (non-match? match) reader
+                    splice? (vary-meta match
+                                       #(assoc % ::cond-splice true))
+                    :else match))))))
 
 (defn get-auto-resolve
   ([ctx reader next-val]

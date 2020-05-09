@@ -119,6 +119,11 @@ Process reader conditionals:
 
 (parse-string "[1 2 #?@(:cljs [3 4])]" {:features #{:cljs} :read-cond :preserve})
 ;;=> [1 2 #?@(:cljs [3 4])]
+
+(let [res (parse-string "#?@(:bb 1 :clj 2)" {:read-cond identity})]
+  (prn res) (prn (meta res)))
+;;=> (:bb 1 :clj 2)
+;;=> {:row 1, :col 1, :end-row 1, :end-col 18, :edamame/read-cond-splicing true}
 ```
 
 Auto-resolve keywords:

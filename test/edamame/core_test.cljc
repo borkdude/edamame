@@ -84,7 +84,9 @@
                           (p/parse-string "  [   ")))
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"Unmatched delimiter: \] \[at line 1, column 3\]"
-                          (p/parse-string "  ]   "))))
+                          (p/parse-string "  ]   ")))))
+
+(deftest reader-conditional-test
   (testing "reader conditional processing"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"allow"
@@ -125,7 +127,18 @@
                                 :read-cond :allow})))
       (is (= 2 (p/parse-string "#?(:bb 1 :clj 2 \n )"
                                {:features #{:clj}
-                                :read-cond :allow}))))))
+                                :read-cond :allow}))))
+    (testing "function opt"
+      (let [res (p/parse-string "#?(:bb 1 :clj 2 \n )"
+                                {:read-cond identity})]
+        (is (= '(:bb 1 :clj 2) res))
+        (is (= {:row 1, :col 1, :end-row 2, :end-col 3, :edamame/read-cond-splicing false}
+               (meta res))))
+      (let [res (p/parse-string "#?@(:bb 1 :clj 2 \n )"
+                                {:read-cond identity})]
+        (is (= '(:bb 1 :clj 2) res))
+        (is (= {:row 1, :col 1, :end-row 2, :end-col 3, :edamame/read-cond-splicing true}
+               (meta res)))))))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
