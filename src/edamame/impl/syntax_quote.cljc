@@ -6,11 +6,11 @@
 
 (defn unquote? [form]
   (and (seq? form)
-       (= (first form) 'unquote)))
+       (= (first form) 'clojure.core/unquote)))
 
 (defn- unquote-splicing? [form]
   (and (seq? form)
-       (= (first form) 'unquote-splicing)))
+       (= (first form) 'clojure.core/unquote-splicing)))
 
 (declare syntax-quote)
 

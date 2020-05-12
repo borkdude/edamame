@@ -425,14 +425,14 @@
                       (let [next-val (parse-next ctx reader)]
                         (if (ifn? v)
                           (v next-val)
-                          (list 'unquote-splicing next-val))))
+                          (list 'clojure.core/unquote-splicing next-val))))
                     (throw-reader
                      reader
                      (str "Syntax unquote splice not allowed. Use the `:syntax-quote` option")))
                   (let [next-val (parse-next ctx reader)]
                     (if (ifn? v)
                       (v next-val)
-                      (list 'unquote next-val))))))
+                      (list 'clojure.core/unquote next-val))))))
             (throw-reader
              reader
              (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
