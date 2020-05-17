@@ -307,6 +307,9 @@
       \: (do
            (r/read-char reader) ;; ignore :
            (parse-namespaced-map ctx reader))
+      \! (do
+           (parse-comment reader)
+           reader)
       ;; catch-all
       (if (dispatch-macro? c)
         (do (r/unread reader \#)

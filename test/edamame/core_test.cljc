@@ -255,7 +255,10 @@
     #?(:clj (is (:foo (meta (eval with-meta-val))))
        :cljs (= 'clojure.core/with-meta (first with-meta-val)))))
 
-
+(deftest shebang-test
+  (let [m (p/parse-string "#!/usr/bin/env bash\n{:a 1}")]
+    (is (= {:a 1} m))
+    (is (= 2 (:row (meta m))))))
 
 ;;;; Scratch
 
