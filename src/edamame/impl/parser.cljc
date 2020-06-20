@@ -3,6 +3,8 @@
   who contribured to those projects."
   {:no-doc true}
   (:require
+   #?(:clj  [clojure.tools.reader :as tools.reader]
+      :cljs [cljs.tools.reader :as tools.reader])
    #?(:clj  [clojure.tools.reader.edn :as edn]
       :cljs [cljs.tools.reader.edn :as edn])
    #?(:clj  [clojure.tools.reader.reader-types :as r]
@@ -323,7 +325,8 @@
               ;; read form
               (parse-next ctx reader))
             (do (r/unread reader \#)
-                (edn-read ctx reader))))))))
+                (binding [tools.reader/*data-readers* (-> ctx :tools.reader/opts :readers)]
+                  (tools.reader/read reader)))))))))
 
 (defn throw-odd-map
   [#?(:cljs ^not-native reader :default reader) loc elements]

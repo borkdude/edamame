@@ -260,6 +260,12 @@
     (is (= {:a 1} m))
     (is (= 2 (:row (meta m))))))
 
+(deftest deref-in-reader-test
+  (declare ^:dynamic foo)
+  (binding [foo (atom 123)]
+    (let [r (p/parse-string "#identity @foo" {:readers {'identity identity}})]
+      (is r 123))))
+
 ;;;; Scratch
 
 (comment
