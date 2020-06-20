@@ -13,6 +13,7 @@
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta namespace-keys]])
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
+   #?(:cljs [cljs.tagged-literals :as cljs-tags])
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
@@ -322,8 +323,16 @@
               (parse-next ctx reader)
               ;; read form
               (parse-next ctx reader))
-            (do (r/unread reader \#)
-                (edn-read ctx reader))))))))
+            (let [sym (parse-next ctx reader)
+                  data (parse-next ctx reader)
+                  f (or (get (:readers ctx) sym)
+                        #?(:clj (default-data-readers sym)
+                           :cljs (cljs-tags/*cljs-data-readers* sym)))]
+              (if f (f data)
+                  (throw (new #?(:clj Exception :cljs js/Error)
+                              (str "No reader function for tag " sym)))))
+            #_(do (r/unread reader \#)
+                  (edn-read ctx reader))))))))
 
 (defn throw-odd-map
   [#?(:cljs ^not-native reader :default reader) loc elements]
@@ -385,7 +394,7 @@
                  (let [next-val (parse-next ctx reader)]
                    (if (ifn? v)
                      (v next-val)
-                     (list 'deref next-val))))
+                     (list 'clojure.core/deref next-val))))
                (throw-reader
                 reader
                 (str "Deref not allowed. Use the `:deref` option")))
@@ -541,10 +550,7 @@
                (not (:row-key opts)) (assoc :row-key :row)
                (not (:end-row-key opts)) (assoc :end-row-key :end-row)
                (not (:col-key opts)) (assoc :col-key :col)
-               (not (:end-col-key opts)) (assoc :end-col-key :end-col))
-        opts (if-let [readers (:readers opts)]
-               (update-in opts [:tools.reader/opts :readers] merge readers)
-               opts)]
+               (not (:end-col-key opts)) (assoc :end-col-key :end-col))]
     (map->Options opts)))
 
 (defn parse-string [s opts]

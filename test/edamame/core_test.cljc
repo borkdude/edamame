@@ -40,7 +40,7 @@
   (let [foo-sym (second (p/parse-string "(defn foo [])"))]
     (is (= {:row 1 :col 7 :end-row 1, :end-col 10} (meta foo-sym))))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
-  (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:tools.reader/opts {:readers {'foo/bar (fn [v] (str v))}}})))
+  (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:readers {'foo/bar (fn [v] (str v))}})))
   (is (= [1 2 3] (p/parse-string-all "1 2 3")))
   (is (= '({:row 1, :col 1, :end-row 1, :end-col 23}
            {:row 1, :col 5, :end-row 1, :end-col 22}
@@ -208,10 +208,15 @@
                                            :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
                                         {:all true
                                          :auto-resolve '{:current cljs.core}
-                                         :tools.reader/opts {:readers cljs-tags/*cljs-data-readers*}}))))))
+                                         #?@(:clj [:readers cljs-tags/*cljs-data-readers*])}))))))
 
 (deftest readers-test
-  (is (= '(js [1 2 3]) (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}}))))
+  (is (= '(foo [1 2 3]) (p/parse-string "#foo [1 2 3]" {:readers {'foo (fn [v] (list 'foo v))}})))
+  (is (= '(foo @(atom 1)) (p/parse-string "#foo @(atom 1)" {:readers {'foo (fn [v] (list 'foo v))}
+                                                            :all true})))
+  (is (= '(js [1 2 3])  (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})))
+  ;; TODO: should we "eval" the JSValue here, or in sci?
+  #?(:cljs (is (p/parse-string "#js [1 2 3]"))))
 
 (deftest namespaced-map-test
   ;; TODO: fix locations of namespaced maps
