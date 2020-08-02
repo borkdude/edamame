@@ -157,15 +157,17 @@ Passing data readers:
 (js [1 2 3])
 ```
 
-Intercepting read objects:
+Postprocess read objects:
 
 ``` clojure
 (defrecord Wrapper [obj loc])
 (parse-string "[1]"
-  {:obj-fn (fn [{:keys [:obj :loc]}]
-             (if (instance? clojure.lang.IObj obj) (vary-meta obj merge loc) (->Wrapper obj loc)))})
+  {:postprocess (fn [{:keys [:obj :loc]}]
+                  (if (instance? clojure.lang.IObj obj) (vary-meta obj merge loc) (->Wrapper obj loc)))})
 [#user.Wrapper{:obj 1, :loc {:row 1, :col 2, :end-row 1, :end-col 3}}]
 ```
+
+This allows you to presever metadata for objects that do not support carrying metadata.
 
 ## Test
 

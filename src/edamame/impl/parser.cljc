@@ -490,17 +490,17 @@
         (parse-next ctx reader)
         (if (kw-identical? ::expected-delimiter obj)
           obj
-          (let [obj-fn (:obj-fn ctx)
+          (let [postprocess (:postprocess ctx)
                 iobj? #?(:clj
                          (instance? clojure.lang.IObj obj)
                          :cljs (satisfies? IWithMeta obj))
-                end-loc (when (or iobj? obj-fn)
+                end-loc (when (or iobj? postprocess)
                           (location reader))
-                obj (cond obj-fn
-                          (obj-fn {:obj obj :loc {(:row-key ctx) (:row loc)
+                obj (cond postprocess
+                          (postprocess {:obj obj :loc {(:row-key ctx) (:row loc)
                                                   (:col-key ctx) (:col loc)
-                                                  (:end-row-key ctx) (:row end-loc)
-                                                  (:end-col-key ctx) (:col end-loc)}})
+                                                       (:end-row-key ctx) (:row end-loc)
+                                                       (:end-col-key ctx) (:col end-loc)}})
                           iobj? (vary-meta obj #(assoc %
                                                        (:row-key ctx) (:row loc)
                                                        (:col-key ctx) (:col loc)
