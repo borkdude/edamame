@@ -488,16 +488,26 @@
           obj (dispatch ctx reader c)]
       (if (identical? reader obj)
         (parse-next ctx reader)
-        (if #?(:clj
-               (instance? clojure.lang.IObj obj)
-               :cljs (satisfies? IWithMeta obj))
-          (let [end-loc (location reader)]
-            (vary-meta obj #(assoc %
-                                   (:row-key ctx) (:row loc)
-                                   (:col-key ctx) (:col loc)
-                                   (:end-row-key ctx) (:row end-loc)
-                                   (:end-col-key ctx) (:col end-loc))))
-          obj)))
+        (if (kw-identical? ::expected-delimiter obj)
+          obj
+          (let [postprocess (:postprocess ctx)
+                iobj? #?(:clj
+                         (instance? clojure.lang.IObj obj)
+                         :cljs (satisfies? IWithMeta obj))
+                end-loc (when (or iobj? postprocess)
+                          (location reader))
+                obj (cond postprocess
+                          (postprocess {:obj obj :loc {(:row-key ctx) (:row loc)
+                                                       (:col-key ctx) (:col loc)
+                                                       (:end-row-key ctx) (:row end-loc)
+                                                       (:end-col-key ctx) (:col end-loc)}})
+                          iobj? (vary-meta obj #(assoc %
+                                                       (:row-key ctx) (:row loc)
+                                                       (:col-key ctx) (:col loc)
+                                                       (:end-row-key ctx) (:row end-loc)
+                                                       (:end-col-key ctx) (:col end-loc)))
+                          :else obj)]
+            obj))))
     ::eof))
 
 (defn string-reader

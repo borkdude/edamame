@@ -157,6 +157,30 @@ Passing data readers:
 (js [1 2 3])
 ```
 
+Postprocess read values:
+
+``` clojure
+(defrecord Wrapper [obj loc])
+
+(defn iobj? [x]
+  #?(:clj (instance? clojure.lang.IObj x)
+     :cljs (satisfies? IWithMeta x)))
+
+(defrecord Wrapper [obj loc])
+
+(parse-string "[1]" {:postprocess
+                       (fn [{:keys [:obj :loc]}]
+                         (if (iobj? obj)
+                           (vary-meta obj merge loc)
+                           (->Wrapper obj loc)))})
+
+[#user.Wrapper{:obj 1, :loc {:row 1, :col 2, :end-row 1, :end-col 3}}]
+```
+
+This allows you to preserve metadata for objects that do not support carrying
+metadata. When you use a `:postprocess` function, it is your responsibility to
+attach location metadata.
+
 ## Test
 
 For the node tests, ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew). For the JVM tests you will require [leiningen](https://leiningen.org/) to be installed. Then run the following:

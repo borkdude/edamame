@@ -265,6 +265,20 @@
     (is (= {:a 1} m))
     (is (= 2 (:row (meta m))))))
 
+(defrecord Wrapper [obj loc])
+
+(defn iobj? [x]
+  #?(:clj (instance? clojure.lang.IObj x)
+     :cljs (satisfies? IWithMeta x)))
+
+(deftest postprocess-test
+  (is (= [(->Wrapper 1 {:row 1, :col 2, :end-row 1, :end-col 3})]
+       (p/parse-string "[1]" {:postprocess
+                              (fn [{:keys [:obj :loc]}]
+                                (if (iobj? obj)
+                                  (vary-meta obj merge loc)
+                                  (->Wrapper obj loc)))}))))
+
 ;;;; Scratch
 
 (comment
