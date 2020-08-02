@@ -160,8 +160,11 @@ Passing data readers:
 Intercepting read objects:
 
 ``` clojure
-(parse-string "[1]" {:obj-fn (fn [{:keys [:obj :loc]}] {:obj obj :loc loc])})
-;;=> {:obj [{:obj 1, :loc {:row 1, :col 2, :end-row 1, :end-col 3}}], :loc {:row 1, :col 1, :end-row 1, :end-col 4}}
+(defrecord Wrapper [obj loc])
+(parse-string "[1]"
+  {:obj-fn (fn [{:keys [:obj :loc]}]
+             (if (instance? clojure.lang.IObj obj) (vary-meta obj merge loc) (->Wrapper obj loc)))})
+[#user.Wrapper{:obj 1, :loc {:row 1, :col 2, :end-row 1, :end-col 3}}]
 ```
 
 ## Test
