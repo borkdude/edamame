@@ -43,6 +43,12 @@
 
   `:readers`: data readers.
 
+  `:postprocess`: a function that will be called with a map containing
+  `:obj`, the read value, and `:loc`, the location metadata. This can
+  be used to handle objects that cannot carry metadata differently. If
+  this option is provided, attaching location metadata is not
+  automatically added to the object.
+
   Additional arguments to tools.reader may be passed with
   `:tools.reader/opts`, like `:readers` for passing reader tag functions.
 
