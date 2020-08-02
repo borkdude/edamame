@@ -177,8 +177,8 @@ Postprocess read values:
 [#user.Wrapper{:obj 1, :loc {:row 1, :col 2, :end-row 1, :end-col 3}}]
 ```
 
-This allows you to presever metadata for objects that do not support carrying
-metadata. When you use a `:postprocess` function, it is your reponsibility to
+This allows you to preserve metadata for objects that do not support carrying
+metadata. When you use a `:postprocess` function, it is your responsibility to
 attach location metadata.
 
 ## Test
