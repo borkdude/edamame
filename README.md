@@ -157,17 +157,29 @@ Passing data readers:
 (js [1 2 3])
 ```
 
-Postprocess read objects:
+Postprocess read values:
 
 ``` clojure
 (defrecord Wrapper [obj loc])
-(parse-string "[1]"
-  {:postprocess (fn [{:keys [:obj :loc]}]
-                  (if (instance? clojure.lang.IObj obj) (vary-meta obj merge loc) (->Wrapper obj loc)))})
+
+(defn iobj? [x]
+  #?(:clj (instance? clojure.lang.IObj x)
+     :cljs (satisfies? IWithMeta x)))
+
+(defrecord Wrapper [obj loc])
+
+(parse-string "[1]" {:postprocess
+                       (fn [{:keys [:obj :loc]}]
+                         (if (iobj? obj)
+                           (vary-meta obj merge loc)
+                           (->Wrapper obj loc)))})
+
 [#user.Wrapper{:obj 1, :loc {:row 1, :col 2, :end-row 1, :end-col 3}}]
 ```
 
-This allows you to presever metadata for objects that do not support carrying metadata.
+This allows you to presever metadata for objects that do not support carrying
+metadata. When you use a `:postprocess` function, it is your reponsibility to
+attach location metadata.
 
 ## Test
 

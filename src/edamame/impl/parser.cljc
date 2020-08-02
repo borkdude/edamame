@@ -498,7 +498,7 @@
                           (location reader))
                 obj (cond postprocess
                           (postprocess {:obj obj :loc {(:row-key ctx) (:row loc)
-                                                  (:col-key ctx) (:col loc)
+                                                       (:col-key ctx) (:col loc)
                                                        (:end-row-key ctx) (:row end-loc)
                                                        (:end-col-key ctx) (:col end-loc)}})
                           iobj? (vary-meta obj #(assoc %
