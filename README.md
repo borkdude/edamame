@@ -166,8 +166,6 @@ Postprocess read values:
   #?(:clj (instance? clojure.lang.IObj x)
      :cljs (satisfies? IWithMeta x)))
 
-(defrecord Wrapper [obj loc])
-
 (parse-string "[1]" {:postprocess
                        (fn [{:keys [:obj :loc]}]
                          (if (iobj? obj)
