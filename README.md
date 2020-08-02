@@ -157,6 +157,13 @@ Passing data readers:
 (js [1 2 3])
 ```
 
+Intercepting read objects:
+
+``` clojure
+(parse-string "[1]" {:obj-fn (fn [{:keys [:obj :loc]}] {:obj obj :loc loc])})
+;;=> {:obj [{:obj 1, :loc {:row 1, :col 2, :end-row 1, :end-col 3}}], :loc {:row 1, :col 1, :end-row 1, :end-col 4}}
+```
+
 ## Test
 
 For the node tests, ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew). For the JVM tests you will require [leiningen](https://leiningen.org/) to be installed. Then run the following:
