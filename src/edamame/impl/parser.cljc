@@ -517,11 +517,11 @@
                                                               (:col-key ctx) (:col loc)
                                                               (:end-row-key ctx) (:row end-loc)
                                                               (:end-col-key ctx) (:col end-loc)}}))
-                 obj (if desugar (if postprocess-fn
-                                   (desugar-meta obj postprocess-fn)
-                                   (desugar-meta obj)) obj)
-                 obj (cond postprocess
-                           (postprocess-fn obj)
+                 obj (if desugar
+                       (if postprocess-fn
+                         (desugar-meta obj postprocess-fn)
+                         (desugar-meta obj)) obj)
+                 obj (cond postprocess (postprocess-fn obj)
                            iobj? (vary-meta obj #(assoc %
                                                         (:row-key ctx) (:row loc)
                                                         (:col-key ctx) (:col loc)
