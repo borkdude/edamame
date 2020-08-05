@@ -277,7 +277,14 @@
                               (fn [{:keys [:obj :loc]}]
                                 (if (iobj? obj)
                                   (vary-meta obj merge loc)
-                                  (->Wrapper obj loc)))}))))
+                                  (->Wrapper obj loc)))})))
+  (let [p-fn (fn [{:keys [obj]}]
+               (if (keyword? obj)
+                 {:value obj}
+                 obj))]
+    (is (= {{:value :foo} true}
+           (meta (p/parse-string "^:foo []" {:postprocess p-fn}))
+           (meta (p/parse-string "^{:foo true} []" {:postprocess p-fn}))))))
 
 ;;;; Scratch
 

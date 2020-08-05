@@ -9,8 +9,8 @@
       :cljs [cljs.tools.reader.reader-types :as r])
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
-   #?(:clj [clojure.tools.reader.impl.utils :refer [desugar-meta namespace-keys]]
-      :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional desugar-meta namespace-keys]])
+   #?(:clj [clojure.tools.reader.impl.utils :refer [namespace-keys]]
+      :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional namespace-keys]])
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
    #?(:cljs [cljs.tagged-literals :as cljs-tags])
@@ -380,6 +380,21 @@
               (keyword (str kns) token-name))))
         (keyword token)))))
 
+(defn desugar-meta
+  "Resolves syntactical sugar in metadata" ;; could be combined with some other desugar?
+  ([f]
+   (cond
+     (keyword? f) {f true}
+     (symbol? f)  {:tag f}
+     (string? f)  {:tag f}
+     :else        f))
+  ([f postprocess]
+   (cond
+     (keyword? f) {(postprocess f) (postprocess true)}
+     (symbol? f)  {(postprocess :tag) (postprocess f)}
+     (string? f)  {(postprocess :tag) (postprocess f)}
+     :else        f)))
+
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
   (let [sharp? (= \# c)]
@@ -473,42 +488,48 @@
           \; (parse-comment reader)
           \^ (do
                (r/read-char reader) ;; ignore ^
-               (let [meta-val (parse-next ctx reader)
-                     meta-val (desugar-meta meta-val)
+               (let [meta-val (parse-next ctx reader true)
                      val-val (vary-meta (parse-next ctx reader)
                                         merge meta-val)]
                  val-val))
           \: (parse-keyword ctx reader)
           (edn-read ctx reader)))))
 
-(defn parse-next [ctx reader]
-  (if-let [c (and (skip-whitespace ctx reader)
-                  (r/peek-char reader))]
-    (let [loc (location reader)
-          obj (dispatch ctx reader c)]
-      (if (identical? reader obj)
-        (parse-next ctx reader)
-        (if (kw-identical? ::expected-delimiter obj)
-          obj
-          (let [postprocess (:postprocess ctx)
-                iobj? #?(:clj
-                         (instance? clojure.lang.IObj obj)
-                         :cljs (satisfies? IWithMeta obj))
-                end-loc (when (or iobj? postprocess)
-                          (location reader))
-                obj (cond postprocess
-                          (postprocess {:obj obj :loc {(:row-key ctx) (:row loc)
-                                                       (:col-key ctx) (:col loc)
-                                                       (:end-row-key ctx) (:row end-loc)
-                                                       (:end-col-key ctx) (:col end-loc)}})
-                          iobj? (vary-meta obj #(assoc %
-                                                       (:row-key ctx) (:row loc)
-                                                       (:col-key ctx) (:col loc)
-                                                       (:end-row-key ctx) (:row end-loc)
-                                                       (:end-col-key ctx) (:col end-loc)))
-                          :else obj)]
-            obj))))
-    ::eof))
+(defn parse-next
+  ([ctx reader] (parse-next ctx reader nil))
+  ([ctx reader desugar]
+   (if-let [c (and (skip-whitespace ctx reader)
+                   (r/peek-char reader))]
+     (let [loc (location reader)
+           obj (dispatch ctx reader c)]
+       (if (identical? reader obj)
+         (parse-next ctx reader)
+         (if (kw-identical? ::expected-delimiter obj)
+           obj
+           (let [postprocess (:postprocess ctx)
+                 iobj? #?(:clj
+                          (instance? clojure.lang.IObj obj)
+                          :cljs (satisfies? IWithMeta obj))
+                 end-loc (when (or iobj? postprocess)
+                           (location reader))
+                 postprocess-fn (when postprocess
+                                  #(postprocess {:obj % :loc {(:row-key ctx) (:row loc)
+                                                              (:col-key ctx) (:col loc)
+                                                              (:end-row-key ctx) (:row end-loc)
+                                                              (:end-col-key ctx) (:col end-loc)}}))
+                 obj (if desugar (if postprocess-fn
+                                   (desugar-meta obj postprocess-fn)
+                                   (desugar-meta obj)) obj)
+                 obj (cond postprocess
+                           (postprocess-fn obj)
+                           iobj? (vary-meta obj #(assoc %
+                                                        (:row-key ctx) (:row loc)
+                                                        (:col-key ctx) (:col loc)
+                                                        (:end-row-key ctx) (:row end-loc)
+                                                        (:end-col-key ctx) (:col end-loc)))
+                           :else obj)]
+             obj))))
+     ::eof)))
 
 (defn string-reader
   "Create reader for strings."
