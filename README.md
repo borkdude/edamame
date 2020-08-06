@@ -157,6 +157,7 @@ Passing data readers:
 (js [1 2 3])
 ```
 
+<!--
 Postprocess read values:
 
 ``` clojure
@@ -178,7 +179,7 @@ Postprocess read values:
 This allows you to preserve metadata for objects that do not support carrying
 metadata. When you use a `:postprocess` function, it is your responsibility to
 attach location metadata.
-
+-->
 ## Test
 
 For the node tests, ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew). For the JVM tests you will require [leiningen](https://leiningen.org/) to be installed. Then run the following:
