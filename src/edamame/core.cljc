@@ -2,6 +2,13 @@
   (:require
    [edamame.impl.parser :as p]))
 
+;; undocumented, still alpha, only used by @kwrooijen at the moment:
+;; `:postprocess`: a function that will be called with a map containing
+;; `:obj`, the read value, and `:loc`, the location metadata. This can
+;; be used to handle objects that cannot carry metadata differently. If
+;; this option is provided, attaching location metadata is not
+;; automatically added to the object.
+
 (defn parse-string
   "Parses first EDN value from string.
 
@@ -43,19 +50,12 @@
 
   `:readers`: data readers.
 
-  `:postprocess`: a function that will be called with a map containing
-  `:obj`, the read value, and `:loc`, the location metadata. This can
-  be used to handle objects that cannot carry metadata differently. If
-  this option is provided, attaching location metadata is not
-  automatically added to the object.
-
   Additional arguments to tools.reader may be passed with
   `:tools.reader/opts`, like `:readers` for passing reader tag functions.
 
   Deprecated options:
 
   `:dispatch`: DEPRECATED by parsing options.
-
   "
   ([s]
    (p/parse-string s nil))
