@@ -503,7 +503,7 @@
      (let [loc (location reader)
            obj (dispatch ctx reader c)]
        (if (identical? reader obj)
-         (parse-next ctx reader)
+         (recur ctx reader desugar)
          (if (kw-identical? ::expected-delimiter obj)
            obj
            (let [postprocess (:postprocess ctx)
