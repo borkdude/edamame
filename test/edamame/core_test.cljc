@@ -1,5 +1,6 @@
 (ns edamame.core-test
   (:require
+   [clojure.string :as string]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
    #?(:clj [clojure.java.io :as io])
@@ -84,7 +85,9 @@
                           (p/parse-string "  [   ")))
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                           #"Unmatched delimiter: \] \[at line 1, column 3\]"
-                          (p/parse-string "  ]   ")))))
+                          (p/parse-string "  ]   "))))
+  (testing "many consecutive comments"
+    (is (= [] (p/parse-string-all (string/join "\n" (repeat 10000 ";;")))))))
 
 (deftest reader-conditional-test
   (testing "reader conditional processing"
