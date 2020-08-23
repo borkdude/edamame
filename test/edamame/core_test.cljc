@@ -5,7 +5,15 @@
    [edamame.core :as p]
    #?(:clj [clojure.java.io :as io])
    #?(:cljs [goog.object :as gobj])
-   [cljs.tagged-literals :as cljs-tags]))
+   #?(:clj [cljs.tagged-literals :as cljs-tags])
+   [edamame.test-utils]))
+
+(deftest foo
+  (is (thrown-with-data?
+       #"The map literal starting with :a contains 3 form\(s\). Map literals must contain an even number of forms."
+       {:row 1
+        :col 1}
+       (p/parse-string "{:a :b :c}"))))
 
 (deftest parser-test
   (is (= "foo" (p/parse-string "\"foo\"")))
@@ -16,16 +24,27 @@
   (is (= '(1 2 3) (p/parse-string "(1 2 3)")))
   (is ((every-pred vector? #(= % [1 2 3])) (p/parse-string "[1 2 3]")))
   (is (= #{1 2 3} (p/parse-string "#{1 2 3}")))
-  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                        #"Set literal contains duplicate key: 1 \[at line 1, column 2\]"
-                        (p/parse-string "#{1 1}")))
+  (is (thrown-with-data?
+       #"Set literal contains duplicate key: 1"
+       {:row 1
+        :col 2}
+       (p/parse-string "#{1 1}")))
+  (is (thrown-with-data?
+       #"Set literal contains duplicate key: 1"
+       {:row 1
+        :col 2}
+       (p/parse-string "#{1 1}")))
   (is (= {:a 1 :b 2} (p/parse-string "{:a 1 :b 2}")))
-  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                        #"The map literal starting with :a contains 3 form\(s\). Map literals must contain an even number of forms. \[at line 1, column 1\]"
-                        (p/parse-string "{:a :b :c}")))
-  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                        #"Map literal contains duplicate key: :a \[at line 1, column 1\]"
-                        (p/parse-string "{:a :b :a :c}")))
+  (is (thrown-with-data?
+       #"The map literal starting with :a contains 3 form\(s\). Map literals must contain an even number of forms."
+       {:row 1
+        :col 1}
+       (p/parse-string "{:a :b :c}")))
+  (is (thrown-with-data?
+       #"Map literal contains duplicate key: :a"
+       {:row 1
+        :col 1}
+       (p/parse-string "{:a :b :a :c}")))
   (testing "edamame can parse the empty map"
     (is (= {} (p/parse-string "{}"))))
   (is (= {:row 1 :col 2, :end-row 1, :end-col 13}
@@ -83,9 +102,10 @@
                           (p/parse-string "[}")))
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected ]"
                           (p/parse-string "  [   ")))
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                          #"Unmatched delimiter: \] \[at line 1, column 3\]"
-                          (p/parse-string "  ]   "))))
+    (is (thrown-with-data?
+         #"Unmatched delimiter: \]"
+         {:row 1 :col 3}
+         (p/parse-string "  ]   "))))
   (testing "many consecutive comments"
     (is (= [] (p/parse-string-all (string/join "\n" (repeat 10000 ";;")))))))
 
