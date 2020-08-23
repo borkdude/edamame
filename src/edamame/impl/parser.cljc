@@ -78,20 +78,18 @@
   "Throw reader exception, including line line/column. line/column is
   read from the reader but it can be overriden by passing loc
   optional parameter."
-  ([#?(:cljs ^:not-native reader :default reader) msg]
-   (throw-reader reader msg nil))
-  ([#?(:cljs ^:not-native reader :default reader) msg data]
-   (throw-reader reader msg data nil))
-  ([#?(:cljs ^:not-native reader :default reader) msg data loc]
+  ([ctx #?(:cljs ^:not-native reader :default reader) msg]
+   (throw-reader ctx reader msg nil))
+  ([ctx #?(:cljs ^:not-native reader :default reader) msg data]
+   (throw-reader ctx reader msg data nil))
+  ([ctx #?(:cljs ^:not-native reader :default reader) msg data loc]
    (let [c (:col loc (r/get-column-number reader))
          l (:row loc (r/get-line-number reader))]
      (throw
-      (ex-info
-       (str msg
-            " [at line " l ", column " c "]")
-       (merge {:type :edamame/error
-               :row l
-               :col c} data))))))
+      (ex-info msg
+               (merge {:type :edamame/error
+                       (:row-key ctx) l
+                       (:col-key ctx) c} data))))))
 
 (def non-match ::nil)
 
@@ -114,7 +112,7 @@
              cond-splice? (some-> next-val meta ::cond-splice)]
          (cond
            (kw-identical? ::eof next-val)
-           (throw-reader
+           (throw-reader ctx
             reader
             (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]"))
            (kw-identical? ::expected-delimiter next-val)
@@ -131,7 +129,7 @@
 
 (defn read-regex-pattern
   "Modeled after tools.reader/read-regex."
-  [_ctx #?(:cljs ^not-native reader :default reader)]
+  [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore leading double-quote
   (let [sb #?(:clj (StringBuilder.)
               :cljs (StringBuffer.))]
@@ -140,13 +138,13 @@
         #?(:clj (str sb)
            :cljs (str sb))
         (if (nil? ch)
-          (throw-reader reader "Error while parsing regex")
+          (throw-reader ctx reader "Error while parsing regex")
           (do
             (.append sb ch )
             (when (identical? \\ ch)
               (let [ch (r/read-char reader)]
                 (when (nil? ch)
-                  (throw-reader reader "Error while parsing regex"))
+                  (throw-reader ctx reader "Error while parsing regex"))
                 (.append sb ch)))
             (recur (r/read-char reader))))))))
 
@@ -162,9 +160,9 @@
              ": " (interpose ", " dups)))))
 
 (defn throw-dup-keys
-  [#?(:cljs ^not-native reader :default reader) loc kind ks]
+  [ctx #?(:cljs ^not-native reader :default reader) loc kind ks]
   (throw-reader
-   reader
+   ctx reader
    (duplicate-keys-error
     (str (str/capitalize (name kind)) " literal contains duplicate key")
     ks)
@@ -177,7 +175,7 @@
         coll (parse-to-delimiter ctx reader \})
         the-set (set coll)]
     (when-not (= (count coll) (count the-set))
-      (throw-dup-keys reader start-loc :set coll))
+      (throw-dup-keys ctx reader start-loc :set coll))
     the-set))
 
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
@@ -224,17 +222,17 @@
   ([ctx reader next-val msg]
    (if-let [v (:auto-resolve ctx)]
      v
-     (throw-reader reader
+     (throw-reader ctx reader
                    (or msg "Use `:auto-resolve` to resolve aliases.")
                    {:expr (str ":" next-val)}))))
 
 (defn auto-resolve
   "Returns namespace for given alias."
-  ([m kns reader next-val] (auto-resolve m kns reader next-val nil))
-  ([m kns reader next-val msg]
+  ([ctx m kns reader next-val] (auto-resolve ctx m kns reader next-val nil))
+  ([ctx m kns reader next-val msg]
    (if-let [kns (m kns)]
      kns
-     (throw-reader reader
+     (throw-reader ctx reader
                    (or msg (str "Alias `" (symbol kns) "` not found in `:auto-resolve`"))
                    {:expr (str ":" next-val)}))))
 
@@ -245,7 +243,7 @@
       ;; autoresolved
       (let [ns (symbol (name prefix))
             f (get-auto-resolve ctx reader ns)
-            resolved-ns (auto-resolve f ns reader prefix)]
+            resolved-ns (auto-resolve ctx f ns reader prefix)]
         (zipmap (namespace-keys (str resolved-ns) (keys the-map))
                 (vals the-map)))
       (let [resolved-ns (name prefix)]
@@ -256,14 +254,14 @@
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [c (r/peek-char reader)]
     (case c
-      nil (throw-reader reader (str "Unexpected EOF."))
+      nil (throw-reader ctx reader (str "Unexpected EOF."))
       \" (if-let [v (:regex ctx)]
            (let [pat (read-regex-pattern ctx reader)]
              (if (ifn? v)
                (v pat)
                (re-pattern pat)))
            (throw-reader
-            reader
+            ctx reader
             (str "Regex not allowed. Use the `:regex` option")))
       \( (if-let [v (:fn ctx)]
            (let [fn-expr (parse-next ctx reader)]
@@ -271,7 +269,7 @@
                (v fn-expr)
                (read-fn fn-expr)))
            (throw-reader
-            reader
+            ctx reader
             (str "Function literal not allowed. Use the `:fn` option")))
       \' (if-let [v (:var ctx)]
            (do
@@ -281,7 +279,7 @@
                  (v next-val)
                  (list 'var next-val))))
            (throw-reader
-            reader
+            ctx reader
             (str "Var literal not allowed. Use the `:var` option")))
       \= (if-let [v (:read-eval ctx)]
            (do
@@ -291,7 +289,7 @@
                  (v next-val)
                  (list 'read-eval next-val))))
            (throw-reader
-            reader
+            ctx reader
             (str "Read-eval not allowed. Use the `:read-eval` option")))
       \{ (parse-set ctx reader)
       \_ (do
@@ -301,7 +299,7 @@
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader
-              reader
+              ctx reader
               (str "Conditional read not allowed.")))
            (r/read-char reader) ;; ignore ?
            (parse-reader-conditional ctx reader))
@@ -335,9 +333,8 @@
                   (edn-read ctx reader))))))))
 
 (defn throw-odd-map
-  [#?(:cljs ^not-native reader :default reader) loc elements]
-  (throw-reader
-   reader
+  [ctx #?(:cljs ^not-native reader :default reader) loc elements]
+  (throw-reader ctx reader
    (str
     "The map literal starting with "
     (i/inspect (first elements))
@@ -354,17 +351,17 @@
         c (count elements)]
     (when (pos? c)
       (when (odd? c)
-        (throw-odd-map reader start-loc elements))
+        (throw-odd-map ctx reader start-loc elements))
       (let [ks (take-nth 2 elements)]
         (when-not (apply distinct? ks)
-          (throw-dup-keys reader start-loc :map ks))))
+          (throw-dup-keys ctx reader start-loc :map ks))))
     (apply hash-map elements)))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :
   (let [init-c (r/read-char reader)]
     (when (whitespace? init-c)
-      (throw-reader reader (str "Invalid token: :")))
+      (throw-reader ctx reader (str "Invalid token: :")))
     (let [^String token (read-token reader :keyword init-c)
           auto-resolve? (identical? \: (.charAt token 0))]
       (if auto-resolve?
@@ -372,11 +369,11 @@
               [token-ns token-name] (parse-symbol token)]
           (if token-ns
             (let [f (get-auto-resolve ctx reader token)
-                  kns (auto-resolve f (symbol token-ns) reader token-ns)]
+                  kns (auto-resolve ctx f (symbol token-ns) reader token-ns)]
               (keyword (str kns) token-name))
             ;; resolve current ns
             (let [f (get-auto-resolve ctx reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")
-                  kns (auto-resolve f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+                  kns (auto-resolve ctx f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
               (keyword (str kns) token-name))))
         (keyword token)))))
 
@@ -411,7 +408,7 @@
                      (v next-val)
                      (list 'clojure.core/deref next-val))))
                (throw-reader
-                reader
+                ctx reader
                 (str "Deref not allowed. Use the `:deref` option")))
           \' (if-let [v (:quote ctx)]
                (do
@@ -433,7 +430,7 @@
                            ret (syntax-quote ctx reader next-val)]
                        ret))))
                (throw-reader
-                reader
+                ctx reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
           \~
           (if-let [v (and (:syntax-quote ctx)
@@ -454,14 +451,14 @@
                           (v next-val)
                           (list 'clojure.core/unquote-splicing next-val))))
                     (throw-reader
-                     reader
+                     ctx reader
                      (str "Syntax unquote splice not allowed. Use the `:syntax-quote` option")))
                   (let [next-val (parse-next ctx reader)]
                     (if (ifn? v)
                       (v next-val)
                       (list 'clojure.core/unquote next-val))))))
             (throw-reader
-             reader
+             ctx reader
              (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
@@ -473,7 +470,7 @@
                            ;; delimiter to be able to
                            ;; continue reading, fix for
                            ;; babashka socket REPL
-                           (throw-reader reader
+                           (throw-reader ctx reader
                                          (str "Unmatched delimiter: " c
                                               (when expected
                                                 (str ", expected: " expected

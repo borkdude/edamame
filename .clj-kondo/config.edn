@@ -1,0 +1,2 @@
+{:linters {:unresolved-symbol {:exclude [(clojure.test/is [thrown-with-data?])
+                                         (cljs.test/is [thrown-with-data?])]}}}
