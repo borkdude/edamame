@@ -5,7 +5,6 @@
    [edamame.core :as p]
    #?(:clj [clojure.java.io :as io])
    #?(:cljs [goog.object :as gobj])
-   [cljs.tagged-literals :as cljs-tags]
    [edamame.test-utils]))
 
 (deftest foo
