@@ -96,6 +96,9 @@
 (defn non-match? [v]
   (kw-identical? v non-match))
 
+(defn throw-eof-while-reading [ctx reader]
+  (throw-reader ctx reader "EOF while reading"))
+
 (defn parse-to-delimiter
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
    (parse-to-delimiter ctx reader delimiter []))
@@ -275,6 +278,8 @@
            (do
              (r/read-char reader) ;; ignore quote
              (let [next-val (parse-next ctx reader)]
+               (when (kw-identical? ::eof next-val)
+                 (throw-eof-while-reading ctx reader))
                (if (ifn? v)
                  (v next-val)
                  (list 'var next-val))))
@@ -414,6 +419,8 @@
                (do
                  (r/read-char reader) ;; skip '
                  (let [next-val (parse-next ctx reader)]
+                   (when (kw-identical? ::eof next-val)
+                     (throw-eof-while-reading ctx reader))
                    (if (ifn? v)
                      (v next-val)
                      (list 'quote next-val))))

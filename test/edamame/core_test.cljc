@@ -77,11 +77,6 @@
   (is (= '(slurp "foo") (p/parse-string "#=(slurp \"foo\")"
                                         {:dispatch
                                          {\# {\= identity}}})))
-  (testing "EOF while reading"
-    (doseq [s ["(" "{" "["]]
-      (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                            #"EOF while reading"
-                            (p/parse-string s)))))
   (testing "read syntax-quote, unquote and unquote splicing"
     (let [opts {:dispatch
                 {\` (fn [expr] (list 'syntax-quote expr))
@@ -108,6 +103,18 @@
          (p/parse-string "  ]   "))))
   (testing "many consecutive comments"
     (is (= [] (p/parse-string-all (string/join "\n" (repeat 10000 ";;")))))))
+
+(deftest eof-while-reading-test
+  (doseq [s ["(" "{" "["]]
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                          #"EOF while reading"
+                          (p/parse-string s))))
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                        #"EOF while reading"
+                        (p/parse-string "'" {:quote true})))
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                        #"EOF while reading"
+                        (p/parse-string "#'" {:var true}))))
 
 (deftest reader-conditional-test
   (testing "reader conditional processing"
