@@ -14,6 +14,7 @@
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
    #?(:cljs [cljs.tagged-literals :as cljs-tags])
+   #?(:cljs [cljs.reader])
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
@@ -330,7 +331,9 @@
                   data (parse-next ctx reader)
                   f (or (get (:readers ctx) sym)
                         #?(:clj (default-data-readers sym)
-                           :cljs (cljs-tags/*cljs-data-readers* sym)))]
+                           :cljs (cljs-tags/*cljs-data-readers* sym))
+                        #?(:clj *default-data-reader-fn*
+                           :cljs cljs.reader/*default-data-reader-fn*))]
               (if f (f data)
                   (throw (new #?(:clj Exception :cljs js/Error)
                               (str "No reader function for tag " sym)))))

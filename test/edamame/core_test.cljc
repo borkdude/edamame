@@ -5,6 +5,7 @@
    [edamame.core :as p]
    #?(:clj [clojure.java.io :as io])
    #?(:cljs [goog.object :as gobj])
+   #?(:cljs [cljs.reader])
    #?(:clj [cljs.tagged-literals :as cljs-tags])
    [edamame.test-utils]))
 
@@ -247,6 +248,13 @@
   (is (= '(js [1 2 3])  (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})))
   ;; TODO: should we "eval" the JSValue here, or in sci?
   #?(:cljs (is (p/parse-string "#js [1 2 3]"))))
+
+(deftest default-data-reader-test
+  (set! #?(:clj *default-data-reader-fn*
+           :cljs cljs.reader/*default-data-reader-fn*) identity)
+  (is (= [1 2 3] (p/parse-string "#foo [1 2 3]")))
+  (set! #?(:clj *default-data-reader-fn*
+           :cljs cljs.reader/*default-data-reader-fn*) nil))
 
 (deftest namespaced-map-test
   ;; TODO: fix locations of namespaced maps
