@@ -329,6 +329,7 @@
             (let [sym (parse-next ctx reader)
                   data (parse-next ctx reader)
                   f (or (get (:readers ctx) sym)
+                        (get (:readers ctx) :default)
                         #?(:clj (default-data-readers sym)
                            :cljs (cljs-tags/*cljs-data-readers* sym)))]
               (if f (f data)
