@@ -244,6 +244,7 @@
   (is (= '(foo [1 2 3]) (p/parse-string "#foo [1 2 3]" {:readers {'foo (fn [v] (list 'foo v))}})))
   (is (= '(foo @(atom 1)) (p/parse-string "#foo @(atom 1)" {:readers {'foo (fn [v] (list 'foo v))}
                                                             :all true})))
+  (is (= [1 2 3] (p/parse-string "#foo [1 2 3]" {:readers (constantly identity)})))
   (is (= '(js [1 2 3])  (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})))
   ;; TODO: should we "eval" the JSValue here, or in sci?
   #?(:cljs (is (p/parse-string "#js [1 2 3]"))))
