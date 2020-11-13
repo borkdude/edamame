@@ -1,11 +1,12 @@
 (ns edamame.core-test
   (:require
+   #?(:clj [cljs.tagged-literals :as cljs-tags])
+   #?(:clj [clojure.java.io :as io])
+   #?(:cljs [goog.object :as gobj])
    [clojure.string :as string]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
-   #?(:clj [clojure.java.io :as io])
-   #?(:cljs [goog.object :as gobj])
-   #?(:clj [cljs.tagged-literals :as cljs-tags])
+   #?(:clj [edamame.impl.parser :as impl])
    [edamame.test-utils]))
 
 (deftest foo
@@ -316,6 +317,13 @@
     (is (= {{:value :foo} true}
            (meta (p/parse-string "^:foo []" {:postprocess p-fn}))
            (meta (p/parse-string "^{:foo true} []" {:postprocess p-fn}))))))
+
+#?(:clj
+   (deftest pushback-reader-test
+     (is (= '(+ 1 2 3)
+            (impl/parse-next
+             {}
+             (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "(+ 1 2 3)")))))))
 
 ;;;; Scratch
 
