@@ -325,6 +325,9 @@
              {}
              (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "(+ 1 2 3)")))))))
 
+(deftest parse-next-test
+  (is (= '(fn* [] (+ 1 2 3)) (p/parse-next (p/reader "#(+ 1 2 3)") (p/normalize-opts {:all true})))))
+
 ;;;; Scratch
 
 (comment
