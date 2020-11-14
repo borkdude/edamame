@@ -72,6 +72,12 @@
   [x]
   (p/reader x))
 
+(defn source-reader
+  "Coerces x into source-logging-reader to be used with
+  parse-next. Accepts: string or java.io.Reader."
+  [x]
+  (p/source-logging-reader x))
+
 (defn get-line-number [reader]
   (p/get-line-number reader))
 

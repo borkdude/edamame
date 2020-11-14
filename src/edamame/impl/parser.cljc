@@ -18,7 +18,8 @@
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
-  #?(:clj (:import [java.io Closeable]))
+  #?(:clj (:import [java.io Closeable]
+                   [clojure.tools.reader.reader_types SourceLoggingPushbackReader]))
   #?(:cljs (:import [goog.string StringBuffer])))
 
 #?(:clj (set! *warn-on-reflection* true))
@@ -513,7 +514,18 @@
    (if-let [c (and (skip-whitespace ctx reader)
                    (r/peek-char reader))]
      (let [loc (location reader)
-           obj (dispatch ctx reader c)]
+           log? (:source ctx)
+           #?@(:cljs [buf (fn [] (str (:buffer @(.-frames reader))))
+                      offset (when log? (count (buf)))])
+           obj (if log?
+                 #?(:clj (r/log-source reader (dispatch ctx reader c))
+                    :cljs (r/log-source* reader #(dispatch ctx reader c)))
+                 (dispatch ctx reader c))
+           src (when log?
+                 #?(:clj (.trim (str (:buffer
+                                     @(.source-log-frames
+                                       ^SourceLoggingPushbackReader reader))))
+                    :cljs (.trim (subs (buf) offset))))]
        (if (identical? reader obj)
          (recur ctx reader desugar)
          (if (kw-identical? ::expected-delimiter obj)
@@ -525,20 +537,24 @@
                  end-loc (when (or iobj? postprocess)
                            (location reader))
                  postprocess-fn (when postprocess
-                                  #(postprocess {:obj % :loc {(:row-key ctx) (:row loc)
-                                                              (:col-key ctx) (:col loc)
-                                                              (:end-row-key ctx) (:row end-loc)
-                                                              (:end-col-key ctx) (:col end-loc)}}))
+                                  #(postprocess (cond->
+                                                    {:obj %
+                                                     :loc {(:row-key ctx) (:row loc)
+                                                           (:col-key ctx) (:col loc)
+                                                           (:end-row-key ctx) (:row end-loc)
+                                                           (:end-col-key ctx) (:col end-loc)}}
+                                                  src (assoc (:src-key ctx) src))))
                  obj (if desugar
                        (if postprocess-fn
                          (desugar-meta obj postprocess-fn)
                          (desugar-meta obj)) obj)
                  obj (cond postprocess (postprocess-fn obj)
-                           iobj? (vary-meta obj #(assoc %
-                                                        (:row-key ctx) (:row loc)
-                                                        (:col-key ctx) (:col loc)
-                                                        (:end-row-key ctx) (:row end-loc)
-                                                        (:end-col-key ctx) (:col end-loc)))
+                           iobj? (vary-meta obj #(cond-> (assoc %
+                                                                (:row-key ctx) (:row loc)
+                                                                (:col-key ctx) (:col loc)
+                                                                (:end-row-key ctx) (:row end-loc)
+                                                                (:end-col-key ctx) (:col end-loc))
+                                                   src (assoc (:src-key ctx) src)))
                            :else obj)]
              obj))))
      ::eof)))
@@ -553,7 +569,8 @@
                     unquote-splicing quote fn var
                     read-eval regex
                     row-key col-key
-                    end-row-key end-col-key])
+                    end-row-key end-col-key
+                    src-key])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
@@ -593,7 +610,8 @@
                (not (:row-key opts)) (assoc :row-key :row)
                (not (:end-row-key opts)) (assoc :end-row-key :end-row)
                (not (:col-key opts)) (assoc :col-key :col)
-               (not (:end-col-key opts)) (assoc :end-col-key :end-col))]
+               (not (:end-col-key opts)) (assoc :end-col-key :end-col)
+               (not (:src-key opts)) (assoc :src-key :src))]
     (map->Options opts)))
 
 (defn parse-string [s opts]
@@ -628,6 +646,16 @@
 
 (defn get-column-number [reader]
   (r/get-column-number reader))
+
+(defn source-logging-reader
+  [x]
+  #?(:clj (r/source-logging-push-back-reader (r/push-back-reader x))
+     :cljs (let [string-reader (r/string-reader x)
+                 buf-len 1
+                 pushback-reader (r/PushbackReader. string-reader
+                                                    (object-array buf-len)
+                                                    buf-len buf-len)]
+             (r/source-logging-push-back-reader pushback-reader))))
 
 ;;;; Scratch
 
