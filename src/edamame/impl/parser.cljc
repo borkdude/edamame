@@ -14,7 +14,6 @@
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
    #?(:cljs [cljs.tagged-literals :as cljs-tags])
-   #?(:clj [clojure.edn :as cedn])
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
@@ -30,11 +29,7 @@
 ;; later, but for now we're falling back on the EDN reader.
 (defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
   (let [tools-reader-opts (:tools.reader/opts ctx)]
-    #?(:clj (if (instance? java.io.PushbackReader reader)
-              ;; workaround for TRDR-63
-              (cedn/read (or tools-reader-opts {}) reader)
-              (edn/read tools-reader-opts reader)))
-    #?(:cljs (edn/read tools-reader-opts reader))))
+    (edn/read tools-reader-opts reader)))
 
 (defn dispatch-macro? [ch]
   (contains? #{\^  ;; deprecated
