@@ -329,8 +329,10 @@
   (is (= '(fn* [] (+ 1 2 3)) (p/parse-next (p/reader "#(+ 1 2 3)") (p/normalize-opts {:all true})))))
 
 (deftest source-reader-test
-  (is (= "#(+ 1 2 3)" (:src (meta (p/parse-next (p/source-reader "#(+ 1 2 3)")
-                                                (p/normalize-opts {:all true :source true})))))))
+  (is (= "#(+ 1 2 3)" (:source (meta (p/parse-next (p/source-reader "#(+ 1 2 3)")
+                                                   (p/normalize-opts {:all true :source true}))))))
+  (is (= "foo" (:source (meta (first (p/parse-next (p/source-reader "[foo bar]")
+                                                   (p/normalize-opts {:all true :source true}))))))))
 
 ;;;; Scratch
 
