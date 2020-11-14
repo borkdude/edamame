@@ -613,6 +613,22 @@
           (persistent! ret)
           (recur (conj! ret next-val)))))))
 
+(defn reader
+  [x]
+  #?(:clj (r/indexing-push-back-reader (r/push-back-reader x))
+     :cljs (let [string-reader (r/string-reader x)
+                 buf-len 1
+                 pushback-reader (r/PushbackReader. string-reader
+                                                    (object-array buf-len)
+                                                    buf-len buf-len)]
+             (r/indexing-push-back-reader pushback-reader))))
+
+(defn get-line-number [reader]
+  (r/get-line-number reader))
+
+(defn get-column-number [reader]
+  (r/get-column-number reader))
+
 ;;;; Scratch
 
 (comment

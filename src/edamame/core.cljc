@@ -52,10 +52,6 @@
 
   Additional arguments to tools.reader may be passed with
   `:tools.reader/opts`, like `:readers` for passing reader tag functions.
-
-  Deprecated options:
-
-  `:dispatch`: DEPRECATED by parsing options.
   "
   ([s]
    (p/parse-string s nil))
@@ -69,6 +65,32 @@
    (p/parse-string-all s nil))
   ([s opts]
    (p/parse-string-all s opts)))
+
+(defn reader
+  "Coerces x into indexing pushback-reader to be used with
+  parse-next. Accepts: string or java.io.Reader."
+  [x]
+  (p/reader x))
+
+(defn get-line-number [reader]
+  (p/get-line-number reader))
+
+(defn get-column-number [reader]
+  (p/get-column-number reader))
+
+(defn normalize-opts [opts]
+  (p/normalize-opts opts))
+
+(defn parse-next
+  "Parses next form from reader. Accepts same opts as parse-string, must
+  be normalized with normalize-opts first."
+  ([reader] (parse-next reader {}))
+  ([reader opts]
+   (let [v (p/parse-next opts reader)]
+     (if (#?(:clj identical? :cljs keyword-identical?) :edamame.impl.parser/eof v)
+       (or (get opts :eof)
+           ::eof)
+       v))))
 
 ;;;; Scratch
 
