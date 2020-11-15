@@ -115,6 +115,8 @@ Note that standard behavior is overridable with functions:
 (re-pattern "foo")
 ```
 
+### Reader conditionals
+
 Process reader conditionals:
 
 ``` clojure
@@ -129,6 +131,8 @@ Process reader conditionals:
 ;;=> (:bb 1 :clj 2)
 ;;=> {:row 1, :col 1, :end-row 1, :end-col 18, :edamame/read-cond-splicing true}
 ```
+
+### Auto-resolve
 
 Auto-resolve keywords:
 
@@ -154,6 +158,8 @@ To create options from a namespace in the process where edamame is called from:
 ;;=> [:user/foo :clojure.string/foo]
 ```
 
+### Data readers
+
 Passing data readers:
 
 ``` clojure
@@ -161,7 +167,8 @@ Passing data readers:
 (js [1 2 3])
 ```
 
-<!--
+### Postprocess
+
 Postprocess read values:
 
 ``` clojure
@@ -183,9 +190,8 @@ Postprocess read values:
 This allows you to preserve metadata for objects that do not support carrying
 metadata. When you use a `:postprocess` function, it is your responsibility to
 attach location metadata.
--->
 
-## Fix incomplete expressions
+### Fix incomplete expressions
 
 Edamame exposes information via `ex-data` in an exception in case of unmatched
 delimiters. This can be used to fix incomplete expressions:
