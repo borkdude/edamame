@@ -123,7 +123,7 @@
         fix-expression (fn fix-expression [expr]
                          (try (when (p/parse-string expr)
                                 expr)
-                              (catch clojure.lang.ExceptionInfo e
+                              (catch #?(:clj clojure.lang.ExceptionInfo :cljs :default) e
                                 (if-let [expected-delimiter (:edamame/expected-delimiter (ex-data e))]
                                   (fix-expression (str expr expected-delimiter))
                                   (throw e)))))]
