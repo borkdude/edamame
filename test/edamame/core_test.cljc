@@ -106,10 +106,12 @@
     (is (= [] (p/parse-string-all (string/join "\n" (repeat 10000 ";;")))))))
 
 (deftest eof-while-reading-test
-  (doseq [s ["(" "{" "["]]
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                          #"EOF while reading"
-                          (p/parse-string s))))
+  (doseq [s {"(" ")" "{" "}" "[" "]"}]
+    (is (thrown-with-data? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+                           #"EOF while reading"
+                           {:edamame/expected-delimiter (second s)
+                            :edamame/opened-delimiter (first s)}
+                           (p/parse-string (first s)))))
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                         #"EOF while reading"
                         (p/parse-string "'" {:quote true})))

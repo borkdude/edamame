@@ -120,7 +120,9 @@
            (kw-identical? ::eof next-val)
            (throw-reader ctx
             reader
-            (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]"))
+            (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]")
+            {:edamame/expected-delimiter delimiter
+             :edamame/opened-delimiter opened})
            (kw-identical? ::expected-delimiter next-val)
            (persistent! vals)
            cond-splice? (do (doseq [v next-val]
