@@ -107,11 +107,10 @@
 
 (deftest eof-while-reading-test
   (doseq [s {"(" ")" "{" "}" "[" "]"}]
-    (is (thrown-with-data? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
-                           #"EOF while reading"
-                           {:edamame/expected-delimiter (second s)
-                            :edamame/opened-delimiter (first s)}
-                           (p/parse-string (first s)))))
+    (is (thrown-with-data? #"EOF while reading"
+                           {:edamame/expected-delimiter (str (second s))
+                            :edamame/opened-delimiter (str (first s))}
+                           (p/parse-string (str (first s))))))
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                         #"EOF while reading"
                         (p/parse-string "'" {:quote true})))
