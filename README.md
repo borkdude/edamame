@@ -8,11 +8,14 @@ Configurable EDN/Clojure parser with location metadata.
 
 ## Why
 
-This library can be useful when:
-
 - You want to include locations in feedback about EDN files.
-- You want to parse Clojure-like expressions without any evalution.
-- You need a GraalVM-friendly Clojure parser
+- You want to parse Clojure-like expressions without any evaluation.
+
+This library works with:
+
+- Clojure on the JVM
+- GraalVM compiled binaries
+- ClojureScript
 
 ## Installation
 
@@ -27,18 +30,6 @@ Project using edamame:
 
 - [malli](https://github.com/metosin/malli)
 - [sci](https://github.com/borkdude/sci)
-
-## Features
-
-- Parse EDN values with location as metadata.
-- Parse Clojure code without evaluation
-- Configurable
-
-This library works with:
-
-- Clojure on the JVM
-- GraalVM compiled binaries
-- ClojureScript
 
 ## Usage
 
