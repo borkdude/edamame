@@ -180,6 +180,26 @@ This allows you to preserve metadata for objects that do not support carrying
 metadata. When you use a `:postprocess` function, it is your responsibility to
 attach location metadata.
 -->
+
+## Fix incomplete expressions
+
+Edamame exposes information via `ex-data` in an exception in case of unmatched
+delimiters. This can be used to fix incomplete expressions:
+
+``` clojure
+(def incomplete "{:a (let [x 5")
+
+(defn fix-expression [expr]
+  (try (when (parse-string expr)
+         expr)
+       (catch clojure.lang.ExceptionInfo e
+         (if-let [expected-delimiter (:edamame/expected-delimiter (ex-data e))]
+           (fix-expression (str expr expected-delimiter))
+           (throw e)))))
+
+(fix-expression incomplete) ;; => "{:a (let [x 5])}"
+```
+
 ## Test
 
 For the node tests, ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew). For the JVM tests you will require [leiningen](https://leiningen.org/) to be installed. Then run the following:

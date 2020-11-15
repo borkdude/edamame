@@ -118,6 +118,17 @@
                         #"EOF while reading"
                         (p/parse-string "#'" {:var true}))))
 
+(deftest fix-expression-test
+  (let [incomplete "{:a (let [x 5"
+        fix-expression (fn fix-expression [expr]
+                         (try (when (p/parse-string expr)
+                                expr)
+                              (catch clojure.lang.ExceptionInfo e
+                                (if-let [expected-delimiter (:edamame/expected-delimiter (ex-data e))]
+                                  (fix-expression (str expr expected-delimiter))
+                                  (throw e)))))]
+    (is (= "{:a (let [x 5])}" (fix-expression incomplete)))))
+
 (deftest reader-conditional-test
   (testing "reader conditional processing"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
