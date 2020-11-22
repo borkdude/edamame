@@ -346,6 +346,19 @@
   (is (= "foo" (:source (meta (first (p/parse-next (p/source-reader "[foo bar]")
                                                    (p/normalize-opts {:all true :source true}))))))))
 
+(deftest location-key-test
+  (is (= #:sci.impl{:loc {:row 1, :col 1, :end-row 1, :end-col 10}}
+         (meta (p/parse-string "(+ 1 2 3)" {:location-key :sci.impl/loc}))))
+  (testing "no with-meta when location-key is used"
+    (is (= '(clojure.core/sequence
+             (clojure.core/seq
+              (clojure.core/concat
+               (clojure.core/list
+                (quote quote))
+               (clojure.core/list (quote x)))))
+           (p/parse-string "``x" {:all true
+                                  :location-key :sci.impl/loc})))))
+
 ;;;; Scratch
 
 (comment

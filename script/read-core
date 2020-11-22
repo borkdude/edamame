@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+clojure -M script/read_core.clj 1
+clojure -M script/read_core.clj 2
