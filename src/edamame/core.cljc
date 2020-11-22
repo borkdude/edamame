@@ -97,6 +97,13 @@
            ::eof)
        v))))
 
+(defn iobj?
+  "Returns true if obj can carry metadata."
+  [obj]
+  #?(:clj
+     (instance? clojure.lang.IObj obj)
+     :cljs (satisfies? IWithMeta obj)))
+
 ;;;; Scratch
 
 (comment

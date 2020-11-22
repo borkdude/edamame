@@ -119,10 +119,10 @@
          (cond
            (kw-identical? ::eof next-val)
            (throw-reader ctx
-            reader
-            (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]")
-            {:edamame/expected-delimiter (str delimiter)
-             :edamame/opened-delimiter (str opened)})
+                         reader
+                         (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]")
+                         {:edamame/expected-delimiter (str delimiter)
+                          :edamame/opened-delimiter (str opened)})
            (kw-identical? ::expected-delimiter next-val)
            (persistent! vals)
            cond-splice? (do (doseq [v next-val]
@@ -346,14 +346,14 @@
 (defn throw-odd-map
   [ctx #?(:cljs ^not-native reader :default reader) loc elements]
   (throw-reader ctx reader
-   (str
-    "The map literal starting with "
-    (i/inspect (first elements))
-    " contains "
-    (count elements)
-    " form(s). Map literals must contain an even number of forms.")
-   nil
-   loc))
+                (str
+                 "The map literal starting with "
+                 (i/inspect (first elements))
+                 " contains "
+                 (count elements)
+                 " form(s). Map literals must contain an even number of forms.")
+                nil
+                loc))
 
 (defn parse-map
   [ctx #?(:cljs ^not-native reader :default reader)]
@@ -505,6 +505,11 @@
           \: (parse-keyword ctx reader)
           (edn-read ctx reader)))))
 
+(defn iobj? [obj]
+  #?(:clj
+     (instance? clojure.lang.IObj obj)
+     :cljs (satisfies? IWithMeta obj)))
+
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
@@ -524,12 +529,10 @@
          (if (kw-identical? ::expected-delimiter obj)
            obj
            (let [postprocess (:postprocess ctx)
-                 iobj? #?(:clj
-                          (instance? clojure.lang.IObj obj)
-                          :cljs (satisfies? IWithMeta obj))
+                 iobj?? (iobj? obj)
                  src (when log?
                        (.trim (subs (buf) offset)))
-                 end-loc (when (or iobj? postprocess)
+                 end-loc (when (or iobj?? postprocess)
                            (location reader))
                  row (:row loc)
                  end-row (:row end-loc)
@@ -548,12 +551,13 @@
                          (desugar-meta obj postprocess-fn)
                          (desugar-meta obj)) obj)
                  obj (cond postprocess (postprocess-fn obj)
-                           iobj? (vary-meta obj #(cond-> (assoc %
-                                                                (:row-key ctx) row
-                                                                (:col-key ctx) col
-                                                                (:end-row-key ctx) end-row
-                                                                (:end-col-key ctx) end-col)
-                                                   src (assoc (:source-key ctx) src)))
+                           iobj?? (vary-meta obj
+                                             #(cond-> (assoc %
+                                                             (:row-key ctx) row
+                                                             (:col-key ctx) col
+                                                             (:end-row-key ctx) end-row
+                                                             (:end-col-key ctx) end-col)
+                                                src (assoc (:source-key ctx) src)))
                            :else obj)]
              obj))))
      ::eof)))
@@ -569,7 +573,8 @@
                     read-eval regex
                     row-key col-key
                     end-row-key end-col-key
-                    source-key])
+                    source-key location-key
+                    postprocess])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
