@@ -181,7 +181,16 @@
                                 {:read-cond identity})]
         (is (= '(:bb 1 :clj 2) res))
         (is (= {:row 1, :col 1, :end-row 2, :end-col 3, :edamame/read-cond-splicing true}
-               (meta res)))))))
+               (meta res)))))
+    (testing "trailing uneval"
+      (is (= 1 (p/parse-string "#?(#_(+ 1 2 3) :clj 2 #_112 :bb 1 #_112 )" {:read-cond true
+                                                                            :features #{:bb}}))))
+    (testing "EOF"
+      (is (thrown-with-data? #"EOF while reading"
+                             {:edamame/expected-delimiter ")"
+                              :edamame/opened-delimiter "("}
+                             (p/parse-string "#?(#_(+ 1 2 3) :clj 2 #_112 :bb 1 #_112 " {:read-cond true
+                                                                                         :features #{:bb}}))))))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))

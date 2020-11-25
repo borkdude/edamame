@@ -189,20 +189,34 @@
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
   (let [features (:features ctx)]
     (loop [match non-match]
-      (skip-whitespace ctx reader)
-      (let [end? (= \) (r/peek-char reader))]
-        (if end?
-          (do (r/read-char reader) ;; ignore closing \)
-              match)
-          (let [k (parse-next ctx reader)
-                match? (and (non-match? match)
+      (let [k (parse-next ctx reader)]
+        (if (identical? k ::expected-delimiter)
+          match
+          (let [next-is-match? (and (non-match? match)
                             (or (contains? features k)
                                 (kw-identical? k :default)))]
-            (if match? (recur (parse-next ctx reader))
-                (do
-                  (parse-next (assoc ctx ::suppress true)
-                              reader)
-                  (recur match)))))))))
+            (if next-is-match?
+              (let [match (parse-next ctx reader)
+                    ctx (assoc ctx ::suppress true)]
+                (loop []
+                  (let [next-val (parse-next ctx reader)]
+                    (when-not (identical? ::expected-delimiter
+                                          next-val)
+                      (if (identical? ::eof next-val)
+                        (let [delimiter (::expected-delimiter ctx)
+                              {:keys [:row :col :char]} (::opened-delimiter ctx)]
+                          (throw-reader ctx
+                                        reader
+                                        (str "EOF while reading, expected " delimiter " to match " char " at [" row "," col "]")
+                                        {:edamame/expected-delimiter (str delimiter)
+                                         :edamame/opened-delimiter (str char)}))
+                        (recur)))))
+                match)
+              (do
+                ;; skip over next val and try next key
+                (parse-next (assoc ctx ::suppress true)
+                            reader)
+                (recur match)))))))))
 
 (defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
   (skip-whitespace ctx reader)
@@ -216,13 +230,17 @@
                 (parse-next ctx reader)
                 assoc :edamame/read-cond-splicing splice?))
           :else
-          (do
-            (r/read-char reader) ;; skip \(
-            (let [match (parse-first-matching-condition ctx reader)]
-              (cond (non-match? match) reader
-                    splice? (vary-meta match
-                                       #(assoc % ::cond-splice true))
-                    :else match))))))
+          (let [row (r/get-line-number reader)
+                col (r/get-column-number reader)
+                opened (r/read-char reader)
+                ctx (assoc ctx
+                           ::expected-delimiter \)
+                           ::opened-delimiter {:char opened :row row :col col})
+                match (parse-first-matching-condition ctx reader)]
+            (cond (non-match? match) reader
+                  splice? (vary-meta match
+                                     #(assoc % ::cond-splice true))
+                  :else match)))))
 
 (defn get-auto-resolve
   ([ctx reader next-val]

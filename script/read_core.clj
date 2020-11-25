@@ -1,5 +1,3 @@
-(ns private.tmp.read-core)
-
 (require '[edamame.impl.parser :as p] :reload)
 (require '[clojure.java.io :as io])
 (def core (slurp (io/resource "clojure/core.clj")))
@@ -19,7 +17,6 @@
                 (prn
                  (meta (first nodes))))))
 
-      ;; This is twice as fast... huh?
   "2"
   (time (dotimes [_ 10]
               (let [nodes (p/parse-string-all
