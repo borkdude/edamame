@@ -13,7 +13,7 @@
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional namespace-keys]])
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
-   #?(:cljs [cljs.tagged-literals :as cljs-tags])
+   #?(:cljs [cljs.reader :refer [*tag-table*]])
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
@@ -336,7 +336,7 @@
                   f (or (when-let [readers (:readers ctx)]
                           (readers sym))
                         #?(:clj (default-data-readers sym)
-                           :cljs (cljs-tags/*cljs-data-readers* sym)))]
+                           :cljs (@*tag-table* sym)))]
               (if f (f data)
                   (throw (new #?(:clj Exception :cljs js/Error)
                               (str "No reader function for tag " sym)))))

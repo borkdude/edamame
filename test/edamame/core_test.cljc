@@ -259,8 +259,7 @@
                                                             :all true})))
   (is (= [1 2 3] (p/parse-string "#foo [1 2 3]" {:readers (constantly identity)})))
   (is (= '(js [1 2 3])  (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})))
-  ;; TODO: should we "eval" the JSValue here, or in sci?
-  #?(:cljs (is (p/parse-string "#js [1 2 3]"))))
+  #?(:cljs (is (= (js->clj #js [1 2 3]) (js->clj (p/parse-string "#js [1 2 3]"))))))
 
 (deftest namespaced-map-test
   ;; TODO: fix locations of namespaced maps
