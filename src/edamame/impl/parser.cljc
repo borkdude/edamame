@@ -551,22 +551,13 @@
                          (desugar-meta obj postprocess-fn)
                          (desugar-meta obj)) obj)
                  obj (cond postprocess (postprocess-fn obj)
-                           iobj?? (if-let [k (:location-key ctx)]
-                                    (vary-meta obj
-                                               #(assoc % k
-                                                       (cond->
-                                                           {(:row-key ctx) row
-                                                            (:col-key ctx) col
-                                                            (:end-row-key ctx) end-row
-                                                            (:end-col-key ctx) end-col}
-                                                         src (assoc (:source-key ctx) src))))
-                                    (vary-meta obj
-                                               #(cond-> (assoc %
-                                                               (:row-key ctx) row
-                                                               (:col-key ctx) col
-                                                               (:end-row-key ctx) end-row
-                                                               (:end-col-key ctx) end-col)
-                                                  src (assoc (:source-key ctx) src))))
+                           iobj?? (vary-meta obj
+                                             #(cond-> (assoc %
+                                                             (:row-key ctx) row
+                                                             (:col-key ctx) col
+                                                             (:end-row-key ctx) end-row
+                                                             (:end-col-key ctx) end-col)
+                                                src (assoc (:source-key ctx) src)))
                            :else obj)]
              obj))))
      ::eof)))
@@ -582,7 +573,7 @@
                     read-eval regex
                     row-key col-key
                     end-row-key end-col-key
-                    source-key location-key
+                    source-key
                     postprocess])
 
 (defn normalize-opts [opts]
