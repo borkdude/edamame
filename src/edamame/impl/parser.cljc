@@ -190,7 +190,7 @@
   (let [features (:features ctx)]
     (loop [match non-match]
       (let [k (parse-next ctx reader)]
-        (if (identical? k ::expected-delimiter)
+        (if (kw-identical? k ::expected-delimiter)
           match
           (let [next-is-match? (and (non-match? match)
                             (or (contains? features k)
@@ -200,9 +200,9 @@
                     ctx (assoc ctx ::suppress true)]
                 (loop []
                   (let [next-val (parse-next ctx reader)]
-                    (when-not (identical? ::expected-delimiter
+                    (when-not (kw-identical? ::expected-delimiter
                                           next-val)
-                      (if (identical? ::eof next-val)
+                      (if (kw-identical? ::eof next-val)
                         (let [delimiter (::expected-delimiter ctx)
                               {:keys [:row :col :char]} (::opened-delimiter ctx)]
                           (throw-reader ctx
