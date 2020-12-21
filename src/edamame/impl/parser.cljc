@@ -223,6 +223,7 @@
   (let [opt (:read-cond ctx)
         splice? (= \@ (r/peek-char reader))]
     (when splice? (r/read-char reader))
+    (skip-whitespace ctx reader)
     (cond (kw-identical? :preserve opt)
           (reader-conditional (parse-next ctx reader) splice?)
           (fn? opt)

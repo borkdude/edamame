@@ -190,7 +190,12 @@
                              {:edamame/expected-delimiter ")"
                               :edamame/opened-delimiter "("}
                              (p/parse-string "#?(#_(+ 1 2 3) :clj 2 #_112 :bb 1 #_112 " {:read-cond true
-                                                                                         :features #{:bb}}))))))
+                                                                                         :features #{:bb}}))))
+    (testing "whitespace after splice"
+      (is (= '(+ 1 2 3)(p/parse-string "(+ #?@
+ (:clj
+   [1 2 3]))" {:read-cond true
+               :features #{:clj}}))))))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
