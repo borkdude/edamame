@@ -48,9 +48,12 @@
 
 ;;;; end tools.reader
 
+(defrecord Loc [row col])
+
 (defn location [#?(:cljs ^not-native reader :default reader)]
-  {:row (r/get-line-number reader)
-   :col (r/get-column-number reader)})
+  (->Loc
+   (r/get-line-number reader)
+   (r/get-column-number reader)))
 
 (defn kw-identical? [kw v]
   (#?(:clj identical? :cljs keyword-identical?) kw v))
