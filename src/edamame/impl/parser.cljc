@@ -119,9 +119,9 @@
    (let [row (r/get-line-number reader)
          col (r/get-column-number reader)
          opened (r/read-char reader)
-         ctx (assoc ctx
-                    ::expected-delimiter delimiter
-                    ::opened-delimiter {:char opened :row row :col col})]
+         ctx (-> ctx
+                 (assoc ::expected-delimiter delimiter)
+                 (assoc ::opened-delimiter {:char opened :row row :col col}))]
      (loop [vals (transient into)]
        (let [;; if next-val is uneval, we get back the expected delimiter...
              next-val (parse-next ctx reader)
@@ -244,9 +244,9 @@
           (let [row (r/get-line-number reader)
                 col (r/get-column-number reader)
                 opened (r/read-char reader)
-                ctx (assoc ctx
-                           ::expected-delimiter \)
-                           ::opened-delimiter {:char opened :row row :col col})
+                ctx (-> ctx
+                        (assoc ::expected-delimiter \))
+                        (assoc ::opened-delimiter {:char opened :row row :col col}))
                 match (parse-first-matching-condition ctx reader)]
             (cond (non-match? match) reader
                   splice? (vary-meta match
@@ -432,6 +432,8 @@
      (string? f)  {(postprocess :tag) (postprocess f)}
      :else        f)))
 
+;; NOTE: I tried optimizing for the :all option by dispatching to a function
+;; that doesn't do any checking, but saw no significant speedup.
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
   (let [sharp? (= \# c)]
@@ -581,11 +583,13 @@
                          (desugar-meta obj)) obj)
                  obj (cond postprocess (postprocess-fn obj)
                            iobj?? (vary-meta obj
-                                             #(cond-> (assoc %
-                                                             (:row-key ctx) row
-                                                             (:col-key ctx) col
-                                                             (:end-row-key ctx) end-row
-                                                             (:end-col-key ctx) end-col)
+                                             #(cond->
+                                                  ;; Note: using 3-arity of assoc, because faster
+                                                  (-> %
+                                                      (assoc (:row-key ctx) row)
+                                                      (assoc (:col-key ctx) col)
+                                                      (assoc (:end-row-key ctx) end-row)
+                                                      (assoc (:end-col-key ctx) end-col))
                                                 src (assoc (:source-key ctx) src)))
                            :else obj)]
              obj))))
