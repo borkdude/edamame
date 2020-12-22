@@ -65,10 +65,17 @@
   (r/read-line reader)
   reader)
 
-(defn whitespace?
-  [#?(:clj ^java.lang.Character c :default c)]
-  #?(:clj (and c (or (= c \,) (Character/isWhitespace c)))
-     :cljs (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
+#?(:cljs
+   (defn whitespace?
+     [c]
+     (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
+
+#?(:clj
+   (defmacro whitespace? [c]
+     `(and ~c (or (identical? ~c \,)
+                  (Character/isWhitespace ~(with-meta c
+                                             {:tag 'java.lang.Character}))))))
+
 
 (defn skip-whitespace
   "Skips whitespace. Returns reader. If end of stream is reached, returns nil."
@@ -97,10 +104,10 @@
                        (:row-key ctx) l
                        (:col-key ctx) c} data))))))
 
-(def non-match ::nil)
+(def non-match (symbol "non-match"))
 
 (defn non-match? [v]
-  (kw-identical? v non-match))
+  (identical? v non-match))
 
 (defn throw-eof-while-reading [ctx reader]
   (throw-reader ctx reader "EOF while reading"))
