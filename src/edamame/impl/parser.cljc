@@ -273,12 +273,19 @@
                    (or msg (str "Alias `" (symbol kns) "` not found in `:auto-resolve`"))
                    {:expr (str ":" next-val)}))))
 
-(defn parse-namespaced-map [ctx reader]
-  (let [prefix (edn-read ctx reader)
+(defn parse-namespaced-map [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [auto-resolved? (when (identical? \: (r/peek-char reader))
+                         (r/read-char reader)
+                         true)
+        current-ns? (when auto-resolved?
+                      (identical? \{ (r/peek-char reader)))
+        prefix (if auto-resolved?
+                 (when-not current-ns?
+                   (edn-read ctx reader))
+                 (edn-read ctx reader))
         the-map (parse-next ctx reader)]
-    (if (keyword? prefix)
-      ;; autoresolved
-      (let [ns (symbol (name prefix))
+    (if auto-resolved?
+      (let [ns (if current-ns? :current (symbol (name prefix)))
             f (get-auto-resolve ctx reader ns)
             resolved-ns (auto-resolve ctx f ns reader prefix)]
         (zipmap (namespace-keys (str resolved-ns) (keys the-map))

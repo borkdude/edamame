@@ -276,10 +276,10 @@
   #?(:cljs (is (= (js->clj #js [1 2 3]) (js->clj (p/parse-string "#js [1 2 3]"))))))
 
 (deftest namespaced-map-test
-  ;; TODO: fix locations of namespaced maps
   (is (= #:foo{:a 1} (p/parse-string "#:foo{:a 1}")))
   (is (= {:bar/dude 1, :foo.foo/a 1}
-         (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}}))) )
+         (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
+  (is (= #:foo{:a 1} (p/parse-string "#::{:a 1}" '{:auto-resolve {:current foo}}))))
 
 (deftest exception-test
   (is (let [d (try (p/parse-string-all "())")
