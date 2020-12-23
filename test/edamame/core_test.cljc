@@ -359,6 +359,11 @@
   (is (= "foo" (:source (meta (first (p/parse-next (p/source-reader "[foo bar]")
                                                    (p/normalize-opts {:all true :source true}))))))))
 
+(deftest location?-test
+  (is (meta (p/parse-string "x")))
+  (is (not (meta (p/parse-string "x" {:location? (fn [obj] (seq? obj))}))))
+  (is (meta (p/parse-string "(x)" {:location? (fn [obj] (seq? obj))}))))
+
 ;;;; Scratch
 
 (comment

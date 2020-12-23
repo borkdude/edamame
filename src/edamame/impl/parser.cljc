@@ -560,37 +560,43 @@
          (if (kw-identical? ::expected-delimiter obj)
            obj
            (let [postprocess (:postprocess ctx)
+                 location? (:location? ctx)
                  iobj?? (iobj? obj)
                  src (when log?
                        (.trim (subs (buf) offset)))
-                 end-loc (when (or iobj?? postprocess)
+                 loc? (or (and iobj??
+                               (or (not location?)
+                                   (location? obj)))
+                          postprocess)
+                 end-loc (when loc?
                            (location reader))
-                 row (:row loc)
-                 end-row (:row end-loc)
-                 col (:col loc)
-                 end-col (:col end-loc)
+                 row (when loc? (:row loc))
+                 end-row (when loc? (:row end-loc))
+                 col (when loc? (:col loc))
+                 end-col (when loc? (:col end-loc))
                  postprocess-fn (when postprocess
                                   #(postprocess (cond->
                                                     {:obj %
-                                                     :loc {(:row-key ctx) row
-                                                           (:col-key ctx) col
-                                                           (:end-row-key ctx) end-row
-                                                           (:end-col-key ctx) end-col}}
+                                                     :loc (when loc?
+                                                            {(:row-key ctx) row
+                                                             (:col-key ctx) col
+                                                             (:end-row-key ctx) end-row
+                                                             (:end-col-key ctx) end-col})}
                                                   src (assoc (:source-key ctx) src))))
                  obj (if desugar
                        (if postprocess-fn
                          (desugar-meta obj postprocess-fn)
                          (desugar-meta obj)) obj)
                  obj (cond postprocess (postprocess-fn obj)
-                           iobj?? (vary-meta obj
-                                             #(cond->
-                                                  ;; Note: using 3-arity of assoc, because faster
-                                                  (-> %
-                                                      (assoc (:row-key ctx) row)
-                                                      (assoc (:col-key ctx) col)
-                                                      (assoc (:end-row-key ctx) end-row)
-                                                      (assoc (:end-col-key ctx) end-col))
-                                                src (assoc (:source-key ctx) src)))
+                           loc? (vary-meta obj
+                                           #(cond->
+                                                ;; Note: using 3-arity of assoc, because faster
+                                                (-> %
+                                                    (assoc (:row-key ctx) row)
+                                                    (assoc (:col-key ctx) col)
+                                                    (assoc (:end-row-key ctx) end-row)
+                                                    (assoc (:end-col-key ctx) end-col))
+                                              src (assoc (:source-key ctx) src)))
                            :else obj)]
              obj))))
      ::eof)))
@@ -607,7 +613,7 @@
                     row-key col-key
                     end-row-key end-col-key
                     source-key
-                    postprocess])
+                    postprocess location?])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
