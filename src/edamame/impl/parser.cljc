@@ -203,15 +203,15 @@
         (if (kw-identical? k ::expected-delimiter)
           match
           (let [next-is-match? (and (non-match? match)
-                            (or (contains? features k)
-                                (kw-identical? k :default)))]
+                                    (or (contains? features k)
+                                        (kw-identical? k :default)))]
             (if next-is-match?
               (let [match (parse-next ctx reader)
                     ctx (assoc ctx ::suppress true)]
                 (loop []
                   (let [next-val (parse-next ctx reader)]
                     (when-not (kw-identical? ::expected-delimiter
-                                          next-val)
+                                             next-val)
                       (if (kw-identical? ::eof next-val)
                         (let [delimiter (::expected-delimiter ctx)
                               {:keys [:row :col :char]} (::opened-delimiter ctx)]
@@ -548,6 +548,33 @@
      (instance? clojure.lang.IObj obj)
      :cljs (satisfies? IWithMeta obj)))
 
+;; tried this for optimization, but didn't see speedup
+#_(defn parse-next-sci
+  [ctx reader desugar]
+  (if-let [c (and (skip-whitespace ctx reader)
+                  (r/peek-char reader))]
+    (let [loc (location reader)
+          obj (dispatch ctx reader c)]
+      (if (identical? reader obj)
+        (recur ctx reader desugar)
+        (if (kw-identical? ::expected-delimiter obj)
+          obj
+          (let [iobj?? (iobj? obj)
+                loc? (and iobj??
+                          (or (symbol? obj)
+                              (seq? obj)))
+                line (when loc? (:row loc))
+                column (when loc? (:col loc))
+                obj (if desugar (desugar-meta obj) obj)
+                obj (cond loc? (vary-meta obj
+                                          #(-> %
+                                             ;; Note: using 3-arity of assoc, because faster
+                                               (assoc :line line)
+                                               (assoc :column column)))
+                          :else obj)]
+            obj))))
+    ::eof))
+
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
@@ -568,6 +595,7 @@
            obj
            (let [postprocess (:postprocess ctx)
                  location? (:location? ctx)
+                 end-loc? (:end-location ctx)
                  iobj?? (iobj? obj)
                  src (when log?
                        (.trim (subs (buf) offset)))
@@ -575,34 +603,34 @@
                                (or (not location?)
                                    (location? obj)))
                           postprocess)
-                 end-loc (when loc?
+                 end-loc (when (and loc? end-loc?)
                            (location reader))
                  row (when loc? (:row loc))
-                 end-row (when loc? (:row end-loc))
+                 end-row (when end-loc? (:row end-loc))
                  col (when loc? (:col loc))
-                 end-col (when loc? (:col end-loc))
+                 end-col (when end-loc? (:col end-loc))
                  postprocess-fn (when postprocess
-                                  #(postprocess (cond->
-                                                    {:obj %
-                                                     :loc (when loc?
-                                                            {(:row-key ctx) row
-                                                             (:col-key ctx) col
-                                                             (:end-row-key ctx) end-row
-                                                             (:end-col-key ctx) end-col})}
-                                                  src (assoc (:source-key ctx) src))))
+                                  #(postprocess
+                                    (cond->
+                                        {:obj %}
+                                      loc? (assoc :loc (cond-> {(:row-key ctx) row
+                                                                (:col-key ctx) col}
+                                                         end-loc? (-> (assoc (:end-row-key ctx) end-row
+                                                                             (:end-col-key ctx) end-col))))
+                                      src (assoc (or (:source-key ctx)
+                                                     :source)
+                                                 src))))
                  obj (if desugar
                        (if postprocess-fn
                          (desugar-meta obj postprocess-fn)
                          (desugar-meta obj)) obj)
                  obj (cond postprocess (postprocess-fn obj)
                            loc? (vary-meta obj
-                                           #(cond->
-                                                ;; Note: using 3-arity of assoc, because faster
-                                                (-> %
-                                                    (assoc (:row-key ctx) row)
-                                                    (assoc (:col-key ctx) col)
-                                                    (assoc (:end-row-key ctx) end-row)
-                                                    (assoc (:end-col-key ctx) end-col))
+                                           #(cond-> (-> %
+                                                        (assoc (:row-key ctx) row)
+                                                        (assoc (:col-key ctx) col))
+                                              end-loc? (-> (assoc (:end-row-key ctx) end-row)
+                                                           (assoc (:end-col-key ctx) end-col))
                                               src (assoc (:source-key ctx) src)))
                            :else obj)]
              obj))))
@@ -619,8 +647,9 @@
                     read-eval regex
                     row-key col-key
                     end-row-key end-col-key
-                    source-key
-                    postprocess location?])
+                    source source-key
+                    postprocess location?
+                    end-location sci])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
@@ -658,10 +687,11 @@
                opts)
         opts (cond-> opts
                (not (:row-key opts)) (assoc :row-key :row)
-               (not (:end-row-key opts)) (assoc :end-row-key :end-row)
                (not (:col-key opts)) (assoc :col-key :col)
+               (not (:end-row-key opts)) (assoc :end-row-key :end-row)
                (not (:end-col-key opts)) (assoc :end-col-key :end-col)
-               (not (:source-key opts)) (assoc :source-key :source))]
+               (not (:source-key opts)) (assoc :source-key :source)
+               (not (contains? opts :end-location)) (assoc :end-location true))]
     (map->Options opts)))
 
 (defn parse-string [s opts]
