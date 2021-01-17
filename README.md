@@ -30,6 +30,7 @@ Project using edamame:
 
 - [malli](https://github.com/metosin/malli)
 - [sci](https://github.com/borkdude/sci)
+- [zprint](https://github.com/kkinnear/zprint)
 
 ## Usage
 
