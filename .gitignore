@@ -17,3 +17,4 @@ pom.xml.asc
 /sci
 /cljs-opts.edn
 /tmp
+/.lsp/

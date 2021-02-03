@@ -364,6 +364,18 @@
   (is (not (meta (p/parse-string "x" {:location? (fn [obj] (seq? obj))}))))
   (is (meta (p/parse-string "(x)" {:location? (fn [obj] (seq? obj))}))))
 
+(deftest array-map-test
+  (is (instance? #?(:clj
+                    clojure.lang.PersistentArrayMap
+                    :cljs
+                    PersistentArrayMap)
+                 (p/parse-string "{:a 1 :b 2}")))
+  (is (instance? #?(:clj
+                    clojure.lang.PersistentHashMap
+                    :cljs
+                    PersistentHashMap)
+                 (p/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}"))))
+
 ;;;; Scratch
 
 (comment

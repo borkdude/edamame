@@ -402,7 +402,9 @@
       (let [ks (take-nth 2 elements)]
         (when-not (apply distinct? ks)
           (throw-dup-keys ctx reader start-loc :map ks))))
-    (apply hash-map elements)))
+    (if (<= c 16)
+      (apply array-map elements)
+      (apply hash-map elements))))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :
