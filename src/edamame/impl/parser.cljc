@@ -132,7 +132,9 @@
                          reader
                          (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]")
                          {:edamame/expected-delimiter (str delimiter)
-                          :edamame/opened-delimiter (str opened)})
+                          :edamame/opened-delimiter (str opened)
+                          :edamame/opened-delimiter-loc {:row row
+                                                         :col col}})
            (kw-identical? ::expected-delimiter next-val)
            (persistent! vals)
            cond-splice? (do (doseq [v next-val]
@@ -529,7 +531,10 @@
                                                 (str ", expected: " expected
                                                      (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
                                                        (str " to match " char " at " [row col])))))
-                                         ctx
+                                         (let [{:keys [:char :row :col]} (::opened-delimiter ctx)]
+                                           {:edamame/opened-delimiter (str char)
+                                            :edamame/opened-delimiter-loc {:row row :col col}
+                                            :edamame/expected-delimiter (str expected)})
                                          loc))
                          (do
                            ;; read delimiter
