@@ -7,7 +7,8 @@
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
    #?(:clj [edamame.impl.parser :as impl])
-   [edamame.test-utils]))
+   [edamame.test-utils]
+   [clojure.string :as str]))
 
 (deftest foo
   (is (thrown-with-data?
@@ -105,12 +106,23 @@
   (testing "many consecutive comments"
     (is (= [] (p/parse-string-all (string/join "\n" (repeat 10000 ";;")))))))
 
-(deftest eof-while-reading-test
-  (doseq [s {"(" ")" "{" "}" "[" "]"}]
+(deftest unmatched-delimiter-reading-test
+  (doseq [s {" (" " )" " {" " }" " [" " ]"}]
     (is (thrown-with-data? #"EOF while reading"
-                           {:edamame/expected-delimiter (str (second s))
-                            :edamame/opened-delimiter (str (first s))}
+                           {:edamame/expected-delimiter (str/trim (str (second s)))
+                            :edamame/opened-delimiter (str/trim (str (first s)))
+                            :edamame/opened-delimiter-loc {:row 1 :col 2}}
                            (p/parse-string (str (first s))))))
+  (is (thrown-with-data? #"Unmatched delimiter"
+                         {:edamame/expected-delimiter "}"
+                          :edamame/opened-delimiter "{"}
+                         (p/parse-string "
+{
+ :x (
+     { ;; offending error
+     {:a 1}
+     )
+ }")))
   (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
                         #"EOF while reading"
                         (p/parse-string "'" {:quote true})))
