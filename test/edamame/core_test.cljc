@@ -2,13 +2,13 @@
   (:require
    #?(:clj [cljs.tagged-literals :as cljs-tags])
    #?(:clj [clojure.java.io :as io])
+   #?(:clj [edamame.impl.parser :as impl])
    #?(:cljs [goog.object :as gobj])
-   [clojure.string :as string]
+   #?(:cljs [cljs.tagged-literals :refer [JSValue]])
+   [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
-   #?(:clj [edamame.impl.parser :as impl])
-   [edamame.test-utils]
-   [clojure.string :as str]))
+   [edamame.test-utils]))
 
 (deftest foo
   (is (thrown-with-data?
@@ -104,7 +104,7 @@
          {:row 1 :col 3}
          (p/parse-string "  ]   "))))
   (testing "many consecutive comments"
-    (is (= [] (p/parse-string-all (string/join "\n" (repeat 10000 ";;")))))))
+    (is (= [] (p/parse-string-all (str/join "\n" (repeat 10000 ";;")))))))
 
 (deftest unmatched-delimiter-reading-test
   (doseq [s {" (" " )" " {" " }" " [" " ]"}]
@@ -285,7 +285,9 @@
                                                             :all true})))
   (is (= [1 2 3] (p/parse-string "#foo [1 2 3]" {:readers (constantly identity)})))
   (is (= '(js [1 2 3])  (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})))
-  #?(:cljs (is (= (js->clj #js [1 2 3]) (js->clj (p/parse-string "#js [1 2 3]"))))))
+  #?(:cljs (let [obj (p/parse-string "#js [1 2 3]")]
+             (is (instance? JSValue obj))
+             (is (= [1 2 3] (.-val obj))))))
 
 (deftest namespaced-map-test
   (is (= #:foo{:a 1} (p/parse-string "#:foo{:a 1}")))

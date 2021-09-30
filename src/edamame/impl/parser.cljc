@@ -14,6 +14,7 @@
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
    #?(:cljs [cljs.reader :refer [*tag-table*]])
+   #?(:cljs [cljs.tagged-literals :refer [*cljs-data-readers*]])
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
@@ -374,7 +375,7 @@
                   f (or (when-let [readers (:readers ctx)]
                           (readers sym))
                         #?(:clj (default-data-readers sym)
-                           :cljs (@*tag-table* sym)))]
+                           :cljs (*cljs-data-readers* sym)))]
               (if f (f data)
                   (throw (new #?(:clj Exception :cljs js/Error)
                               (str "No reader function for tag " sym)))))
@@ -555,33 +556,6 @@
      (instance? clojure.lang.IObj obj)
      :cljs (satisfies? IWithMeta obj)))
 
-;; tried this for optimization, but didn't see speedup
-#_(defn parse-next-sci
-  [ctx reader desugar]
-  (if-let [c (and (skip-whitespace ctx reader)
-                  (r/peek-char reader))]
-    (let [loc (location reader)
-          obj (dispatch ctx reader c)]
-      (if (identical? reader obj)
-        (recur ctx reader desugar)
-        (if (kw-identical? ::expected-delimiter obj)
-          obj
-          (let [iobj?? (iobj? obj)
-                loc? (and iobj??
-                          (or (symbol? obj)
-                              (seq? obj)))
-                line (when loc? (:row loc))
-                column (when loc? (:col loc))
-                obj (if desugar (desugar-meta obj) obj)
-                obj (cond loc? (vary-meta obj
-                                          #(-> %
-                                             ;; Note: using 3-arity of assoc, because faster
-                                               (assoc :line line)
-                                               (assoc :column column)))
-                          :else obj)]
-            obj))))
-    ::eof))
-
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
@@ -656,7 +630,7 @@
                     end-row-key end-col-key
                     source source-key
                     postprocess location?
-                    end-location sci])
+                    end-location])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]

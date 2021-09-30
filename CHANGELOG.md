@@ -2,6 +2,11 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## Unreleased
+
+- Revert #70, instead return `cljs.tagged-literals/JSValue` object which should
+  be evaluated manually.
+
 ## 0.0.11
 
 - Expose expected delimiter as public data in exception [#81](https://github.com/borkdude/edamame/issues/81)
@@ -27,6 +32,11 @@ For a list of breaking changes, check [here](#breaking-changes)
 - fix line numbers when using shebang [#48](https://github.com/borkdude/edamame/issues/48)
 
 ## Breaking changes
+
+### Unreleased
+
+- Revert #70, instead return `cljs.tagged-literals/JSValue` object which should
+  be evaluated manually.
 
 ### 0.0.10
 
