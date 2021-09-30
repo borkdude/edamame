@@ -2,7 +2,7 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
-## Unreleased
+## 0.0.12
 
 - Revert #70, instead return `cljs.tagged-literals/JSValue` object which should
   be evaluated manually.
@@ -33,7 +33,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 ## Breaking changes
 
-### Unreleased
+### 0.0.12
 
 - Revert #70, instead return `cljs.tagged-literals/JSValue` object which should
   be evaluated manually.
