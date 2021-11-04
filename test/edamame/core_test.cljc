@@ -397,6 +397,16 @@
   (is (= '[foo (clojure.core/deref bar)]
          (p/parse-string  "[foo@bar]" {:deref true}))))
 
+(deftest string-delimiter-test
+  (try (p/parse-string "\"")
+       (catch #?(:clj Exception :cljs :default) e
+         (is (= {:type :edamame/error,
+                 :row 1, :col 2,
+                 :edamame/expected-delimiter "\"",
+                 :edamame/opened-delimiter "\"",
+                 :edamame/opened-delimiter-loc {:row 1, :col 1}}
+                (ex-data e))))))
+
 ;;;; Scratch
 
 (comment

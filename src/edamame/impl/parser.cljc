@@ -604,7 +604,6 @@
           \: (parse-keyword ctx reader)
           \" (parse-string* ctx reader)
           \\ (read-char* reader (r/read-char reader) nil)
-          ;; what more do we have: strings, numbers and symbols?
           (let [;; we're reading c here because number-literal? does a peek
                 c (r/read-char reader)]
             (cond
