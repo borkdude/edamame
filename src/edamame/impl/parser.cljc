@@ -13,7 +13,6 @@
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional namespace-keys]])
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
-   #?(:cljs [cljs.reader :refer [*tag-table*]])
    #?(:cljs [cljs.tagged-literals :refer [*cljs-data-readers*]])
    [clojure.string :as str]
    [edamame.impl.read-fn :refer [read-fn]]
@@ -24,13 +23,24 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-;;;; tools.reader
+(defn throw-reader
+  "Throw reader exception, including line line/column. line/column is
+  read from the reader but it can be overriden by passing loc
+  optional parameter."
+  ([ctx #?(:cljs ^:not-native reader :default reader) msg]
+   (throw-reader ctx reader msg nil))
+  ([ctx #?(:cljs ^:not-native reader :default reader) msg data]
+   (throw-reader ctx reader msg data nil))
+  ([ctx #?(:cljs ^:not-native reader :default reader) msg data loc]
+   (let [c (:col loc (r/get-column-number reader))
+         l (:row loc (r/get-line-number reader))]
+     (throw
+      (ex-info msg
+               (merge {:type :edamame/error
+                       (:row-key ctx) l
+                       (:col-key ctx) c} data))))))
 
-;; This is used for reading tokens (numbers, strings and symbols). We might inline this
-;; later, but for now we're falling back on the EDN reader.
-(defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [tools-reader-opts (:tools.reader/opts ctx)]
-    (edn/read tools-reader-opts reader)))
+;;;; tools.reader
 
 (defn dispatch-macro? [ch]
   (contains? #{\^  ;; deprecated
@@ -44,8 +54,65 @@
                \:
                \#} ch))
 
-(def read-token #'edn/read-token)
-(def parse-symbol #'commons/parse-symbol)
+(defn- macro-terminating? [ch]
+  (case ch
+    (\" \; \@ \^ \` \~ \( \) \[ \] \{ \} \\) true
+    false))
+
+#?(:cljs
+   (defn whitespace?
+     [c]
+     (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
+
+#?(:clj
+   (defmacro whitespace? [c]
+     `(and ~c (or (identical? ~c \,)
+                  (Character/isWhitespace ~(with-meta c
+                                             {:tag 'java.lang.Character}))))))
+
+(defn- ^String read-token
+  "Read in a single logical token from the reader"
+  [rdr _kind initch]
+  (loop [sb #?(:clj (StringBuilder.)
+               :cljs (StringBuffer.)) ch initch]
+    (if (or (whitespace? ch)
+            (macro-terminating? ch)
+            (nil? ch))
+      (do (when ch
+            (r/unread rdr ch))
+          (str sb))
+      (recur (.append sb ch) (r/read-char rdr)))))
+
+(def parse-symbol @#'commons/parse-symbol)
+(def number-literal? @#'commons/number-literal?)
+(def read-number @#'edn/read-number)
+(def escape-char @#'edn/escape-char)
+(def read-char* @#'edn/read-char*)
+
+(defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [tools-reader-opts (:tools.reader/opts ctx)]
+    (edn/read tools-reader-opts reader)))
+
+(defn- parse-string*
+  [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [row (r/get-line-number reader)
+        col (r/get-column-number reader)
+        opened (r/read-char reader)]
+    (loop [sb #?(:clj (StringBuilder.)
+                 :cljs (StringBuffer.))
+           ch (r/read-char reader)]
+      (case ch
+        nil (throw-reader ctx
+                          reader
+                          (str "EOF while reading, expected " opened " to match " opened " at [" row "," col "]")
+                          {:edamame/expected-delimiter (str opened)
+                           :edamame/opened-delimiter (str opened)
+                           :edamame/opened-delimiter-loc {:row row
+                                                          :col col}})
+        \\ (recur (doto sb (.append (escape-char sb reader)))
+                  (r/read-char reader))
+        \" (str sb)
+        (recur (doto sb (.append ch)) (r/read-char reader))))))
 
 ;;;; end tools.reader
 
@@ -66,18 +133,6 @@
   (r/read-line reader)
   reader)
 
-#?(:cljs
-   (defn whitespace?
-     [c]
-     (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
-
-#?(:clj
-   (defmacro whitespace? [c]
-     `(and ~c (or (identical? ~c \,)
-                  (Character/isWhitespace ~(with-meta c
-                                             {:tag 'java.lang.Character}))))))
-
-
 (defn skip-whitespace
   "Skips whitespace. Returns reader. If end of stream is reached, returns nil."
   [_ctx #?(:cljs ^not-native reader :default reader)]
@@ -87,23 +142,6 @@
         (recur)
         (do (r/unread reader c)
             reader)))))
-
-(defn throw-reader
-  "Throw reader exception, including line line/column. line/column is
-  read from the reader but it can be overriden by passing loc
-  optional parameter."
-  ([ctx #?(:cljs ^:not-native reader :default reader) msg]
-   (throw-reader ctx reader msg nil))
-  ([ctx #?(:cljs ^:not-native reader :default reader) msg data]
-   (throw-reader ctx reader msg data nil))
-  ([ctx #?(:cljs ^:not-native reader :default reader) msg data loc]
-   (let [c (:col loc (r/get-column-number reader))
-         l (:row loc (r/get-line-number reader))]
-     (throw
-      (ex-info msg
-               (merge {:type :edamame/error
-                       (:row-key ctx) l
-                       (:col-key ctx) c} data))))))
 
 (def non-match (symbol "non-match"))
 
@@ -276,6 +314,23 @@
                    (or msg (str "Alias `" (symbol kns) "` not found in `:auto-resolve`"))
                    {:expr (str ":" next-val)}))))
 
+(defn- read-symbol
+  ([ctx #?(:cljs ^not-native reader :default reader)]
+   (read-symbol ctx reader (r/read-char reader)))
+  ([ctx #?(:cljs ^not-native reader :default reader) initch]
+   (when-let [token (read-token reader :symbol initch)]
+     (case token
+
+       ;; special symbols
+       "nil" nil
+       "true" true
+       "false" false
+       "/" '/
+
+       (or (when-let [p (parse-symbol token)]
+             (symbol (p 0) (p 1)))
+           (throw-reader ctx reader "dude"))))))
+
 (defn parse-namespaced-map [ctx #?(:cljs ^not-native reader :default reader)]
   (let [auto-resolved? (when (identical? \: (r/peek-char reader))
                          (r/read-char reader)
@@ -284,8 +339,8 @@
                       (identical? \{ (r/peek-char reader)))
         prefix (if auto-resolved?
                  (when-not current-ns?
-                   (edn-read ctx reader))
-                 (edn-read ctx reader))
+                   (read-symbol ctx reader))
+                 (read-symbol ctx reader))
         the-map (parse-next ctx reader)]
     (if auto-resolved?
       (let [ns (if current-ns? :current (symbol (name prefix)))
@@ -378,9 +433,7 @@
                            :cljs (*cljs-data-readers* sym)))]
               (if f (f data)
                   (throw (new #?(:clj Exception :cljs js/Error)
-                              (str "No reader function for tag " sym)))))
-            #_(do (r/unread reader \#)
-                  (edn-read ctx reader))))))))
+                              (str "No reader function for tag " sym)))))))))))
 
 (defn throw-odd-map
   [ctx #?(:cljs ^not-native reader :default reader) loc elements]
@@ -549,7 +602,17 @@
                                         merge meta-val)]
                  val-val))
           \: (parse-keyword ctx reader)
-          (edn-read ctx reader)))))
+          \" (parse-string* ctx reader)
+          \\ (read-char* reader (r/read-char reader) nil)
+          ;; what more do we have: strings, numbers and symbols?
+          (let [;; we're reading c here because number-literal? does a peek
+                c (r/read-char reader)]
+            (cond
+              ;; NOTE: clojure/edn first checks number-literal before matching on
+              ;; macro chars, is this better for perf?
+              (number-literal? reader c)
+              (read-number reader c (:tools.reader/opts ctx))
+              :else (read-symbol ctx reader c)))))))
 
 (defn iobj? [obj]
   #?(:clj

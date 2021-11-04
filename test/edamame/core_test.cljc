@@ -390,6 +390,13 @@
                     PersistentHashMap)
                  (p/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}"))))
 
+(deftest number-test
+  (is (number? (p/parse-string "-100"))))
+
+(deftest at-separator-test
+  (is (= '[foo (clojure.core/deref bar)]
+         (p/parse-string  "[foo@bar]" {:deref true}))))
+
 ;;;; Scratch
 
 (comment
