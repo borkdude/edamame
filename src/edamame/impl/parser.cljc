@@ -78,7 +78,7 @@
 
 (defn- ^String read-token
   "Read in a single logical token from the reader"
-  [rdr _kind initch]
+  [#?(:clj rdr :cljs ^not-native rdr) _kind initch]
   (loop [sb #?(:clj (StringBuilder.)
                :cljs (StringBuffer.)) ch initch]
     (if (or (whitespace? ch)
@@ -95,7 +95,7 @@
 (def read-char* @#'edn/read-char*)
 
 (defn- read-number
-  [ctx rdr initch]
+  [ctx #?(:clj rdr :cljs ^not-native rdr) initch]
   (loop [sb (doto #?(:clj (StringBuilder.)
                      :cljs (StringBuffer.)) (.append initch))
          ch (r/read-char rdr)]
