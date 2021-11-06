@@ -54,6 +54,12 @@
                \:
                \#} ch))
 
+
+(defn macro? [ch]
+  (case ch
+    (\: \; \' \@ \^ \` \~ \( \) \[ \] \{ \} \\ \% \# \") true
+    false))
+
 (defn- macro-terminating? [ch]
   (case ch
     (\" \; \@ \^ \` \~ \( \) \[ \] \{ \} \\) true
@@ -85,9 +91,19 @@
 
 (def parse-symbol @#'commons/parse-symbol)
 (def number-literal? @#'commons/number-literal?)
-(def read-number @#'edn/read-number)
 (def escape-char @#'edn/escape-char)
 (def read-char* @#'edn/read-char*)
+
+(defn- read-number
+  [ctx rdr initch]
+  (loop [sb (doto (StringBuilder.) (.append initch))
+         ch (r/read-char rdr)]
+    (if (or (whitespace? ch) (macro? ch) (nil? ch))
+      (let [s (str sb)]
+        (r/unread rdr ch)
+        (or (commons/match-number s)
+            (throw-reader ctx rdr (str "Invalid number: " s))))
+      (recur (doto sb (.append ch)) (r/read-char rdr)))))
 
 (defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
   (let [tools-reader-opts (:tools.reader/opts ctx)]
@@ -610,7 +626,7 @@
               ;; NOTE: clojure/edn first checks number-literal before matching on
               ;; macro chars, is this better for perf?
               (number-literal? reader c)
-              (read-number reader c (:tools.reader/opts ctx))
+              (read-number ctx reader c)
               :else (read-symbol ctx reader c)))))))
 
 (defn iobj? [obj]

@@ -2,9 +2,13 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## 0.0.14
+
+- `1@2` should be parsed as `1 (clojure.core/deref 2)`
+
 ## 0.0.13
 
-* `foo@bar` should be parsed as `foo (clojure.core/deref bar)` [#83](https://github.com/borkdude/edamame/issues/83)
+- `foo@bar` should be parsed as `foo (clojure.core/deref bar)` [#83](https://github.com/borkdude/edamame/issues/83)
 
 ## 0.0.12
 

@@ -395,7 +395,9 @@
 
 (deftest at-separator-test
   (is (= '[foo (clojure.core/deref bar)]
-         (p/parse-string  "[foo@bar]" {:deref true}))))
+         (p/parse-string  "[foo@bar]" {:deref true})))
+  (is (= '[1 (clojure.core/deref 2)]
+         (p/parse-string "[1@2]" {:deref true}))))
 
 (deftest string-delimiter-test
   (try (p/parse-string "\"")
