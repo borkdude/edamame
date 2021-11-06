@@ -2,9 +2,15 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## 0.0.13
+
+* `foo@bar` should be parsed as `foo (clojure.core/deref bar)` [#83](https://github.com/borkdude/edamame/issues/83)
+
+**Full Changelog**: https://github.com/borkdude/edamame/compare/v0.0.12...v0.0.13
+
 ## 0.0.12
 
-- Revert #70, instead return `cljs.tagged-literals/JSValue` object which should
+- Revert [#70](https://github.com/borkdude/edamame/issues/70), instead return `cljs.tagged-literals/JSValue` object which should
   be evaluated manually.
 
 ## 0.0.11
@@ -35,7 +41,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 ### 0.0.12
 
-- Revert #70, instead return `cljs.tagged-literals/JSValue` object which should
+- Revert [#70](https://github.com/borkdude/edamame/issues/70), instead return `cljs.tagged-literals/JSValue` object which should
   be evaluated manually.
 
 ### 0.0.10
