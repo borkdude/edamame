@@ -99,7 +99,13 @@
   (loop [sb (doto #?(:clj (StringBuilder.)
                      :cljs (StringBuffer.)) (.append initch))
          ch (r/read-char rdr)]
-    (if (or (whitespace? ch) (macro? ch) (nil? ch))
+    (if (or (whitespace? ch)
+            ;; why isn't this macro-terminating in tools.reader?
+            ;; the diff is #{\# \% \' \:}
+            ;; answer: foo%bar is a valid symbol, whereas 1%2 is not a valid number
+            ;; similar for x'y vs 1'2 (which is 1 followed by a quoted 2)
+            (macro? ch)
+            (nil? ch))
       (let [s (str sb)]
         (r/unread rdr ch)
         (or (commons/match-number s)
