@@ -96,7 +96,8 @@
 
 (defn- read-number
   [ctx rdr initch]
-  (loop [sb (doto (StringBuilder.) (.append initch))
+  (loop [sb (doto #?(:clj (StringBuilder.)
+                     :cljs (StringBuffer.)) (.append initch))
          ch (r/read-char rdr)]
     (if (or (whitespace? ch) (macro? ch) (nil? ch))
       (let [s (str sb)]
