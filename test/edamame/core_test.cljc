@@ -362,7 +362,17 @@
      (is (= '(+ 1 2 3)
             (impl/parse-next
              {}
-             (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "(+ 1 2 3)")))))))
+             (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "(+ 1 2 3)")))))
+     (is (= ##Inf
+            (p/parse-next
+             (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "##Inf")))))
+     (is (= ##-Inf
+            (p/parse-next
+             (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "##-Inf")))))))
+
+#?(:cljs
+   (deftest read-symbolic-test
+     (= [##Inf ##-Inf] (p/parse-string "[##Inf ##-Inf]"))))
 
 (deftest parse-next-test
   (is (= '(fn* [] (+ 1 2 3)) (p/parse-next (p/reader "#(+ 1 2 3)") (p/normalize-opts {:all true})))))

@@ -93,6 +93,7 @@
 (def number-literal? @#'commons/number-literal?)
 (def escape-char @#'edn/escape-char)
 (def read-char* @#'edn/read-char*)
+(def read-symbolic-value  @#'edn/read-symbolic-value)
 
 (defn- read-number
   [ctx #?(:clj rdr :cljs ^not-native rdr) initch]
@@ -436,6 +437,9 @@
       \! (do
            (parse-comment reader)
            reader)
+      \# (do
+           (r/read-char reader)
+           (read-symbolic-value reader nil nil))
       ;; catch-all
       (if (dispatch-macro? c)
         (do (r/unread reader \#)

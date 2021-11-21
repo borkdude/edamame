@@ -2,6 +2,10 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## 0.0.15
+
+- Fix reading of `##Inf` with `clojure.lang.LineNumberingPushbackReader` [#85](https://github.com/borkdude/edamame/issues/85)
+
 ## 0.0.14
 
 - `1@2` should be parsed as `1 (clojure.core/deref 2)`
