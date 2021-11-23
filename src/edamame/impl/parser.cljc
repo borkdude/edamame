@@ -23,6 +23,9 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
+(def eof #?(:clj (Object.) :cljs (js/Object.)))
+(def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
+
 (defn throw-reader
   "Throw reader exception, including line line/column. line/column is
   read from the reader but it can be overriden by passing loc
@@ -190,7 +193,7 @@
              next-val (parse-next ctx reader)
              cond-splice? (some-> next-val meta ::cond-splice)]
          (cond
-           (kw-identical? ::eof next-val)
+           (identical? eof next-val)
            (throw-reader ctx
                          reader
                          (str "EOF while reading, expected " delimiter " to match " opened " at [" row "," col "]")
@@ -198,7 +201,7 @@
                           :edamame/opened-delimiter (str opened)
                           :edamame/opened-delimiter-loc {:row row
                                                          :col col}})
-           (kw-identical? ::expected-delimiter next-val)
+           (identical? expected-delimiter next-val)
            (persistent! vals)
            cond-splice? (do (doseq [v next-val]
                               (conj! vals v))
@@ -265,7 +268,7 @@
   (let [features (:features ctx)]
     (loop [match non-match]
       (let [k (parse-next ctx reader)]
-        (if (kw-identical? k ::expected-delimiter)
+        (if (identical? expected-delimiter k)
           match
           (let [next-is-match? (and (non-match? match)
                                     (or (contains? features k)
@@ -275,9 +278,9 @@
                     ctx (assoc ctx ::suppress true)]
                 (loop []
                   (let [next-val (parse-next ctx reader)]
-                    (when-not (kw-identical? ::expected-delimiter
-                                             next-val)
-                      (if (kw-identical? ::eof next-val)
+                    (when-not (identical? expected-delimiter
+                                          next-val)
+                      (if (identical? eof next-val)
                         (let [delimiter (::expected-delimiter ctx)
                               {:keys [:row :col :char]} (::opened-delimiter ctx)]
                           (throw-reader ctx
@@ -401,7 +404,7 @@
            (do
              (r/read-char reader) ;; ignore quote
              (let [next-val (parse-next ctx reader)]
-               (when (kw-identical? ::eof next-val)
+               (when (identical? eof next-val)
                  (throw-eof-while-reading ctx reader))
                (if (ifn? v)
                  (v next-val)
@@ -533,7 +536,7 @@
                  (r/read-char reader) ;; ignore sharp
                  (parse-sharp ctx reader))
         (case c
-          nil ::eof
+          nil eof
           \@ (if-let [v (:deref ctx)]
                (do
                  (r/read-char reader) ;; skip @
@@ -548,7 +551,7 @@
                (do
                  (r/read-char reader) ;; skip '
                  (let [next-val (parse-next ctx reader)]
-                   (when (kw-identical? ::eof next-val)
+                   (when (identical? eof next-val)
                      (throw-eof-while-reading ctx reader))
                    (if (ifn? v)
                      (v next-val)
@@ -620,7 +623,7 @@
                          (do
                            ;; read delimiter
                            (r/read-char reader)
-                           ::expected-delimiter)))
+                           expected-delimiter)))
           \; (parse-comment reader)
           \^ (do
                (r/read-char reader) ;; ignore ^
@@ -661,7 +664,7 @@
                  (dispatch ctx reader c))]
        (if (identical? reader obj)
          (recur ctx reader desugar)
-         (if (kw-identical? ::expected-delimiter obj)
+         (if (identical? expected-delimiter obj)
            obj
            (let [postprocess (:postprocess ctx)
                  location? (:location? ctx)
@@ -704,7 +707,7 @@
                                               src (assoc (:source-key ctx) src)))
                            :else obj)]
              obj))))
-     ::eof)))
+     eof)))
 
 (defn string-reader
   "Create reader for strings."
@@ -771,7 +774,7 @@
               (string-reader s))
         ctx (assoc opts ::expected-delimiter nil)
         v (parse-next ctx r)]
-    (if (kw-identical? ::eof v) nil v)))
+    (if (identical? eof v) nil v)))
 
 (defn parse-string-all [s opts]
   (let [opts (normalize-opts opts)
@@ -779,7 +782,7 @@
         ctx (assoc opts ::expected-delimiter nil)]
     (loop [ret (transient [])]
       (let [next-val (parse-next ctx r)]
-        (if (kw-identical? ::eof next-val)
+        (if (identical? eof next-val)
           (persistent! ret)
           (recur (conj! ret next-val)))))))
 

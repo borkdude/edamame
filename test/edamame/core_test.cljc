@@ -344,11 +344,11 @@
 
 (deftest postprocess-test
   (is (= [(->Wrapper 1 {:row 1, :col 2, :end-row 1, :end-col 3})]
-       (p/parse-string "[1]" {:postprocess
-                              (fn [{:keys [:obj :loc]}]
-                                (if (iobj? obj)
-                                  (vary-meta obj merge loc)
-                                  (->Wrapper obj loc)))})))
+         (p/parse-string "[1]" {:postprocess
+                                (fn [{:keys [:obj :loc]}]
+                                  (if (iobj? obj)
+                                    (vary-meta obj merge loc)
+                                    (->Wrapper obj loc)))})))
   (let [p-fn (fn [{:keys [obj]}]
                (if (keyword? obj)
                  {:value obj}
@@ -418,6 +418,24 @@
                  :edamame/opened-delimiter "\"",
                  :edamame/opened-delimiter-loc {:row 1, :col 1}}
                 (ex-data e))))))
+
+(defn source? [f]
+  (re-matches #".*\.clj[cs]?$" (str f)))
+
+#?(:clj
+   (deftest self-parse-test
+     (let [file-list (filter source? (map str (concat (file-seq (io/file "src"))
+                                                      (file-seq (io/file "test")))))]
+       (doseq [f file-list]
+         (is (p/parse-string-all #?(:clj (slurp (io/file f))
+                                    :cljs (str (readFileSync (join "src" "edamame" "impl" "parser.cljc"))))
+                                 {:read-cond :allow
+                                  :features #{:clj :cljs}
+                                  :all true
+                                  :auto-resolve '{:current edamame.core}
+                                  :readers (fn [_t]
+                                             identity)})
+             (str "failed parsing file: " f))))))
 
 ;;;; Scratch
 

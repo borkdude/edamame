@@ -96,7 +96,7 @@
   ([reader] (parse-next reader {}))
   ([reader opts]
    (let [v (p/parse-next opts reader)]
-     (if (#?(:clj identical? :cljs keyword-identical?) :edamame.impl.parser/eof v)
+     (if (identical? p/eof v)
        (or (get opts :eof)
            ::eof)
        v))))
