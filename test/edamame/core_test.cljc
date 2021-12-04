@@ -266,18 +266,36 @@
        (def path (js/require "path"))
        (def join (gobj/get path "join"))))
 
+(def core-expr-count (atom 0))
+
 (deftest parse-clojure-core
   (is (nil? (time (dotimes [_ 10]
-                    (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
-                                           :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
-                                        {:all true
-                                         :auto-resolve '{:current clojure.core}})))))
+                    (reset! core-expr-count
+                            (count (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
+                                                          :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
+                                                       {:all true
+                                                        :auto-resolve '{:current clojure.core}})))))))
+  #?(:clj (testing "with pushback reader only"
+            (time (dotimes [_ 10]
+                    (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
+                      (let [opts (p/normalize-opts {:all true
+                                                    :auto-resolve '{:current clojure.core}})]
+                        (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                                   (repeatedly #(p/parse-next rdr opts))))))))))))
   (is (nil? (time (dotimes [_ 10]
-                    (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
-                                           :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
-                                        {:all true
-                                         :auto-resolve '{:current cljs.core}
-                                         #?@(:clj [:readers cljs-tags/*cljs-data-readers*])}))))))
+                    (reset! core-expr-count (count (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
+                                                       :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
+                                                    {:all true
+                                                     :auto-resolve '{:current cljs.core}
+                                                     #?@(:clj [:readers cljs-tags/*cljs-data-readers*])})))))))
+  #?(:clj (testing "with pushback reader only"
+            (time (dotimes [_ 10]
+                    (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.cljs")))]
+                      (let [opts (p/normalize-opts {:all true
+                                                    :auto-resolve '{:current cljs.core}
+                                                    #?@(:clj [:readers cljs-tags/*cljs-data-readers*])})]
+                        (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                                   (repeatedly #(p/parse-next rdr opts)))))))))))))
 
 (deftest readers-test
   (is (= '(foo [1 2 3]) (p/parse-string "#foo [1 2 3]" {:readers {'foo (fn [v] (list 'foo v))}})))

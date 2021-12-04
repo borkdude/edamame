@@ -1,5 +1,6 @@
 (ns edamame.core
   (:require
+   [clojure.tools.reader.reader-types :as rt]
    [edamame.impl.parser :as p]))
 
 (defn parse-string
@@ -95,7 +96,10 @@
   be normalized with normalize-opts first."
   ([reader] (parse-next reader {}))
   ([reader opts]
-   (let [v (p/parse-next opts reader)]
+   (let [opts (if (rt/indexing-reader? reader)
+                (assoc opts ::ir true)
+                opts)
+         v (p/parse-next opts reader)]
      (if (identical? p/eof v)
        (or (get opts :eof)
            ::eof)

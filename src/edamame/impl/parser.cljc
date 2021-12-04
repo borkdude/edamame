@@ -35,13 +35,14 @@
   ([ctx #?(:cljs ^:not-native reader :default reader) msg data]
    (throw-reader ctx reader msg data nil))
   ([ctx #?(:cljs ^:not-native reader :default reader) msg data loc]
-   (let [c (:col loc (r/get-column-number reader))
-         l (:row loc (r/get-line-number reader))]
+   (let [ir? (:edamame.core/ir? ctx)
+         c (when ir? (:col loc (r/get-column-number reader)))
+         l (when ir? (:row loc (r/get-line-number reader)))]
      (throw
       (ex-info msg
-               (merge {:type :edamame/error
-                       (:row-key ctx) l
-                       (:col-key ctx) c} data))))))
+               (merge (assoc {:type :edamame/error}
+                             (:row-key ctx) l
+                             (:col-key ctx) c) data))))))
 
 ;;;; tools.reader
 
@@ -122,8 +123,9 @@
 
 (defn- parse-string*
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [row (r/get-line-number reader)
-        col (r/get-column-number reader)
+  (let [ir? (:edamame.core/ir? ctx)
+        row (when ir? (r/get-line-number reader))
+        col (when ir? (r/get-column-number reader))
         opened (r/read-char reader)]
     (loop [sb #?(:clj (StringBuilder.)
                  :cljs (StringBuffer.))
@@ -182,8 +184,9 @@
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
    (parse-to-delimiter ctx reader delimiter []))
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter into]
-   (let [row (r/get-line-number reader)
-         col (r/get-column-number reader)
+   (let [ir? (:edamame.core/ir? ctx)
+         row (when ir? (r/get-line-number reader))
+         col (when ir? (r/get-column-number reader))
          opened (r/read-char reader)
          ctx (-> ctx
                  (assoc ::expected-delimiter delimiter)
@@ -257,7 +260,8 @@
 
 (defn parse-set
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [start-loc (location reader)
+  (let [start-loc (when (:edamame.core/ir? ctx)
+                    (location reader))
         coll (parse-to-delimiter ctx reader \})
         the-set (set coll)]
     (when-not (= (count coll) (count the-set))
@@ -479,7 +483,8 @@
 
 (defn parse-map
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [start-loc (location reader)
+  (let [ir? (:edamame.core/ir? ctx)
+        start-loc (when ir? (location reader))
         elements (parse-to-delimiter ctx reader \})
         c (count elements)]
     (when (pos? c)
@@ -531,7 +536,8 @@
 ;; that doesn't do any checking, but saw no significant speedup.
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
-  (let [sharp? (= \# c)]
+  (let [ir? (:edamame.core/ir? ctx)
+        sharp? (= \# c)]
     (if sharp? (do
                  (r/read-char reader) ;; ignore sharp
                  (parse-sharp ctx reader))
@@ -604,7 +610,7 @@
           \{ (parse-map ctx reader)
           (\} \] \)) (let [expected (::expected-delimiter ctx)]
                        (if (not= expected c)
-                         (let [loc (location reader)]
+                         (let [loc (when ir? (location reader))]
                            (r/read-char reader) ;; ignore unexpected
                            ;; delimiter to be able to
                            ;; continue reading, fix for
@@ -651,63 +657,64 @@
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
-   (if-let [c (and (skip-whitespace ctx reader)
-                   (r/peek-char reader))]
-     (let [loc (location reader)
-           log? (:source ctx)
-           buf (fn [] (str (:buffer @#?(:clj (.source-log-frames ^SourceLoggingPushbackReader reader)
-                                        :cljs (.-frames reader)))))
-           offset (when log? (count (buf)))
-           obj (if log?
-                 #?(:clj (r/log-source reader (dispatch ctx reader c))
-                    :cljs (r/log-source* reader #(dispatch ctx reader c)))
-                 (dispatch ctx reader c))]
-       (if (identical? reader obj)
-         (recur ctx reader desugar)
-         (if (identical? expected-delimiter obj)
-           obj
-           (let [postprocess (:postprocess ctx)
-                 location? (:location? ctx)
-                 end-loc? (:end-location ctx)
-                 iobj?? (iobj? obj)
-                 src (when log?
-                       (.trim (subs (buf) offset)))
-                 loc? (or (and iobj??
-                               (or (not location?)
-                                   (location? obj)))
-                          postprocess)
-                 end-loc (when (and loc? end-loc?)
-                           (location reader))
-                 row (when loc? (:row loc))
-                 end-row (when end-loc? (:row end-loc))
-                 col (when loc? (:col loc))
-                 end-col (when end-loc? (:col end-loc))
-                 postprocess-fn (when postprocess
-                                  #(postprocess
-                                    (cond->
-                                        {:obj %}
-                                      loc? (assoc :loc (cond-> {(:row-key ctx) row
-                                                                (:col-key ctx) col}
-                                                         end-loc? (-> (assoc (:end-row-key ctx) end-row
-                                                                             (:end-col-key ctx) end-col))))
-                                      src (assoc (or (:source-key ctx)
-                                                     :source)
-                                                 src))))
-                 obj (if desugar
-                       (if postprocess-fn
-                         (desugar-meta obj postprocess-fn)
-                         (desugar-meta obj)) obj)
-                 obj (cond postprocess (postprocess-fn obj)
-                           loc? (vary-meta obj
-                                           #(cond-> (-> %
-                                                        (assoc (:row-key ctx) row)
-                                                        (assoc (:col-key ctx) col))
-                                              end-loc? (-> (assoc (:end-row-key ctx) end-row)
-                                                           (assoc (:end-col-key ctx) end-col))
-                                              src (assoc (:source-key ctx) src)))
-                           :else obj)]
-             obj))))
-     eof)))
+   (let [ir? (:edamame.core/ir? ctx)]
+     (if-let [c (and (skip-whitespace ctx reader)
+                     (r/peek-char reader))]
+       (let [loc (when ir? (location reader))
+             log? (:source ctx)
+             buf (fn [] (str (:buffer @#?(:clj (.source-log-frames ^SourceLoggingPushbackReader reader)
+                                          :cljs (.-frames reader)))))
+             offset (when log? (count (buf)))
+             obj (if log?
+                   #?(:clj (r/log-source reader (dispatch ctx reader c))
+                      :cljs (r/log-source* reader #(dispatch ctx reader c)))
+                   (dispatch ctx reader c))]
+         (if (identical? reader obj)
+           (recur ctx reader desugar)
+           (if (identical? expected-delimiter obj)
+             obj
+             (let [postprocess (:postprocess ctx)
+                   location? (:location? ctx)
+                   end-loc? (:end-location ctx)
+                   iobj?? (iobj? obj)
+                   src (when log?
+                         (.trim (subs (buf) offset)))
+                   loc? (and ir? (or (and iobj??
+                                          (or (not location?)
+                                              (location? obj)))
+                                     postprocess))
+                   end-loc (when (and ir? loc? end-loc?)
+                             (location reader))
+                   row (when loc? (:row loc))
+                   end-row (when end-loc? (:row end-loc))
+                   col (when loc? (:col loc))
+                   end-col (when end-loc? (:col end-loc))
+                   postprocess-fn (when postprocess
+                                    #(postprocess
+                                      (cond->
+                                          {:obj %}
+                                        loc? (assoc :loc (cond-> {(:row-key ctx) row
+                                                                  (:col-key ctx) col}
+                                                           end-loc? (-> (assoc (:end-row-key ctx) end-row
+                                                                               (:end-col-key ctx) end-col))))
+                                        src (assoc (or (:source-key ctx)
+                                                       :source)
+                                                   src))))
+                   obj (if desugar
+                         (if postprocess-fn
+                           (desugar-meta obj postprocess-fn)
+                           (desugar-meta obj)) obj)
+                   obj (cond postprocess (postprocess-fn obj)
+                             loc? (vary-meta obj
+                                             #(cond-> (-> %
+                                                          (assoc (:row-key ctx) row)
+                                                          (assoc (:col-key ctx) col))
+                                                end-loc? (-> (assoc (:end-row-key ctx) end-row)
+                                                             (assoc (:end-col-key ctx) end-col))
+                                                src (assoc (:source-key ctx) src)))
+                             :else obj)]
+               obj))))
+       eof))))
 
 (defn string-reader
   "Create reader for strings."
@@ -772,14 +779,17 @@
         src? (:source opts)
         r (if src? (r/source-logging-push-back-reader s)
               (string-reader s))
-        ctx (assoc opts ::expected-delimiter nil)
+        ctx (assoc opts ::expected-delimiter nil
+                   :edamame.core/ir? true)
         v (parse-next ctx r)]
     (if (identical? eof v) nil v)))
 
 (defn parse-string-all [s opts]
   (let [opts (normalize-opts opts)
         ^Closeable r (string-reader s)
-        ctx (assoc opts ::expected-delimiter nil)]
+        ctx (assoc opts
+                   ::expected-delimiter nil
+                   :edamame.core/ir? true)]
     (loop [ret (transient [])]
       (let [next-val (parse-next ctx r)]
         (if (identical? eof next-val)
