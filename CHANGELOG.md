@@ -2,6 +2,10 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## 0.0.17
+
+- Fix bug introduced in 0.0.16 by change in issue #86
+
 ## 0.0.16
 
 - Support reading with `PushbackReader` which is not an indexing reader [#86](https://github.com/borkdude/edamame/issues/86)

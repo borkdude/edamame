@@ -377,10 +377,16 @@
 
 #?(:clj
    (deftest pushback-reader-test
-     (is (= '(+ 1 2 3)
-            (impl/parse-next
-             {}
-             (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "(+ 1 2 3)")))))
+     (let [v (p/parse-next
+              (java.io.PushbackReader. (java.io.StringReader. "(+ 1 2 3)")))]
+       (is (= '(+ 1 2 3)
+              v))
+       (is (not (meta v))))
+     (let [v (p/parse-next
+              (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "(+ 1 2 3)")))]
+       (is (= '(+ 1 2 3)
+              v))
+       (is (:row (meta v))))
      (is (= ##Inf
             (p/parse-next
              (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. "##Inf")))))

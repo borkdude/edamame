@@ -94,10 +94,10 @@
 (defn parse-next
   "Parses next form from reader. Accepts same opts as parse-string, must
   be normalized with normalize-opts first."
-  ([reader] (parse-next reader {}))
+  ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader opts]
    (let [opts (if (rt/indexing-reader? reader)
-                (assoc opts ::ir true)
+                (assoc opts :edamame.core/indexing-reader? true)
                 opts)
          v (p/parse-next opts reader)]
      (if (identical? p/eof v)
