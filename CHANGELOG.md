@@ -2,6 +2,10 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## 0.0.16
+
+- Support reading with `PushbackReader` which is not an indexing reader [#86](https://github.com/borkdude/edamame/issues/86)
+
 ## 0.0.15
 
 - Fix reading of `##Inf` with `clojure.lang.LineNumberingPushbackReader` [#85](https://github.com/borkdude/edamame/issues/85)

@@ -293,7 +293,7 @@
                     (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.cljs")))]
                       (let [opts (p/normalize-opts {:all true
                                                     :auto-resolve '{:current cljs.core}
-                                                    #?@(:clj [:readers cljs-tags/*cljs-data-readers*])})]
+                                                    :readers cljs-tags/*cljs-data-readers*})]
                         (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
                                                                    (repeatedly #(p/parse-next rdr opts)))))))))))))
 
