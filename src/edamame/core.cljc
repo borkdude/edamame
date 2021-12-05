@@ -96,10 +96,7 @@
   be normalized with normalize-opts first."
   ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader opts]
-   (let [opts (if (rt/indexing-reader? reader)
-                (assoc opts :edamame.core/indexing-reader? true)
-                opts)
-         v (p/parse-next opts reader)]
+   (let [v (p/parse-next opts reader)]
      (if (identical? p/eof v)
        (or (get opts :eof)
            ::eof)

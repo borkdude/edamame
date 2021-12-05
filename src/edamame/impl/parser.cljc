@@ -35,7 +35,7 @@
   ([ctx #?(:cljs ^:not-native reader :default reader) msg data]
    (throw-reader ctx reader msg data nil))
   ([ctx #?(:cljs ^:not-native reader :default reader) msg data loc]
-   (let [ir? (:edamame.core/indexing-reader? ctx)
+   (let [ir? (r/indexing-reader? reader)
          c (when ir? (:col loc (r/get-column-number reader)))
          l (when ir? (:row loc (r/get-line-number reader)))]
      (throw
@@ -123,7 +123,7 @@
 
 (defn- parse-string*
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [ir? (:edamame.core/indexing-reader? ctx)
+  (let [ir? (r/indexing-reader? reader)
         row (when ir? (r/get-line-number reader))
         col (when ir? (r/get-column-number reader))
         opened (r/read-char reader)]
@@ -184,7 +184,7 @@
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
    (parse-to-delimiter ctx reader delimiter []))
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter into]
-   (let [ir? (:edamame.core/indexing-reader? ctx)
+   (let [ir? (r/indexing-reader? reader)
          row (when ir? (r/get-line-number reader))
          col (when ir? (r/get-column-number reader))
          opened (r/read-char reader)
@@ -260,7 +260,7 @@
 
 (defn parse-set
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [start-loc (when (:edamame.core/indexing-reader? ctx)
+  (let [start-loc (when (r/indexing-reader? reader)
                     (location reader))
         coll (parse-to-delimiter ctx reader \})
         the-set (set coll)]
@@ -483,7 +483,7 @@
 
 (defn parse-map
   [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [ir? (:edamame.core/indexing-reader? ctx)
+  (let [ir? (r/indexing-reader? reader)
         start-loc (when ir? (location reader))
         elements (parse-to-delimiter ctx reader \})
         c (count elements)]
@@ -536,7 +536,7 @@
 ;; that doesn't do any checking, but saw no significant speedup.
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
-  (let [ir? (:edamame.core/indexing-reader? ctx)
+  (let [ir? (r/indexing-reader? reader)
         sharp? (= \# c)]
     (if sharp? (do
                  (r/read-char reader) ;; ignore sharp
@@ -657,7 +657,7 @@
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
-   (let [ir? (:edamame.core/indexing-reader? ctx)]
+   (let [ir? (r/indexing-reader? reader)]
      (if-let [c (and (skip-whitespace ctx reader)
                      (r/peek-char reader))]
        (let [loc (when ir? (location reader))
@@ -779,8 +779,7 @@
         src? (:source opts)
         r (if src? (r/source-logging-push-back-reader s)
               (string-reader s))
-        ctx (assoc opts ::expected-delimiter nil
-                   :edamame.core/indexing-reader? true)
+        ctx (assoc opts ::expected-delimiter nil)
         v (parse-next ctx r)]
     (if (identical? eof v) nil v)))
 
@@ -788,8 +787,7 @@
   (let [opts (normalize-opts opts)
         ^Closeable r (string-reader s)
         ctx (assoc opts
-                   ::expected-delimiter nil
-                   :edamame.core/indexing-reader? true)]
+                   ::expected-delimiter nil)]
     (loop [ret (transient [])]
       (let [next-val (parse-next ctx r)]
         (if (identical? eof next-val)
