@@ -269,12 +269,17 @@
 (def core-expr-count (atom 0))
 
 (deftest parse-clojure-core
-  (is (nil? (time (dotimes [_ 10]
-                    (reset! core-expr-count
-                            (count (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.clj"))
-                                                          :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
-                                                       {:all true
-                                                        :auto-resolve '{:current clojure.core}})))))))
+  (is
+   (nil?
+    (time
+     (dotimes [_ 10]
+       (reset! core-expr-count
+               (/ (count (p/parse-string-all #?(:clj (str/join "\n"
+                                                               (repeat 10 (slurp (io/file "test-resources" "clojure" "core.clj"))))
+                                                :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
+                                             {:all true
+                                              :auto-resolve '{:current clojure.core}}))
+                  10))))))
   #?(:clj (testing "with pushback reader only"
             (time (dotimes [_ 10]
                     (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
@@ -284,10 +289,10 @@
                                                                    (repeatedly #(p/parse-next rdr opts))))))))))))
   (is (nil? (time (dotimes [_ 10]
                     (reset! core-expr-count (count (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
-                                                       :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
-                                                    {:all true
-                                                     :auto-resolve '{:current cljs.core}
-                                                     #?@(:clj [:readers cljs-tags/*cljs-data-readers*])})))))))
+                                                                          :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
+                                                                       {:all true
+                                                                        :auto-resolve '{:current cljs.core}
+                                                                        #?@(:clj [:readers cljs-tags/*cljs-data-readers*])})))))))
   #?(:clj (testing "with pushback reader only"
             (time (dotimes [_ 10]
                     (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.cljs")))]
