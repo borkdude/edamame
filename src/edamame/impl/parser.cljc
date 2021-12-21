@@ -360,7 +360,8 @@
 
        (or (when-let [p (parse-symbol token)]
              (symbol (p 0) (p 1)))
-           (throw-reader ctx reader "dude"))))))
+           (throw-reader ctx reader (str "Invalid symbol: " token) (update (location reader)
+                                                                           :col - (count token))))))))
 
 (defn parse-namespaced-map [ctx #?(:cljs ^not-native reader :default reader)]
   (let [auto-resolved? (when (identical? \: (r/peek-char reader))

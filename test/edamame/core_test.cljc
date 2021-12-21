@@ -466,6 +466,13 @@
                                              identity)})
              (str "failed parsing file: " f))))))
 
+(deftest invalid-symbol-test
+  (is (thrown-with-data?
+       #"Invalid symbol: foo/bar/baz"
+       {:row 1
+        :col 1}
+       (p/parse-string "foo/bar/baz"))))
+
 ;;;; Scratch
 
 (comment
