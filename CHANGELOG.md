@@ -2,6 +2,14 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## Unreleased
+
+- Improve error message when reading invalid symbol
+
+## 0.0.18
+
+- Small performance improvement
+
 ## 0.0.17
 
 - Fix bug introduced in 0.0.16 by change in issue #86
