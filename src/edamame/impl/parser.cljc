@@ -15,11 +15,13 @@
       :cljs [cljs.tools.reader.impl.commons :as commons])
    #?(:cljs [cljs.tagged-literals :refer [*cljs-data-readers*]])
    [clojure.string :as str]
+   [edamame.impl.macros :as macros]
    [edamame.impl.read-fn :refer [read-fn]]
    [edamame.impl.syntax-quote :refer [syntax-quote]])
   #?(:clj (:import [java.io Closeable]
                    [clojure.tools.reader.reader_types SourceLoggingPushbackReader]))
-  #?(:cljs (:import [goog.string StringBuffer])))
+  #?(:cljs (:import [goog.string StringBuffer]))
+  #?(:cljs (:require-macros [edamame.impl.parser :refer [kw-identical?]])))
 
 #?(:clj (set! *warn-on-reflection* true))
 
@@ -47,17 +49,17 @@
 ;;;; tools.reader
 
 (defn dispatch-macro? [ch]
-  (contains? #{\^  ;; deprecated
-               \'
-               \(
-               \{
-               \"
-               \!
-               \_
-               \?
-               \:
-               \#} ch))
-
+  (case ch (\^  ;; deprecated
+            \'
+            \(
+            \{
+            \"
+            \!
+            \_
+            \?
+            \:
+            \#) true
+        false))
 
 (defn macro? [ch]
   (case ch
@@ -152,8 +154,10 @@
    (r/get-line-number reader)
    (r/get-column-number reader)))
 
-(defn kw-identical? [kw v]
-  (#?(:clj identical? :cljs keyword-identical?) kw v))
+(defmacro kw-identical? [k v]
+  (macros/?
+   :clj `(identical? ~k ~v)
+   :cljs `(cljs.core/keyword-identical? ~k ~v)))
 
 (declare parse-next)
 
