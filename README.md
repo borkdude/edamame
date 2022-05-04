@@ -8,8 +8,8 @@ Configurable EDN/Clojure parser with location metadata.
 
 ## Reasons to use edamame
 
-- You want to include locations in feedback about EDN files.
-- You want to parse Clojure-like expressions without any evaluation.
+- You want to include locations in feedback about Clojure and EDN files
+- You want to parse Clojure-like expressions without any evaluation
 - Anonymous functions are read deterministically
 - Highly configurable
 
