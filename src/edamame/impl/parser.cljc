@@ -710,19 +710,14 @@
                            (desugar-meta obj postprocess-fn)
                            (desugar-meta obj)) obj)
                    obj (cond postprocess (postprocess-fn obj)
-                             loc? (let [default-keys? (:default-keys ctx)]
-                                    (vary-meta obj
-                                               #(cond->
-                                                    (if default-keys?
-                                                      (-> %
-                                                          (assoc :line row)
-                                                          (assoc :column col))
-                                                      (-> %
-                                                          (assoc (:row-key ctx) row)
-                                                          (assoc (:col-key ctx) col)))
-                                                  end-loc? (-> (assoc (:end-row-key ctx) end-row)
-                                                               (assoc (:end-col-key ctx) end-col))
-                                                  src (assoc (:source-key ctx) src))))
+                             loc? (vary-meta obj
+                                        #(cond->
+                                             (-> %
+                                                 (assoc (:row-key ctx) row)
+                                                 (assoc (:col-key ctx) col))
+                                           end-loc? (-> (assoc (:end-row-key ctx) end-row)
+                                                        (assoc (:end-col-key ctx) end-col))
+                                           src (assoc (:source-key ctx) src)))
                              :else obj)]
                obj))))
        eof))))
@@ -783,11 +778,7 @@
                (not (:end-row-key opts)) (assoc :end-row-key :end-row)
                (not (:end-col-key opts)) (assoc :end-col-key :end-col)
                (not (:source-key opts)) (assoc :source-key :source)
-               (not (contains? opts :end-location)) (assoc :end-location true))
-        opts (if (and (kw-identical? :line (:row-key opts))
-                      (kw-identical? :column (:col-key opts)))
-               (assoc opts :default-keys true)
-               opts)]
+               (not (contains? opts :end-location)) (assoc :end-location true))]
     (map->Options opts)))
 
 (defn parse-string [s opts]
