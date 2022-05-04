@@ -711,12 +711,13 @@
                            (desugar-meta obj)) obj)
                    obj (cond postprocess (postprocess-fn obj)
                              loc? (vary-meta obj
-                                             #(cond-> (-> %
-                                                          (assoc (:row-key ctx) row)
-                                                          (assoc (:col-key ctx) col))
-                                                end-loc? (-> (assoc (:end-row-key ctx) end-row)
-                                                             (assoc (:end-col-key ctx) end-col))
-                                                src (assoc (:source-key ctx) src)))
+                                        #(cond->
+                                             (-> %
+                                                 (assoc (:row-key ctx) row)
+                                                 (assoc (:col-key ctx) col))
+                                           end-loc? (-> (assoc (:end-row-key ctx) end-row)
+                                                        (assoc (:end-col-key ctx) end-col))
+                                           src (assoc (:source-key ctx) src)))
                              :else obj)]
                obj))))
        eof))))

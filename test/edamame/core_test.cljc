@@ -2,9 +2,9 @@
   (:require
    #?(:clj [cljs.tagged-literals :as cljs-tags])
    #?(:clj [clojure.java.io :as io])
-   #?(:clj [edamame.impl.parser :as impl])
-   #?(:cljs [goog.object :as gobj])
+   #?(:clj [clojure.tools.reader :as tr])
    #?(:cljs [cljs.tagged-literals :refer [JSValue]])
+   #?(:cljs [goog.object :as gobj])
    [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
@@ -62,7 +62,7 @@
   (let [foo-sym (second (p/parse-string "(defn foo [])"))]
     (is (= {:row 1 :col 7 :end-row 1, :end-col 10} (meta foo-sym))))
   (is (= '(do (+ 1 2 3)) (p/parse-string "(do (+ 1 2 3)\n)")))
-  (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:readers {'foo/bar (fn [v] (str v))}})))
+  (is (= "[1 2 3]" (p/parse-string "#foo/bar [1 2 3]" {:readers {'foo/bar str}})))
   (is (= [1 2 3] (p/parse-string-all "1 2 3")))
   (is (= '({:row 1, :col 1, :end-row 1, :end-col 23}
            {:row 1, :col 5, :end-row 1, :end-col 22}
@@ -210,8 +210,8 @@
                :features #{:clj}}))))))
 
 (deftest regex-test
-  (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" #(re-pattern %)}}}) "foo"))
-  (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" #(re-pattern %)}}}) "aaa1aaa"))))
+  (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" re-pattern}}}) "foo"))
+  (is (= "1" (re-find (p/parse-string "#\"\\d\"" {:dispatch {\# {\" re-pattern}}}) "aaa1aaa"))))
 
 (deftest var-test
   (is (= 'foo (p/parse-string "#'foo"
@@ -268,36 +268,88 @@
 
 (def core-expr-count (atom 0))
 
+#?(:clj (defn core-read-test
+          "Extracted so we can run this in the profiler"
+          []
+          (p/parse-string-all #?(:clj (str/join "\n"
+                                                (repeat 10 (slurp (io/file "test-resources" "clojure" "core.clj"))))
+                                 :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
+                              {:all true
+                               :row-key :line
+                               :col-key :column
+                               :end-location false
+                               :auto-resolve '{:current clojure.core}})))
+
+#?(:clj (defn pbr-test
+          "Extracted so we can run this in the profiler"
+          [indexing?]
+          (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
+            (let [rdr (if indexing?
+                        (clojure.lang.LineNumberingPushbackReader. rdr)
+                        rdr)
+                  opts (p/normalize-opts {:all true
+                                          :row-key :line
+                                          :col-key :column
+                                          :location? symbol?
+                                          :end-location false
+                                          :auto-resolve '{:current clojure.core}})]
+              (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                         (repeatedly #(p/parse-next rdr opts))))))))))
+
 (deftest parse-clojure-core
   (is
    (nil?
-    (time
-     (dotimes [_ 10]
-       (reset! core-expr-count
-               (/ (count (p/parse-string-all #?(:clj (str/join "\n"
-                                                               (repeat 10 (slurp (io/file "test-resources" "clojure" "core.clj"))))
-                                                :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
-                                             {:all true
-                                              :auto-resolve '{:current clojure.core}}))
-                  10))))))
+    (dotimes [_ 1]
+      (reset! core-expr-count
+              (/ (count (core-read-test))
+                 10)))))
   #?(:clj (testing "with pushback reader only"
-            (time (dotimes [_ 10]
+            (println "PBR - Edamame reader:")
+            (time (dotimes [_ 20]
+                    (pbr-test false)))
+            (println "PBR - LispReader:")
+            (time (dotimes [_ 20]
                     (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
-                      (let [opts (p/normalize-opts {:all true
-                                                    :auto-resolve '{:current clojure.core}})]
-                        (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
-                                                                   (repeatedly #(p/parse-next rdr opts))))))))))))
-  (is (nil? (time (dotimes [_ 10]
-                    (reset! core-expr-count (count (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
-                                                                          :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
-                                                                       {:all true
-                                                                        :auto-resolve '{:current cljs.core}
-                                                                        #?@(:clj [:readers cljs-tags/*cljs-data-readers*])})))))))
+                      (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                                 (repeatedly #(read {:eof :edamame.core/eof} rdr)))))))))
+            (println "PBR - tools.reader:")
+            (time (dotimes [_ 20]
+                    (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
+                      (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                                 (repeatedly #(tr/read {:eof :edamame.core/eof} rdr)))))))))))
+
+  #?(:clj (testing "With IndexingPushbackReader"
+            (println "IPBR - Edamame reader:")
+            (time (dotimes [_ 20]
+                    (pbr-test true)))
+            (println "IPBR - LispReader:")
+            (time (dotimes [_ 20]
+                    (with-open [rdr (clojure.lang.LineNumberingPushbackReader. (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj"))))]
+                      (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                                 (repeatedly #(read {:eof :edamame.core/eof} rdr)))))))))
+            (println "IPBR - tools.reader:")
+            (time (dotimes [_ 20]
+                    (with-open [rdr (clojure.lang.LineNumberingPushbackReader. (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj"))))]
+                      (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                                 (repeatedly #(tr/read {:eof :edamame.core/eof} rdr)))))))))))
+  (is (nil? (dotimes [_ 1]
+              (reset! core-expr-count (count (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
+                                                                    :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
+                                                                 {:all true
+                                                                  :row-key :line
+                                                                  :col-key :column
+                                                                  :auto-resolve '{:current cljs.core}
+                                                                  :end-location false
+                                                                  #?@(:clj [:readers cljs-tags/*cljs-data-readers*])}))))))
   #?(:clj (testing "with pushback reader only"
+            (println "Edamame reader:")
             (time (dotimes [_ 10]
                     (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.cljs")))]
                       (let [opts (p/normalize-opts {:all true
+                                                    :row-key :line
+                                                    :col-key :column
                                                     :auto-resolve '{:current cljs.core}
+                                                    :end-location false
                                                     :readers cljs-tags/*cljs-data-readers*})]
                         (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
                                                                    (repeatedly #(p/parse-next rdr opts)))))))))))))
