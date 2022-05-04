@@ -735,8 +735,7 @@
                     end-row-key end-col-key
                     source source-key
                     postprocess location?
-                    end-location
-                    default-keys])
+                    end-location])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
