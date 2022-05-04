@@ -268,17 +268,18 @@
 
 (def core-expr-count (atom 0))
 
-#?(:clj (defn core-read-test
-          "Extracted so we can run this in the profiler"
-          []
-          (p/parse-string-all #?(:clj (str/join "\n"
-                                                (repeat 10 (slurp (io/file "test-resources" "clojure" "core.clj"))))
-                                 :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
-                              {:all true
-                               :row-key :line
-                               :col-key :column
-                               :end-location false
-                               :auto-resolve '{:current clojure.core}})))
+(defn core-read-test
+  "Extracted so we can run this in the profiler"
+  []
+  (time
+   (p/parse-string-all #?(:clj (str/join "\n"
+                                         (repeat 10 (slurp (io/file "test-resources" "clojure" "core.clj"))))
+                          :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
+                       {:all true
+                        :row-key :line
+                        :col-key :column
+                        :end-location false
+                        :auto-resolve '{:current clojure.core}})))
 
 #?(:clj (defn pbr-test
           "Extracted so we can run this in the profiler"
