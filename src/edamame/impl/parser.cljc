@@ -402,10 +402,14 @@
             ctx reader
             (str "Regex not allowed. Use the `:regex` option")))
       \( (if-let [v (:fn ctx)]
-           (let [fn-expr (parse-next ctx reader)]
-             (if (true? v)
-               (read-fn fn-expr)
-               (v fn-expr)))
+           (if (::fn-literal ctx)
+             (throw-reader
+              ctx reader
+              (str "Nested fn literals not allowed."))
+             (let [fn-expr (parse-next (assoc ctx ::fn-literal true) reader)]
+               (if (true? v)
+                 (read-fn fn-expr)
+                 (v fn-expr))))
            (throw-reader
             ctx reader
             (str "Function literal not allowed. Use the `:fn` option")))

@@ -242,6 +242,9 @@
   (is (= (p/parse-string "#(apply + % %1 %3 %&)"
                          {:all true})
          '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
+  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+                        #"Nested" (p/parse-string "(#(+ (#(inc %) 2)) 3)"
+                         {:all true})))
   (let [[_fn _args expr] (p/parse-string "#(+ (/ 1 %))"
                                          {:all true})]
     (is (= {:row 1, :col 2, :end-row 1, :end-col 13} (meta expr)))
