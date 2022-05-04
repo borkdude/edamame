@@ -116,6 +116,14 @@ Note that standard behavior is overridable with functions:
 (re-pattern "foo")
 ```
 
+### Clojure defaults
+
+The closest defaults to how Clojure reads code:
+
+``` clojure
+{:all true :row-key :line :col-key :column :end-location false}
+```
+
 ### Reader conditionals
 
 Process reader conditionals:
@@ -226,7 +234,7 @@ The code is largely inspired by
 
 ## License
 
-Copyright © 2019-2020 Michiel Borkent
+Copyright © 2019-2022 Michiel Borkent
 
 Distributed under the Eclipse Public License 1.0. This project contains code
 from Clojure and ClojureScript which are also licensed under the EPL 1.0. See

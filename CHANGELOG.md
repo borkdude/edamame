@@ -2,6 +2,10 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## 1.0.0
+
+- Fix #76: nested fn literals not allowed
+
 ## 0.0.19
 
 - Improve error message when reading invalid symbol
