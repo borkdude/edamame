@@ -1,6 +1,5 @@
 (ns edamame.core
   (:require
-   [clojure.tools.reader.reader-types :as rt]
    [edamame.impl.parser :as p]))
 
 (defn parse-string

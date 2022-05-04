@@ -82,9 +82,9 @@
                   (Character/isWhitespace ~(with-meta c
                                              {:tag 'java.lang.Character}))))))
 
-(defn- ^String read-token
+(defn- read-token
   "Read in a single logical token from the reader"
-  [#?(:clj rdr :cljs ^not-native rdr) _kind initch]
+  ^String [#?(:clj rdr :cljs ^not-native rdr) _kind initch]
   (loop [sb #?(:clj (StringBuilder.)
                :cljs (StringBuffer.)) ch initch]
     (if (or (whitespace? ch)
@@ -395,17 +395,17 @@
       nil (throw-reader ctx reader (str "Unexpected EOF."))
       \" (if-let [v (:regex ctx)]
            (let [pat (read-regex-pattern ctx reader)]
-             (if (ifn? v)
-               (v pat)
-               (re-pattern pat)))
+             (if (true? v)
+               (re-pattern pat)
+               (v pat)))
            (throw-reader
             ctx reader
             (str "Regex not allowed. Use the `:regex` option")))
       \( (if-let [v (:fn ctx)]
            (let [fn-expr (parse-next ctx reader)]
-             (if (ifn? v)
-               (v fn-expr)
-               (read-fn fn-expr)))
+             (if (true? v)
+               (read-fn fn-expr)
+               (v fn-expr)))
            (throw-reader
             ctx reader
             (str "Function literal not allowed. Use the `:fn` option")))
@@ -415,9 +415,9 @@
              (let [next-val (parse-next ctx reader)]
                (when (identical? eof next-val)
                  (throw-eof-while-reading ctx reader))
-               (if (ifn? v)
-                 (v next-val)
-                 (list 'var next-val))))
+               (if (true? v)
+                 (list 'var next-val)
+                 (v next-val))))
            (throw-reader
             ctx reader
             (str "Var literal not allowed. Use the `:var` option")))
@@ -425,9 +425,9 @@
            (do
              (r/read-char reader) ;; ignore =
              (let [next-val (parse-next ctx reader)]
-               (if (ifn? v)
-                 (v next-val)
-                 (list 'read-eval next-val))))
+               (if (true? v)
+                 (list 'edamame.core/read-eval next-val)
+                 (v next-val))))
            (throw-reader
             ctx reader
             (str "Read-eval not allowed. Use the `:read-eval` option")))
@@ -552,9 +552,9 @@
                (do
                  (r/read-char reader) ;; skip @
                  (let [next-val (parse-next ctx reader)]
-                   (if (ifn? v)
-                     (v next-val)
-                     (list 'clojure.core/deref next-val))))
+                   (if (true? v)
+                     (list 'clojure.core/deref next-val)
+                     (v next-val))))
                (throw-reader
                 ctx reader
                 (str "Deref not allowed. Use the `:deref` option")))
@@ -564,21 +564,21 @@
                  (let [next-val (parse-next ctx reader)]
                    (when (identical? eof next-val)
                      (throw-eof-while-reading ctx reader))
-                   (if (ifn? v)
-                     (v next-val)
-                     (list 'quote next-val))))
+                   (if (true? v)
+                     (list 'quote next-val)
+                     (v next-val))))
                ;; quote is allowed in normal EDN
                (edn-read ctx reader))
           \` (if-let [v (:syntax-quote ctx)]
                (do
                  (r/read-char reader) ;; skip `
                  (let [next-val (parse-next ctx reader)]
-                   (if (fn? v)
-                     (v next-val)
+                   (if (or (true? v) (map? v))
                      (let [gensyms (atom {})
                            ctx (assoc ctx :gensyms gensyms)
                            ret (syntax-quote ctx reader next-val)]
-                       ret))))
+                       ret)
+                     (v next-val))))
                (throw-reader
                 ctx reader
                 (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
@@ -597,16 +597,16 @@
                     (do
                       (r/read-char reader) ;; ignore @
                       (let [next-val (parse-next ctx reader)]
-                        (if (ifn? v)
-                          (v next-val)
-                          (list 'clojure.core/unquote-splicing next-val))))
+                        (if (true? v)
+                          (list 'clojure.core/unquote-splicing next-val)
+                          (v next-val))))
                     (throw-reader
                      ctx reader
                      (str "Syntax unquote splice not allowed. Use the `:syntax-quote` option")))
                   (let [next-val (parse-next ctx reader)]
-                    (if (ifn? v)
-                      (v next-val)
-                      (list 'clojure.core/unquote next-val))))))
+                    (if (true? v)
+                      (list 'clojure.core/unquote next-val)
+                      (v next-val))))))
             (throw-reader
              ctx reader
              (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
