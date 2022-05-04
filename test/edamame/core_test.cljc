@@ -282,6 +282,7 @@
                         :row-key :line
                         :col-key :column
                         :end-location false
+                        :location? seq?
                         :auto-resolve '{:current clojure.core}})))
 
 #?(:clj (defn pbr-test
@@ -294,7 +295,7 @@
                   opts (p/normalize-opts {:all true
                                           :row-key :line
                                           :col-key :column
-                                          :location? symbol?
+                                          :location? seq?
                                           :end-location false
                                           :auto-resolve '{:current clojure.core}})]
               (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
@@ -344,6 +345,7 @@
                                                                   :col-key :column
                                                                   :auto-resolve '{:current cljs.core}
                                                                   :end-location false
+                                                                  :location? seq?
                                                                   #?@(:clj [:readers cljs-tags/*cljs-data-readers*])}))))))
   #?(:clj (testing "with pushback reader only"
             (println "Edamame reader:")

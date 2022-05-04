@@ -6,16 +6,18 @@ Configurable EDN/Clojure parser with location metadata.
 [![Clojars Project](https://img.shields.io/clojars/v/borkdude/edamame.svg)](https://clojars.org/borkdude/edamame)
 <!--[![cljdoc badge](https://cljdoc.org/badge/borkdude/edamame)](https://cljdoc.org/d/borkdude/edamame/CURRENT)-->
 
-## Why
+## Reasons to use edamame
 
 - You want to include locations in feedback about EDN files.
 - You want to parse Clojure-like expressions without any evaluation.
+- Anonymous functions are read deterministically
+- Highly configurable
 
 This library works with:
 
 - Clojure on the JVM
 - GraalVM compiled binaries
-- ClojureScript
+- ClojureScript (including self-hosted and advanced compiled)
 
 ## Installation
 
@@ -28,9 +30,11 @@ Use as a dependency:
 
 Project using edamame:
 
+- [clerk](https://github.com/nextjournal/clerk)
 - [malli](https://github.com/metosin/malli)
-- [sci](https://github.com/borkdude/sci)
+- [SCI](https://github.com/borkdude/sci)
 - [zprint](https://github.com/kkinnear/zprint)
+- [zen](https://github.com/zen-lang/zen)
 
 ## Usage
 
@@ -64,6 +68,9 @@ Locations are attached as metadata:
  {:row 1, :col 16, :end-row 1, :end-col 17}
  {:row 1, :col 18, :end-row 1, :end-col 19})
 ```
+
+You can control on which elements locations get added using the `:location?`
+option.
 
 ### Parser options
 
@@ -121,7 +128,11 @@ Note that standard behavior is overridable with functions:
 The closest defaults to how Clojure reads code:
 
 ``` clojure
-{:all true :row-key :line :col-key :column :end-location false}
+{:all true
+ :row-key :line
+ :col-key :column
+ :end-location false
+ :location? seq?}
 ```
 
 ### Reader conditionals
