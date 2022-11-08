@@ -104,18 +104,6 @@ Examples:
 ;;=> (fn [%1] (alter-var-root (var foo) %1))
 ```
 
-Syntax quoting can be enabled using the `:syntax-quote` option. Symbols are
-resolved to fully qualified symbols using `:resolve-symbol` which is set to
-`identity` by default:
-
-``` clojure
-(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote true})
-;;=> (clojure.core/sequence (clojure.core/seq (clojure.core/concat (clojure.core/list (quote +)) (clojure.core/list 1) (clojure.core/list 2) (clojure.core/list 3) (clojure.core/list x) y)))
-
-(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote {:resolve-symbol #(symbol "user" (name %))}})
-;;=> (clojure.core/sequence (clojure.core/seq (clojure.core/concat (clojure.core/list (quote user/+)) (clojure.core/list 1) (clojure.core/list 2) (clojure.core/list 3) (clojure.core/list x) y)))
-```
-
 Note that standard behavior is overridable with functions:
 
 ``` clojure
@@ -176,6 +164,38 @@ To create options from a namespace in the process where edamame is called from:
 
 (parse-string "[::foo ::str/foo]" {:auto-resolve (auto-resolves *ns*)})
 ;;=> [:user/foo :clojure.string/foo]
+```
+
+To auto-resolve keywords from the running Clojure environment:
+
+``` clojure
+(require '[clojure.test :as t])
+(e/parse-string "::t/foo" {:auto-resolve (fn [x] (if (= :current x) *ns* (get (ns-aliases *ns*) x)))})
+:clojure.test/foo
+```
+
+### Syntax-quote
+
+Syntax quoting can be enabled using the `:syntax-quote` option. Symbols are
+resolved to fully qualified symbols using `:resolve-symbol` which is set to
+`identity` by default:
+
+``` clojure
+(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote true})
+;;=> (clojure.core/sequence (clojure.core/seq (clojure.core/concat (clojure.core/list (quote +)) (clojure.core/list 1) (clojure.core/list 2) (clojure.core/list 3) (clojure.core/list x) y)))
+
+(parse-string "`(+ 1 2 3 ~x ~@y)" {:syntax-quote {:resolve-symbol #(symbol "user" (name %))}})
+;;=> (clojure.core/sequence (clojure.core/seq (clojure.core/concat (clojure.core/list (quote user/+)) (clojure.core/list 1) (clojure.core/list 2) (clojure.core/list 3) (clojure.core/list x) y)))
+```
+
+To resolve symbols in syntax quote from the running Clojure environment:
+
+``` clojure
+(require '[clojure.tools.reader :refer [resolve-symbol]])
+
+(require '[clojure.test :as t])
+(e/parse-string "`t/run-tests" {:syntax-quote {:resolve-symbol resolve-symbol}})
+;;=> (quote clojure.test/run-tests)
 ```
 
 ### Data readers
