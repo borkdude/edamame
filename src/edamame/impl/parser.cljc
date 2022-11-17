@@ -663,6 +663,10 @@
      (instance? clojure.lang.IObj obj)
      :cljs (satisfies? IWithMeta obj)))
 
+(defn buf [reader]
+  (:buffer @#?(:clj (.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader)
+               :cljs (.-frames reader))))
+
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
@@ -671,9 +675,9 @@
                      (r/peek-char reader))]
        (let [loc (when ir? (location reader))
              log? (:source ctx)
-             buf (fn [] (str (:buffer @#?(:clj (.source-log-frames ^SourceLoggingPushbackReader reader)
-                                          :cljs (.-frames reader)))))
-             offset (when log? (count (buf)))
+             ^StringBuilder buf (when log? (buf reader))
+             offset (when log? #?(:clj (.length buf)
+                                  :cljs (.getLength buf)))
              obj (if log?
                    #?(:clj (r/log-source reader (dispatch ctx reader c))
                       :cljs (r/log-source* reader #(dispatch ctx reader c)))
@@ -687,7 +691,7 @@
                    end-loc? (:end-location ctx)
                    iobj?? (iobj? obj)
                    src (when log?
-                         (.trim (subs (buf) offset)))
+                         (.trim (subs (str buf) offset)))
                    loc? (and ir? (or (and iobj??
                                           (or (not location?)
                                               (location? obj)))
@@ -715,13 +719,13 @@
                            (desugar-meta obj)) obj)
                    obj (cond postprocess (postprocess-fn obj)
                              loc? (vary-meta obj
-                                        #(cond->
-                                             (-> %
-                                                 (assoc (:row-key ctx) row)
-                                                 (assoc (:col-key ctx) col))
-                                           end-loc? (-> (assoc (:end-row-key ctx) end-row)
-                                                        (assoc (:end-col-key ctx) end-col))
-                                           src (assoc (:source-key ctx) src)))
+                                             #(cond->
+                                                  (-> %
+                                                      (assoc (:row-key ctx) row)
+                                                      (assoc (:col-key ctx) col))
+                                                end-loc? (-> (assoc (:end-row-key ctx) end-row)
+                                                             (assoc (:end-col-key ctx) end-col))
+                                                src (assoc (:source-key ctx) src)))
                              :else obj)]
                obj))))
        eof))))

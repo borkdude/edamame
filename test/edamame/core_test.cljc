@@ -244,7 +244,7 @@
          '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
                         #"Nested" (p/parse-string "(#(+ (#(inc %) 2)) 3)"
-                         {:all true})))
+                                                  {:all true})))
   (let [[_fn _args expr] (p/parse-string "#(+ (/ 1 %))"
                                          {:all true})]
     (is (= {:row 1, :col 2, :end-row 1, :end-col 13} (meta expr)))
@@ -468,7 +468,13 @@
   (is (= "#(+ 1 2 3)" (:source (meta (p/parse-next (p/source-reader "#(+ 1 2 3)")
                                                    (p/normalize-opts {:all true :source true}))))))
   (is (= "foo" (:source (meta (first (p/parse-next (p/source-reader "[foo bar]")
-                                                   (p/normalize-opts {:all true :source true}))))))))
+                                                   (p/normalize-opts {:all true :source true})))))))
+  (is (= "[baz quux]"
+         (let [reader (p/source-reader "[foo bar] [baz quux]")
+               opts (p/normalize-opts {:all true :source true})]
+           (p/parse-next reader opts)
+           (:source (meta (p/parse-next
+                           reader opts)))))))
 
 (deftest location?-test
   (is (meta (p/parse-string "x")))

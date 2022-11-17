@@ -1,5 +1,6 @@
 (ns edamame.core
   (:require
+   [clojure.tools.reader.reader-types :as rt]
    [edamame.impl.parser :as p]))
 
 (defn parse-string
@@ -95,6 +96,10 @@
   be normalized with normalize-opts first."
   ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader opts]
+   (when (rt/source-logging-reader? reader)
+     (let [^StringBuilder buf (p/buf reader)]
+       #?(:clj (.setLength buf 0)
+          :cljs (.clear buf))))
    (let [v (p/parse-next opts reader)]
      (if (identical? p/eof v)
        (or (get opts :eof)
