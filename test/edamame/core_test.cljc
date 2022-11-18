@@ -537,6 +537,14 @@
         :col 1}
        (p/parse-string "foo/bar/baz"))))
 
+#?(:clj
+   (deftest read-cond-with-plain-pushback-rdr-rest
+     (with-open [rdr (java.io.PushbackReader. (java.io.StringReader. "#?(:cljs 2 :clj 1)"))]
+       (let [opts (p/normalize-opts {:all true
+                                     :read-cond :allow
+                                     :features #{:clj}})]
+         (is (= 1 (p/parse-next rdr opts)))))))
+
 ;;;; Scratch
 
 (comment

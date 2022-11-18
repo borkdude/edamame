@@ -2,9 +2,14 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+## 1.0.xx
+
+- Fix [#93](https://github.com/borkdude/edamame/issues/93): read-cond assumes `LineNumberingIndexReader`
+- Optimization: reset source logging buffer when reading source
+
 ## 1.0.0
 
-- Fix #76: nested fn literals not allowed
+- Fix [#76](https://github.com/borkdude/edamame/issues/76): nested fn literals not allowed
 
 ## 0.0.19
 
@@ -16,7 +21,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 ## 0.0.17
 
-- Fix bug introduced in 0.0.16 by change in issue #86
+- Fix bug introduced in 0.0.16 by change in issue [#86](https://github.com/borkdude/edamame/issues/86)
 
 ## 0.0.16
 

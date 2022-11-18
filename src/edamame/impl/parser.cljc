@@ -317,8 +317,9 @@
                 (parse-next ctx reader)
                 assoc :edamame/read-cond-splicing splice?))
           :else
-          (let [row (r/get-line-number reader)
-                col (r/get-column-number reader)
+          (let [ir? (r/indexing-reader? reader)
+                row (when ir? (r/get-line-number reader))
+                col (when ir? (r/get-column-number reader))
                 opened (r/read-char reader)
                 ctx (-> ctx
                         (assoc ::expected-delimiter \))
