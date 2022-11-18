@@ -2,7 +2,7 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
-## 1.0.xx
+## 1.0.16
 
 - Fix [#93](https://github.com/borkdude/edamame/issues/93): read-cond assumes `LineNumberingIndexReader`
 - Optimization: reset source logging buffer when reading source
