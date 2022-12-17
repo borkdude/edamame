@@ -36,6 +36,10 @@ Project using edamame:
 - [zprint](https://github.com/kkinnear/zprint)
 - [zen](https://github.com/zen-lang/zen)
 
+## [API](API.md)
+
+See [API](API.md).
+
 ## Usage
 
 ``` clojure
