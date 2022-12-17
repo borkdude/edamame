@@ -3,10 +3,10 @@
     -  [`get-column-number`](#edamame.core/get-column-number)
     -  [`get-line-number`](#edamame.core/get-line-number)
     -  [`iobj?`](#edamame.core/iobj?) - Returns true if obj can carry metadata.
-    -  [`normalize-opts`](#edamame.core/normalize-opts)
+    -  [`normalize-opts`](#edamame.core/normalize-opts) - Expands <code>opts</code> into normalized opts, e.g.
     -  [`parse-next`](#edamame.core/parse-next) - Parses next form from reader.
     -  [`parse-string`](#edamame.core/parse-string) - Parses first EDN value from string.
-    -  [`parse-string-all`](#edamame.core/parse-string-all) - Like parse-string but parses all values from string and returns them in a vector.
+    -  [`parse-string-all`](#edamame.core/parse-string-all) - Like <code>parse-string</code> but parses all values from string and returns them in a vector.
     -  [`reader`](#edamame.core/reader) - Coerces x into indexing pushback-reader to be used with parse-next.
     -  [`source-reader`](#edamame.core/source-reader) - Coerces x into source-logging-reader to be used with parse-next.
 
@@ -34,7 +34,7 @@
 ```
 
 
-## <a name="edamame.core/iobj?">`iobj?`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L109-L114)
+## <a name="edamame.core/iobj?">`iobj?`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L112-L117)
 <a name="edamame.core/iobj?"></a>
 ``` clojure
 
@@ -44,7 +44,7 @@
 
 Returns true if obj can carry metadata.
 
-## <a name="edamame.core/normalize-opts">`normalize-opts`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L91-L92)
+## <a name="edamame.core/normalize-opts">`normalize-opts`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L91-L95)
 <a name="edamame.core/normalize-opts"></a>
 ``` clojure
 
@@ -52,7 +52,10 @@ Returns true if obj can carry metadata.
 ```
 
 
-## <a name="edamame.core/parse-next">`parse-next`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L94-L107)
+Expands `opts` into normalized opts, e.g. `:all true` is expanded
+  into explicit options.
+
+## <a name="edamame.core/parse-next">`parse-next`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L97-L110)
 <a name="edamame.core/parse-next"></a>
 ``` clojure
 
@@ -62,7 +65,7 @@ Returns true if obj can carry metadata.
 
 
 Parses next form from reader. Accepts same opts as parse-string, must
-  be normalized with normalize-opts first.
+  be normalized with [`normalize-opts`](#edamame.core/normalize-opts) first.
 
 ## <a name="edamame.core/parse-string">`parse-string`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L6-L63)
 <a name="edamame.core/parse-string"></a>
@@ -136,7 +139,7 @@ Parses first EDN value from string.
 ```
 
 
-Like parse-string but parses all values from string and returns them
+Like [`parse-string`](#edamame.core/parse-string) but parses all values from string and returns them
   in a vector.
 
 ## <a name="edamame.core/reader">`reader`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L73-L77)
@@ -148,7 +151,7 @@ Like parse-string but parses all values from string and returns them
 
 
 Coerces x into indexing pushback-reader to be used with
-  parse-next. Accepts: string or java.io.Reader.
+  parse-next. Accepts string or `java.io.Reader`
 
 ## <a name="edamame.core/source-reader">`source-reader`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L79-L83)
 <a name="edamame.core/source-reader"></a>
@@ -159,4 +162,4 @@ Coerces x into indexing pushback-reader to be used with
 
 
 Coerces x into source-logging-reader to be used with
-  parse-next. Accepts: string or java.io.Reader.
+  parse-next. Accepts string or `java.io.Reader`

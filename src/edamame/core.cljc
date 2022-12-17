@@ -63,7 +63,7 @@
    (p/parse-string s opts)))
 
 (defn parse-string-all
-  "Like parse-string but parses all values from string and returns them
+  "Like `parse-string` but parses all values from string and returns them
   in a vector."
   ([s]
    (p/parse-string-all s nil))
@@ -72,13 +72,13 @@
 
 (defn reader
   "Coerces x into indexing pushback-reader to be used with
-  parse-next. Accepts: string or java.io.Reader."
+  parse-next. Accepts string or `java.io.Reader`"
   [x]
   (p/reader x))
 
 (defn source-reader
   "Coerces x into source-logging-reader to be used with
-  parse-next. Accepts: string or java.io.Reader."
+  parse-next. Accepts string or `java.io.Reader`"
   [x]
   (p/source-logging-reader x))
 
@@ -88,12 +88,15 @@
 (defn get-column-number [reader]
   (p/get-column-number reader))
 
-(defn normalize-opts [opts]
+(defn normalize-opts
+  "Expands `opts` into normalized opts, e.g. `:all true` is expanded
+  into explicit options."
+  [opts]
   (p/normalize-opts opts))
 
 (defn parse-next
   "Parses next form from reader. Accepts same opts as parse-string, must
-  be normalized with normalize-opts first."
+  be normalized with `normalize-opts` first."
   ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader opts]
    (when (rt/source-logging-reader? reader)
