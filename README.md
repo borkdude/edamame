@@ -36,7 +36,7 @@ Project using edamame:
 - [zprint](https://github.com/kkinnear/zprint)
 - [zen](https://github.com/zen-lang/zen)
 
-## [API](API.md)
+## API
 
 See [API](API.md).
 
