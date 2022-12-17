@@ -95,7 +95,7 @@
   (p/normalize-opts opts))
 
 (defn parse-next
-  "Parses next form from reader. Accepts same `opts` as `parse-string`,
+  "Parses next form from reader. Accepts same opts as `parse-string`,
   but must be normalized with `normalize-opts` first."
   ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader normalized-opts]
