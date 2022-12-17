@@ -60,12 +60,12 @@ Expands `opts` into normalized opts, e.g. `:all true` is expanded
 ``` clojure
 
 (parse-next reader)
-(parse-next reader opts)
+(parse-next reader normalized-opts)
 ```
 
 
-Parses next form from reader. Accepts same opts as parse-string, must
-  be normalized with [`normalize-opts`](#edamame.core/normalize-opts) first.
+Parses next form from reader. Accepts same `opts` as [`parse-string`](#edamame.core/parse-string),
+  but must be normalized with [`normalize-opts`](#edamame.core/normalize-opts) first.
 
 ## <a name="edamame.core/parse-string">`parse-string`</a> [:page_facing_up:](https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L6-L63)
 <a name="edamame.core/parse-string"></a>

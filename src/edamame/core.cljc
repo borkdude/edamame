@@ -95,17 +95,17 @@
   (p/normalize-opts opts))
 
 (defn parse-next
-  "Parses next form from reader. Accepts same opts as parse-string, must
-  be normalized with `normalize-opts` first."
+  "Parses next form from reader. Accepts same `opts` as `parse-string`,
+  but must be normalized with `normalize-opts` first."
   ([reader] (parse-next reader (p/normalize-opts {})))
-  ([reader opts]
+  ([reader normalized-opts]
    (when (rt/source-logging-reader? reader)
      (let [^StringBuilder buf (p/buf reader)]
        #?(:clj (.setLength buf 0)
           :cljs (.clear buf))))
-   (let [v (p/parse-next opts reader)]
+   (let [v (p/parse-next normalized-opts reader)]
      (if (identical? p/eof v)
-       (or (get opts :eof)
+       (or (get normalized-opts :eof)
            ::eof)
        v))))
 
