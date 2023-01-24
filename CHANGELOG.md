@@ -2,6 +2,12 @@
 
 For a list of breaking changes, check [here](#breaking-changes)
 
+[Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
+
+## 1.1.17
+
+- Add `parse-next+string` for reading next value + the read string (analog to `read+string` in Clojure)
+
 ## 1.0.16
 
 - Fix [#93](https://github.com/borkdude/edamame/issues/93): read-cond assumes `LineNumberingIndexReader`
