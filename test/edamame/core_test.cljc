@@ -459,7 +459,7 @@
 
 #?(:cljs
    (deftest read-symbolic-test
-     (= [##Inf ##-Inf] (p/parse-string "[##Inf ##-Inf]"))))
+     (is (= [##Inf ##-Inf] (p/parse-string "[##Inf ##-Inf]")))))
 
 (deftest parse-next-test
   (is (= '(fn* [] (+ 1 2 3)) (p/parse-next (p/reader "#(+ 1 2 3)") (p/normalize-opts {:all true})))))
@@ -474,7 +474,13 @@
                opts (p/normalize-opts {:all true :source true})]
            (p/parse-next reader opts)
            (:source (meta (p/parse-next
-                           reader opts)))))))
+                           reader opts))))))
+
+  (let [reader (p/source-reader "1 [1  2 3] {:a   1}")
+        opts (p/normalize-opts {:all true})]
+    (is (= [1 "1"] (p/parse-next+string reader opts)))
+    (is (= [[1 2 3] "[1  2 3]"] (p/parse-next+string reader opts)))
+    (is (= [{:a 1} "{:a   1}"] (p/parse-next+string reader opts)))))
 
 (deftest location?-test
   (is (meta (p/parse-string "x")))

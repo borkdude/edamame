@@ -1,7 +1,8 @@
 (ns edamame.core
   (:require
    [clojure.tools.reader.reader-types :as rt]
-   [edamame.impl.parser :as p]))
+   [edamame.impl.parser :as p]
+   [clojure.string :as str]))
 
 (defn parse-string
   "Parses first EDN value from string.
@@ -108,6 +109,18 @@
        (or (get normalized-opts :eof)
            ::eof)
        v))))
+
+(defn parse-next+string
+  "Parses next form from reader. Accepts same opts as `parse-string`,
+  but must be normalized with `normalize-opts` first.
+  Returns read value + string read (whitespace-trimmed)."
+  ([reader] (parse-next+string reader (p/normalize-opts {})))
+  ([reader normalized-opts]
+   (if (rt/source-logging-reader? reader)
+     (let [v (parse-next reader normalized-opts)
+           s (str/trim (str (p/buf reader)))]
+       [v s])
+     (throw (ex-info "parse-next+string must be called with source-reader" {})))))
 
 (defn iobj?
   "Returns true if obj can carry metadata."
