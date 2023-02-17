@@ -178,6 +178,9 @@ To auto-resolve keywords from the running Clojure environment:
 :clojure.test/foo
 ```
 
+See [examples/auto_resolve.clj](examples/auto_resolve.clj) for an example of how
+to parse the ns form and derive the `:auto-resolve` settings from that.
+
 ### Syntax-quote
 
 Syntax quoting can be enabled using the `:syntax-quote` option. Symbols are
