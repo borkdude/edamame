@@ -186,7 +186,8 @@ true`:
 
 ``` clojure
 (= '[(ns foo (:require [clojure.set :as set])) :clojure.set/foo]
-    (parse-string-all "(ns foo (:require [clojure.set :as set])) ::set/foo" {:auto-resolve-ns true}))
+    (parse-string-all "(ns foo (:require [clojure.set :as set])) ::set/foo"
+                      {:auto-resolve-ns true}))
 
 (def rdr (p/reader "(ns foo (:require [clojure.set :as set])) ::set/foo"))
 (def opts (p/normalize-opts {:auto-resolve-ns true}))
