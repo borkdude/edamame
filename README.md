@@ -154,6 +154,13 @@ Auto-resolve keywords:
 ;;=> [:user/foo :clojure.string/foo]
 ```
 
+If you don't care much about the exact value of the keyword, but just want to parse something:
+
+``` clojure
+(parse-string "[::foo ::str/foo]" {:auto-resolve name})
+;;=> [:current/foo :str/foo]
+```
+
 To create options from a namespace in the process where edamame is called from:
 
 ``` clojure
