@@ -6,8 +6,8 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 ## 1.2.18
 
-- Add `:auto-resolve-ns` option
-- Add `parse-ns-form` helper function
+- Add `:auto-resolve-ns` option. See [docs](https://github.com/borkdude/edamame#auto-resolve-ns).
+- Add `parse-ns-form` helper function which returns map of data from ns form.
 
 ## 1.1.17
 
