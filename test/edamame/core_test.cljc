@@ -553,12 +553,12 @@
          (is (= 1 (p/parse-next rdr opts)))))))
 
 (deftest auto-resolve-ns-test
-  (is (= '[(ns foo (:require [clojure.set :as set])) :clojure.set/foo]
-         (p/parse-string-all "(ns foo (:require [clojure.set :as set])) ::set/foo" {:auto-resolve-ns true})))
+  (is (= "[(ns foo (:require [clojure.set :as set])) :clojure.set/foo]"
+         (str (p/parse-string-all "(ns foo (:require [clojure.set :as set])) ::set/foo" {:auto-resolve-ns true}))))
   (deflet
     (def rdr (p/reader "(ns foo (:require [clojure.set :as set])) ::set/foo"))
     (def opts (p/normalize-opts {:auto-resolve-ns true}))
-    (is (= (ns foo (:require [clojure.set :as set])) (p/parse-next rdr opts)))
+    (is (= "(ns foo (:require [clojure.set :as set]))" (str (p/parse-next rdr opts))))
     (is (= :clojure.set/foo (p/parse-next rdr opts)))))
 
 ;;;; Scratch
