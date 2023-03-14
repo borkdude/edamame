@@ -17,9 +17,9 @@
    [clojure.string :as str]
    [edamame.impl.macros :as macros]
    [edamame.impl.read-fn :refer [read-fn]]
-   [edamame.impl.syntax-quote :refer [syntax-quote]])
-  #?(:clj (:import [java.io Closeable]
-                   [clojure.tools.reader.reader_types SourceLoggingPushbackReader]))
+   [edamame.impl.syntax-quote :refer [syntax-quote]]
+   [edamame.impl.ns-parser :as ns-parser])
+  #?(:clj (:import [java.io Closeable]))
   #?(:cljs (:import [goog.string StringBuffer]))
   #?(:cljs (:require-macros [edamame.impl.parser :refer [kw-identical?]])))
 
@@ -334,7 +334,8 @@
   ([ctx reader next-val]
    (get-auto-resolve ctx reader next-val nil))
   ([ctx reader next-val msg]
-   (if-let [v (:auto-resolve ctx)]
+   (if-let [v (or (:auto-resolve ctx)
+                  (some-> ctx :ns-state deref))]
      v
      (throw-reader ctx reader
                    (or msg "Use `:auto-resolve` to resolve aliases.")
@@ -668,6 +669,8 @@
   (:buffer @#?(:clj (.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader)
                :cljs (.-frames reader))))
 
+#?(:cljs (def Exception js/Error))
+
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
@@ -687,7 +690,16 @@
            (recur ctx reader desugar)
            (if (identical? expected-delimiter obj)
              obj
-             (let [postprocess (:postprocess ctx)
+             (let [auto-resolve-ns (:auto-resolve-ns ctx)
+                   ns-parsed (when auto-resolve-ns
+                               (and (seq? obj)
+                                    (= 'ns (first obj)))
+                               (try (ns-parser/parse-ns-form obj)
+                                    (catch Exception _ nil)))
+                   ns-state (when ns-parsed (:ns-state ctx))
+                   _ (when ns-state
+                       (reset! ns-state (assoc (:aliases ns-parsed) :current (:name ns-parsed))))
+                   postprocess (:postprocess ctx)
                    location? (:location? ctx)
                    end-loc? (:end-location ctx)
                    iobj?? (iobj? obj)
@@ -744,7 +756,8 @@
                     end-row-key end-col-key
                     source source-key
                     postprocess location?
-                    end-location])
+                    end-location
+                    ns-state])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
@@ -786,7 +799,8 @@
                (not (:end-row-key opts)) (assoc :end-row-key :end-row)
                (not (:end-col-key opts)) (assoc :end-col-key :end-col)
                (not (:source-key opts)) (assoc :source-key :source)
-               (not (contains? opts :end-location)) (assoc :end-location true))]
+               (not (contains? opts :end-location)) (assoc :end-location true))
+        opts (assoc opts :ns-state (atom nil))]
     (map->Options opts)))
 
 (defn parse-string [s opts]

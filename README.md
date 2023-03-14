@@ -12,6 +12,7 @@ Configurable EDN/Clojure parser with location metadata.
 - You want to parse Clojure-like expressions without any evaluation
 - Anonymous functions are read deterministically
 - Highly configurable
+- Auto-resolve aliased keywords based on the `ns` form
 
 This library works with:
 
@@ -43,7 +44,7 @@ See [API](API.md).
 ## Usage
 
 ``` clojure
-(require '[edamame.core :refer [parse-string]])
+(require '[edamame.core :as e :refer [parse-string]])
 ```
 
 ### Location metadata
@@ -178,8 +179,20 @@ To auto-resolve keywords from the running Clojure environment:
 :clojure.test/foo
 ```
 
-See [examples/auto_resolve.clj](examples/auto_resolve.clj) for an example of how
-to parse the ns form and derive the `:auto-resolve` settings from that.
+#### `:auto-resolve-ns`
+
+To auto-magically resolve keywords based on the `ns` form, use `:auto-resolve-ns
+true`:
+
+``` clojure
+(= '[(ns foo (:require [clojure.set :as set])) :clojure.set/foo]
+    (parse-string-all "(ns foo (:require [clojure.set :as set])) ::set/foo" {:auto-resolve-ns true}))
+
+(def rdr (p/reader "(ns foo (:require [clojure.set :as set])) ::set/foo"))
+(def opts (p/normalize-opts {:auto-resolve-ns true}))
+(= (ns foo (:require [clojure.set :as set])) (p/parse-next rdr opts))
+(= :clojure.set/foo (p/parse-next rdr opts))
+```
 
 ### Syntax-quote
 

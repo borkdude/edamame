@@ -2,7 +2,8 @@
   (:require
    [clojure.tools.reader.reader-types :as rt]
    [edamame.impl.parser :as p]
-   [clojure.string :as str]))
+   [clojure.string :as str]
+   [edamame.impl.ns-parser :as nsp]))
 
 (defn parse-string
   "Parses first EDN value from string.
@@ -128,6 +129,13 @@
   #?(:clj
      (instance? clojure.lang.IObj obj)
      :cljs (satisfies? IWithMeta obj)))
+
+(defn parse-ns-form
+  "Parses `ns-form`, an s-expression, into map with:
+  - `:name`: the name of the namespace
+  - `:aliases`: a map of aliases to lib names"
+  [ns-form]
+  (nsp/parse-ns-form ns-form))
 
 ;;;; Scratch
 
