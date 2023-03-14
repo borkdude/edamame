@@ -691,14 +691,13 @@
            (if (identical? expected-delimiter obj)
              obj
              (let [auto-resolve-ns (:auto-resolve-ns ctx)
-                   ns-parsed (when auto-resolve-ns
-                               (and (seq? obj)
-                                    (= 'ns (first obj)))
-                               (try (ns-parser/parse-ns-form obj)
-                                    (catch Exception _ nil)))
-                   ns-state (when ns-parsed (:ns-state ctx))
-                   _ (when ns-state
-                       (reset! ns-state (assoc (:aliases ns-parsed) :current (:name ns-parsed))))
+                   _ (when auto-resolve-ns
+                       (when-let [ns-parsed (when (and (seq? obj)
+                                                       (= 'ns (first obj)))
+                                              (try (ns-parser/parse-ns-form obj)
+                                                   (catch Exception _ nil)))]
+                         (when-let [ns-state (:ns-state ctx)]
+                           (reset! ns-state (assoc (:aliases ns-parsed) :current (:name ns-parsed))))))
                    postprocess (:postprocess ctx)
                    location? (:location? ctx)
                    end-loc? (:end-location ctx)
