@@ -334,8 +334,12 @@
   ([ctx reader next-val]
    (get-auto-resolve ctx reader next-val nil))
   ([ctx reader next-val msg]
-   (if-let [v (or (:auto-resolve ctx)
-                  (some-> ctx :ns-state deref))]
+   (if-let [v (let [ar (:auto-resolve ctx)]
+                (if-let [ns-state (some-> ctx :ns-state deref)]
+                  (fn [alias]
+                    (or (ns-state alias)
+                        (ar alias)))
+                  ar))]
      v
      (throw-reader ctx reader
                    (or msg "Use `:auto-resolve` to resolve aliases.")
