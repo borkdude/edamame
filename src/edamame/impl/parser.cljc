@@ -403,6 +403,7 @@
           special-tag (if (true? v)
                         :edamame/special
                         (v ignore-form))
+          special-tag (when (keyword? special-tag) special-tag)
           _ (skip-whitespace ctx reader)
           ir? (r/indexing-reader? reader)
           loc (when ir? (location reader))
@@ -417,13 +418,13 @@
                                      (assoc :forced-end-row (:row end-loc))
                                      (assoc :forced-end-col (:col end-loc))))
                      next-val)
-          meta-val (when iobj??
+          meta-val (when (and iobj?? special-tag)
                      (cond
                        (identical? ignore-form special-tag) true
                        (map? ignore-form)
                        (when-let [value (ignore-form special-tag)]
                          value)))]
-      (if (and meta-val iobj??)
+      (if meta-val
         (vary-meta next-val assoc special-tag meta-val)
         next-val))
     (do (parse-next ctx reader) ;; ignore next form
