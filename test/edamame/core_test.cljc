@@ -5,6 +5,7 @@
    #?(:clj [clojure.tools.reader :as tr])
    #?(:cljs [cljs.tagged-literals :refer [JSValue]])
    #?(:cljs [goog.object :as gobj])
+   [borkdude.deflet :refer [deflet]]
    [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
@@ -206,7 +207,7 @@
                                                                                          :discard true
                                                                                          :features #{:bb}}))))
     (testing "whitespace after splice"
-      (is (= '(+ 1 2 3)(p/parse-string "(+ #?@
+      (is (= '(+ 1 2 3) (p/parse-string "(+ #?@
  (:clj
    [1 2 3]))" {:read-cond true
                :features #{:clj}}))))))
@@ -367,7 +368,7 @@
   (is (= '(foo @(atom 1)) (p/parse-string "#foo @(atom 1)" {:readers {'foo (fn [v] (list 'foo v))}
                                                             :all true})))
   (is (= [1 2 3] (p/parse-string "#foo [1 2 3]" {:readers (constantly identity)})))
-  (is (= '(js [1 2 3])  (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})))
+  (is (= '(js [1 2 3]) (p/parse-string "#js [1 2 3]" {:readers {'js (fn [v] (list 'js v))}})))
   #?(:cljs (let [obj (p/parse-string "#js [1 2 3]")]
              (is (instance? JSValue obj))
              (is (= [1 2 3] (.-val obj))))))
@@ -382,7 +383,7 @@
   (is (let [d (try (p/parse-string-all "())")
                    (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) e
                      (ex-data e)))]
-        (is (= (:type d) :edamame/error,))
+        (is (= (:type d) :edamame/error))
         (is (= (:row d) 1))
         (is (= (:col d) 3)))))
 
@@ -506,7 +507,7 @@
 
 (deftest at-separator-test
   (is (= '[foo (clojure.core/deref bar)]
-         (p/parse-string  "[foo@bar]" {:deref true})))
+         (p/parse-string "[foo@bar]" {:deref true})))
   (is (= '[1 (clojure.core/deref 2)]
          (p/parse-string "[1@2]" {:deref true}))))
 
@@ -553,6 +554,17 @@
                                      :features #{:clj}})]
          (is (= 1 (p/parse-next rdr opts)))))))
 
+(deftest auto-resolve-ns-test
+  (is (= "[(ns foo (:require [clojure.set :as set])) :clojure.set/foo]"
+         (str (p/parse-string-all "(ns foo (:require [clojure.set :as set])) ::set/foo" {:auto-resolve-ns true}))))
+  (deflet
+    (def rdr (p/reader "(ns foo (:require [clojure.set :as set])) ::set/foo ::quux/dude"))
+    (def opts (p/normalize-opts {:auto-resolve-ns true
+                                 :auto-resolve name}))
+    (is (= "(ns foo (:require [clojure.set :as set]))" (str (p/parse-next rdr opts))))
+    (is (= :clojure.set/foo (p/parse-next rdr opts)))
+    (is (= :quux/dude (p/parse-next rdr opts))))
+)
 ;;;; Scratch
 
 (comment
@@ -560,5 +572,4 @@
   #?(:clj
      (let [edn-string (slurp "deps.edn")]
        (time (dotimes [_ 10000]
-               (p/parse-string edn-string)))))
-  )
+               (p/parse-string edn-string))))))

@@ -16,7 +16,8 @@
                     :dependencies [[org.clojure/clojurescript "1.10.520"]
                                    [clj-commons/conch "0.9.2"]
                                    [criterium "0.4.5"]
-                                   [com.clojure-goes-fast/clj-async-profiler "0.4.0"]]}
+                                   [com.clojure-goes-fast/clj-async-profiler "0.4.0"]
+                                   [io.github.borkdude/deflet "0.1.0"]]}
              :uberjar {:global-vars {*assert* false}
                        :jvm-opts ["-Dclojure.compiler.direct-linking=true"
                                   "-Dclojure.spec.skip-macros=true"]

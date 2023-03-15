@@ -4,6 +4,15 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.2.19
+
+- Fall back to `:auto-resolve` when `:auto-resolve-ns` can't find alias
+
+## 1.2.18
+
+- Add `:auto-resolve-ns` option. See [docs](https://github.com/borkdude/edamame#auto-resolve-ns).
+- Add `parse-ns-form` helper function which returns map of data from ns form.
+
 ## 1.1.17
 
 - Add `parse-next+string` for reading next value + the read string (analog to `read+string` in Clojure)
