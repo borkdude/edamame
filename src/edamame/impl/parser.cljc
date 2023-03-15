@@ -472,9 +472,10 @@
                (if (and meta? obj??)
                  (vary-meta next-val assoc v meta?)
                  next-val)))
-           (throw-reader
-             ctx reader
-             (str "Discard not allowed. Use the `:discard` option")))
+           (do
+             (r/read-char reader) ;; read _
+             (parse-next ctx reader) ;; ignore next form
+             reader))
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader

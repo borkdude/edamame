@@ -93,8 +93,8 @@
              (p/parse-string "`(list ~x ~ @(atom nil))"
                              opts)))))
   (testing "uneval"
-    (is (= '[1 2 3] (p/parse-string "(1 2 3 #_4)" {:discard true})))
-    (is (= [1 2] (p/parse-string-all "#_(+ 1 2 3) 1 2" {:discard true}))))
+    (is (= '[1 2 3] (p/parse-string "(1 2 3 #_4)")))
+    (is (= [1 2] (p/parse-string-all "#_(+ 1 2 3) 1 2"))))
   (testing "unmatched delimiter"
     (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected: ]"
                           (p/parse-string "[}")))
@@ -197,14 +197,12 @@
                (meta res)))))
     (testing "trailing uneval"
       (is (= 1 (p/parse-string "#?(#_(+ 1 2 3) :clj 2 #_112 :bb 1 #_112 )" {:read-cond true
-                                                                            :discard true
                                                                             :features #{:bb}}))))
     (testing "EOF"
       (is (thrown-with-data? #"EOF while reading"
                              {:edamame/expected-delimiter ")"
                               :edamame/opened-delimiter "("}
                              (p/parse-string "#?(#_(+ 1 2 3) :clj 2 #_112 :bb 1 #_112 " {:read-cond true
-                                                                                         :discard true
                                                                                          :features #{:bb}}))))
     (testing "whitespace after splice"
       (is (= '(+ 1 2 3) (p/parse-string "(+ #?@
@@ -256,7 +254,7 @@
 
 (deftest location-test
   (is (= '({:row 1, :col 13, :end-row 1, :end-col 17})
-         (map meta (p/parse-string "[#_#_ ar gu ment]" {:discard true})))))
+         (map meta (p/parse-string "[#_#_ ar gu ment]")))))
 
 (deftest meta-test
   (is (= '{:row 1, :col 1, :end-row 1, :end-col 34, :arglists (quote ([& items]))}
