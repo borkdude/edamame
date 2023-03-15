@@ -743,7 +743,7 @@
                    end-row (when end-loc? (or (:forced-end-row obj-meta) (:row end-loc)))
                    col (when loc? (or (:forced-col obj-meta) (:col loc)))
                    end-col (when end-loc? (or (:forced-end-col obj-meta) (:col end-loc)))
-                   obj (if (meta obj)
+                   obj (if obj-meta
                          (vary-meta obj dissoc :forced-row :forced-col :forced-end-row :forced-end-col)
                          obj)
                    postprocess-fn (when postprocess
