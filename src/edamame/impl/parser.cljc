@@ -210,9 +210,7 @@
                                                          :col col}})
            (identical? expected-delimiter next-val)
            (persistent! vals)
-           cond-splice? (do (doseq [v next-val]
-                              (conj! vals v))
-                            (recur vals))
+           cond-splice? (recur (reduce conj! vals next-val))
            (non-match? next-val) (recur vals)
            :else
            (recur (conj! vals next-val))))))))
@@ -389,6 +387,11 @@
         (zipmap (namespace-keys resolved-ns (keys the-map))
                 (vals the-map))))))
 
+(defn iobj? [obj]
+  #?(:clj
+     (instance? clojure.lang.IObj obj)
+     :cljs (satisfies? IWithMeta obj)))
+
 (defn parse-sharp
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [c (r/peek-char reader)]
@@ -437,10 +440,36 @@
             ctx reader
             (str "Read-eval not allowed. Use the `:read-eval` option")))
       \{ (parse-set ctx reader)
-      \_ (do
-           (r/read-char reader) ;; read _
-           (parse-next ctx reader) ;; ignore next form
-           reader)
+      \_ (if-let [v (:discard ctx)]
+           (let [v (if (keyword? v) v :edamame/ignore)]
+             (r/read-char reader) ;; read _
+             (let [ignore-form (parse-next ctx reader) ;; check form for special keyword
+                   _ (skip-whitespace ctx reader)
+                   ir? (r/indexing-reader? reader)
+                   loc (when ir? (location reader))
+                   next-val (parse-next ctx reader)
+                   end-loc (when loc (location reader))
+                   obj?? (iobj? next-val)
+                   next-val (if obj??
+                              (vary-meta next-val
+                                         #(-> %
+                                              (assoc :forced-row (:row loc))
+                                              (assoc :forced-col (:col loc))
+                                              (assoc :forced-end-row (:row end-loc))
+                                              (assoc :forced-end-col (:col end-loc))))
+                              next-val)
+                   meta? (when obj??
+                           (cond
+                             (identical? ignore-form v) true
+                             (map? ignore-form)
+                             (when-let [value (ignore-form v)]
+                               value)))]
+               (if (and meta? obj??)
+                 (vary-meta next-val assoc v meta?)
+                 next-val)))
+           (throw-reader
+             ctx reader
+             (str "Discard not allowed. Use the `:discard` option")))
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader
@@ -659,11 +688,6 @@
               (read-number ctx reader c)
               :else (read-symbol ctx reader c)))))))
 
-(defn iobj? [obj]
-  #?(:clj
-     (instance? clojure.lang.IObj obj)
-     :cljs (satisfies? IWithMeta obj)))
-
 (defn buf [reader]
   (:buffer @#?(:clj (.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader)
                :cljs (.-frames reader))))
@@ -699,10 +723,14 @@
                                      postprocess))
                    end-loc (when (and ir? loc? end-loc?)
                              (location reader))
-                   row (when loc? (:row loc))
-                   end-row (when end-loc? (:row end-loc))
-                   col (when loc? (:col loc))
-                   end-col (when end-loc? (:col end-loc))
+                   obj-meta (meta obj)
+                   row (when loc? (or (:forced-row obj-meta) (:row loc)))
+                   end-row (when end-loc? (or (:forced-end-row obj-meta) (:row end-loc)))
+                   col (when loc? (or (:forced-col obj-meta) (:col loc)))
+                   end-col (when end-loc? (or (:forced-end-col obj-meta) (:col end-loc)))
+                   obj (if (meta obj)
+                         (vary-meta obj dissoc :forced-row :forced-col :forced-end-row :forced-end-col)
+                         obj)
                    postprocess-fn (when postprocess
                                     #(postprocess
                                       (cond->
@@ -769,7 +797,9 @@
                       (when-let [v (get-in dispatch [\# \=])]
                         [:read-eval v])
                       (when-let [v (get-in dispatch [\# \"])]
-                        [:regex v])])
+                        [:regex v])
+                      (when-let [v (get-in dispatch [\# \_])]
+                        [:discard v])])
                opts)
         opts (if (:all opts)
                (merge {:deref true
@@ -778,7 +808,8 @@
                        :read-eval true
                        :regex true
                        :syntax-quote true
-                       :var true} opts)
+                       :var true
+                       :discard true} opts)
                opts)
         opts (cond-> opts
                (not (:row-key opts)) (assoc :row-key :row)
