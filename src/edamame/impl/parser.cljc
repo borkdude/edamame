@@ -446,7 +446,7 @@
             (str "Read-eval not allowed. Use the `:read-eval` option")))
       \{ (parse-set ctx reader)
       \_ (if-let [v (:discard ctx)]
-           (let [v (if (keyword? v) v :edamame/ignore)]
+           (let [v (if (keyword? v) v :edamame/special)]
              (r/read-char reader) ;; read _
              (let [ignore-form (parse-next ctx reader) ;; check form for special keyword
                    _ (skip-whitespace ctx reader)
