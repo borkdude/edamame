@@ -397,6 +397,38 @@
      (instance? clojure.lang.IObj obj)
      :cljs (satisfies? IWithMeta obj)))
 
+(defn parse-discard [ctx #?(:cljs ^not-native reader :default reader)]
+  (if-let [v (:discard ctx)]
+    (let [ignore-form (parse-next ctx reader) ;; check form for special keyword
+          special-tag (if (true? v)
+                        :edamame/special
+                        (v ignore-form))
+          _ (skip-whitespace ctx reader)
+          ir? (r/indexing-reader? reader)
+          loc (when ir? (location reader))
+          next-val (parse-next ctx reader) ;; Parse following form for metadata
+          end-loc (when loc (location reader))
+          iobj?? (iobj? next-val)
+          next-val (if (and loc iobj??)
+                     (vary-meta next-val
+                                #(-> %
+                                     (assoc :forced-row (:row loc))
+                                     (assoc :forced-col (:col loc))
+                                     (assoc :forced-end-row (:row end-loc))
+                                     (assoc :forced-end-col (:col end-loc))))
+                     next-val)
+          meta-val (when iobj??
+                     (cond
+                       (identical? ignore-form special-tag) true
+                       (map? ignore-form)
+                       (when-let [value (ignore-form special-tag)]
+                         value)))]
+      (if (and meta-val iobj??)
+        (vary-meta next-val assoc special-tag meta-val)
+        next-val))
+    (do (parse-next ctx reader) ;; ignore next form
+        reader)))
+
 (defn parse-sharp
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [c (r/peek-char reader)]
@@ -445,37 +477,9 @@
             ctx reader
             (str "Read-eval not allowed. Use the `:read-eval` option")))
       \{ (parse-set ctx reader)
-      \_ (if-let [v (:discard ctx)]
-           (let [v (if (keyword? v) v :edamame/special)]
-             (r/read-char reader) ;; read _
-             (let [ignore-form (parse-next ctx reader) ;; check form for special keyword
-                   _ (skip-whitespace ctx reader)
-                   ir? (r/indexing-reader? reader)
-                   loc (when ir? (location reader))
-                   next-val (parse-next ctx reader)
-                   end-loc (when loc (location reader))
-                   obj?? (iobj? next-val)
-                   next-val (if obj??
-                              (vary-meta next-val
-                                         #(-> %
-                                              (assoc :forced-row (:row loc))
-                                              (assoc :forced-col (:col loc))
-                                              (assoc :forced-end-row (:row end-loc))
-                                              (assoc :forced-end-col (:col end-loc))))
-                              next-val)
-                   meta? (when obj??
-                           (cond
-                             (identical? ignore-form v) true
-                             (map? ignore-form)
-                             (when-let [value (ignore-form v)]
-                               value)))]
-               (if (and meta? obj??)
-                 (vary-meta next-val assoc v meta?)
-                 next-val)))
-           (do
-             (r/read-char reader) ;; read _
-             (parse-next ctx reader) ;; ignore next form
-             reader))
+      \_ (do
+           (r/read-char reader) ;; ignore _
+           (parse-discard ctx reader))
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader
