@@ -444,8 +444,14 @@
       \{ (parse-set ctx reader)
       \_ (do
            (r/read-char reader) ;; read _
-           (parse-next ctx reader) ;; ignore next form
-           reader)
+           (let [uneval-fn (:uneval ctx)
+                 uneval (parse-next ctx reader)]
+             (if uneval-fn
+               (let [val-val (parse-next ctx reader)]
+                 (if (identical? eof val-val)
+                   eof
+                   (uneval-fn {:uneval uneval :next val-val})))
+               reader)))
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader

@@ -561,8 +561,16 @@
                                  :auto-resolve name}))
     (is (= "(ns foo (:require [clojure.set :as set]))" (str (p/parse-next rdr opts))))
     (is (= :clojure.set/foo (p/parse-next rdr opts)))
-    (is (= :quux/dude (p/parse-next rdr opts))))
-)
+    (is (= :quux/dude (p/parse-next rdr opts)))))
+
+(deftest uneval-test
+  (deflet
+    (def parsed
+      (p/parse-string "#_:foo [1 2 3]"
+                      {:uneval (fn [{:keys [uneval next]}]
+                                 (with-meta next {uneval true}))}))
+    (is (= parsed [1 2 3]))
+    (is (true? (:foo (meta parsed))))))
 ;;;; Scratch
 
 (comment
