@@ -210,9 +210,9 @@
                                                          :col col}})
            (identical? expected-delimiter next-val)
            (persistent! vals)
-           cond-splice? (do (doseq [v next-val]
-                              (conj! vals v))
-                            (recur vals))
+           cond-splice? (let [vals
+                              (reduce conj! vals next-val)]
+                          (recur vals))
            (non-match? next-val) (recur vals)
            :else
            (recur (conj! vals next-val))))))))
