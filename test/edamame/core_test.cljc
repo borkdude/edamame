@@ -570,7 +570,8 @@
                       {:uneval (fn [{:keys [uneval next]}]
                                  (with-meta next {uneval true}))}))
     (is (= parsed [1 2 3]))
-    (is (true? (:foo (meta parsed))))))
+    (is (true? (:foo (meta parsed))))
+    (is (nil? (p/parse-string "#_:foo" {:uneval identity})))))
 ;;;; Scratch
 
 (comment
