@@ -4,6 +4,11 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.3.20
+
+- Add `:uneval` option to preserve `#_` expressions combined with next value
+- Fix transient issue
+
 ## 1.2.19
 
 - Fall back to `:auto-resolve` when `:auto-resolve-ns` can't find alias

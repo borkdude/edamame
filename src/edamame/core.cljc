@@ -56,6 +56,8 @@
   object. Should return a truthy value to determine if location
   information will be added.
 
+  `:uneval`: a function of a map with `:uneval` and `:next` to preserve `#_` expressions by combining them with next value.
+
   Additional arguments to tools.reader may be passed with
   `:tools.reader/opts`, like `:readers` for passing reader tag functions.
   "
