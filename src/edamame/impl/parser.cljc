@@ -383,9 +383,6 @@
                          true)
         whitespace-after? (kw-identical? :some (skip-whitespace ctx reader))
         current-ns? (when auto-resolved?
-                      (let [next-char (r/peek-char reader)]
-                        (or (identical? \space next-char)
-                            (identical? \{ next-char)))) #_#_current-ns? (when auto-resolved?
                       (identical? \{ (r/peek-char reader)))
         _ (when (and (not current-ns?)
                      (or whitespace-before?
