@@ -377,6 +377,7 @@
   (let [auto-resolved? (when (identical? \: (r/peek-char reader))
                          (r/read-char reader)
                          true)
+        _ (skip-whitespace ctx reader)
         current-ns? (when auto-resolved?
                       (identical? \{ (r/peek-char reader)))
         prefix (if auto-resolved?
@@ -461,6 +462,7 @@
            (parse-reader-conditional ctx reader))
       \: (do
            (r/read-char reader) ;; ignore :
+           (skip-whitespace ctx reader)
            (parse-namespaced-map ctx reader))
       \! (do
            (parse-comment reader)

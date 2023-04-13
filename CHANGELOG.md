@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.3.21
+
+- Allow whitespace between `:` and `{` when reading namespaced map
+
 ## 1.3.20
 
 - Add `:uneval` option to preserve `#_` expressions combined with next value

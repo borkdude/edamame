@@ -374,8 +374,10 @@
 (deftest namespaced-map-test
   (is (= #:foo{:a 1} (p/parse-string "#:foo{:a 1}")))
   (is (= {:bar/dude 1, :foo.foo/a 1}
-         (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
-  (is (= #:foo{:a 1} (p/parse-string "#::{:a 1}" '{:auto-resolve {:current foo}}))))
+         (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})
+         (p/parse-string "#:: foo {:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
+  (is (= #:foo{:a 1} (p/parse-string "#::{:a 1}" '{:auto-resolve {:current foo}})))
+  (is (= #:foo{:a 1} (p/parse-string "#:: {:a 1}" '{:auto-resolve {:current foo}}))))
 
 (deftest exception-test
   (is (let [d (try (p/parse-string-all "())")
