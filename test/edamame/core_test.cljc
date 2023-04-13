@@ -361,6 +361,18 @@
                         (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
                                                                    (repeatedly #(p/parse-next rdr opts)))))))))))))
 
+(deftest parse-clojure-core-test
+  (is (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "reader.cljc"))
+                             :cljs (str (readFileSync (join "test-resources" "clojure" "reader.cljc"))))
+                          {:all true
+                           :row-key :line
+                           :col-key :column
+                           :end-location false
+                           :location? seq?
+                           :read-cond true
+                           :auto-resolve '{:current clojure.test-clojure.reader
+                                           s clojure.string}})))
+
 (deftest readers-test
   (is (= '(foo [1 2 3]) (p/parse-string "#foo [1 2 3]" {:readers {'foo (fn [v] (list 'foo v))}})))
   (is (= '(foo @(atom 1)) (p/parse-string "#foo @(atom 1)" {:readers {'foo (fn [v] (list 'foo v))}
@@ -373,9 +385,12 @@
 
 (deftest namespaced-map-test
   (is (= #:foo{:a 1} (p/parse-string "#:foo{:a 1}")))
+  (is (= #:foo{:a 1} (p/parse-string "#::f{:a 1}" '{:auto-resolve {f foo}})))
+  (is (= #:foo{:a 1} (p/parse-string "#::f {:a 1}" '{:auto-resolve {f foo}})))
   (is (= {:bar/dude 1, :foo.foo/a 1}
          (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
-  (is (= #:foo{:a 1} (p/parse-string "#::{:a 1}" '{:auto-resolve {:current foo}}))))
+  (is (= #:foo{:a 1} (p/parse-string "#::{:a 1}" '{:auto-resolve {:current foo}})))
+  (is (= #:foo{:a 1} (p/parse-string "#:: {:a 1}" '{:auto-resolve {:current foo}}))))
 
 (deftest exception-test
   (is (let [d (try (p/parse-string-all "())")

@@ -378,7 +378,9 @@
                          (r/read-char reader)
                          true)
         current-ns? (when auto-resolved?
-                      (identical? \{ (r/peek-char reader)))
+                      (let [next-char (r/peek-char reader)]
+                        (or (identical? \space next-char)
+                            (identical? \{ next-char))))
         prefix (if auto-resolved?
                  (when-not current-ns?
                    (read-symbol ctx reader))
