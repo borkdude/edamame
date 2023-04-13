@@ -86,7 +86,8 @@
   "Read in a single logical token from the reader"
   ^String [#?(:clj rdr :cljs ^not-native rdr) _kind initch]
   (loop [sb #?(:clj (StringBuilder.)
-               :cljs (StringBuffer.)) ch initch]
+               :cljs (StringBuffer.))
+         ch initch]
     (if (or (whitespace? ch)
             (macro-terminating? ch)
             (nil? ch))
@@ -167,14 +168,15 @@
   reader)
 
 (defn skip-whitespace
-  "Skips whitespace. Returns reader. If end of stream is reached, returns nil."
+  "Skips whitespace. Returns :none or :some depending on whitespace
+  read. If end of stream is reached, returns nil."
   [_ctx #?(:cljs ^not-native reader :default reader)]
-  (loop []
+  (loop [read :none]
     (when-let [c (r/read-char reader)]
       (if (whitespace? c)
-        (recur)
+        (recur :some)
         (do (r/unread reader c)
-            reader)))))
+            read)))))
 
 (def non-match (symbol "non-match"))
 
@@ -374,12 +376,21 @@
                                                                            :col - (count token))))))))
 
 (defn parse-namespaced-map [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [auto-resolved? (when (identical? \: (r/peek-char reader))
+  (let [peeked-char (r/peek-char reader)
+        whitespace-before? (whitespace? peeked-char)
+        auto-resolved? (when (identical? \: peeked-char)
                          (r/read-char reader)
                          true)
-        _ (skip-whitespace ctx reader)
+        whitespace-after? (kw-identical? :some (skip-whitespace ctx reader))
         current-ns? (when auto-resolved?
+                      (let [next-char (r/peek-char reader)]
+                        (or (identical? \space next-char)
+                            (identical? \{ next-char)))) #_#_current-ns? (when auto-resolved?
                       (identical? \{ (r/peek-char reader)))
+        _ (when (and (not current-ns?)
+                     (or whitespace-before?
+                         whitespace-after?))
+            (throw-reader ctx reader "Namespaced map must specify a namespace"))
         prefix (if auto-resolved?
                  (when-not current-ns?
                    (read-symbol ctx reader))
@@ -462,7 +473,6 @@
            (parse-reader-conditional ctx reader))
       \: (do
            (r/read-char reader) ;; ignore :
-           (skip-whitespace ctx reader)
            (parse-namespaced-map ctx reader))
       \! (do
            (parse-comment reader)

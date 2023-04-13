@@ -371,13 +371,21 @@
              (is (instance? JSValue obj))
              (is (= [1 2 3] (.-val obj))))))
 
+#?(:cljs (def Exception js/Error))
+
 (deftest namespaced-map-test
   (is (= #:foo{:a 1} (p/parse-string "#:foo{:a 1}")))
   (is (= {:bar/dude 1, :foo.foo/a 1}
          (p/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})
-         (p/parse-string "#:: foo {:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
+         (p/parse-string "#::foo {:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
+  (is (thrown-with-msg?
+       Exception #"Namespaced map must specify a namespace"
+       (p/parse-string "#:: foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
   (is (= #:foo{:a 1} (p/parse-string "#::{:a 1}" '{:auto-resolve {:current foo}})))
-  (is (= #:foo{:a 1} (p/parse-string "#:: {:a 1}" '{:auto-resolve {:current foo}}))))
+  (is (= #:foo{:a 1} (p/parse-string "#:: {:a 1}" '{:auto-resolve {:current foo}})))
+  (is (thrown-with-msg?
+       Exception #"Namespaced map must specify a namespace"
+       (p/parse-string "#: :{:a 1}" '{:auto-resolve {:current foo}}))))
 
 (deftest exception-test
   (is (let [d (try (p/parse-string-all "())")
