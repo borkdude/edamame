@@ -406,6 +406,32 @@
                                               (fn [sym]
                                                 (symbol "user" (str sym)))}}))))
 
+(deftest unquote-test
+  (is (= '(clojure.core/unquote x)
+           (p/parse-string "~x" {:syntax-quote true})))
+  (is (= '(clojure.core/unquote x)
+           (p/parse-string "~x" {:syntax-quote true
+                                 :unquote true})))
+  (is (= '(uq x)
+         (p/parse-string "~x" {:syntax-quote true
+                               :unquote #(list 'uq %)})))
+  (is (= '(do (uq x))
+         (p/parse-string "(do ~x)" {:syntax-quote true
+                                    :unquote #(list 'uq %)}))))
+
+(deftest unquote-splicing-test
+  (is (= '(clojure.core/unquote-splicing x)
+         (p/parse-string "~@x" {:syntax-quote true})))
+  (is (= '(clojure.core/unquote-splicing x)
+         (p/parse-string "~@x" {:syntax-quote true
+                                :unquote-splicing true})))
+  (is (= '(uqs x)
+         (p/parse-string "~@x" {:syntax-quote true
+                                :unquote-splicing #(list 'uqs %)})))
+  (is (= '(do (uqs x))
+         (p/parse-string "(do ~@x)" {:syntax-quote true
+                                     :unquote-splicing #(list 'uqs %)}))))
+
 (deftest edge-cases-test
   (is (= '(quote x) (p/parse-string "' x" {:quote true})))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
@@ -421,7 +447,7 @@
   (is (:foo (meta (p/parse-string "^:foo []"))))
   (let [with-meta-val (p/parse-string "`^:foo []" {:syntax-quote true})]
     #?(:clj (is (:foo (meta (eval with-meta-val))))
-       :cljs (= 'clojure.core/with-meta (first with-meta-val)))))
+       :cljs (is (= 'clojure.core/with-meta (first with-meta-val))))))
 
 (deftest shebang-test
   (let [m (p/parse-string "#!/usr/bin/env bash\n{:a 1}")]
