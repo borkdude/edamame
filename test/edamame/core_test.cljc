@@ -447,7 +447,7 @@
   (is (:foo (meta (p/parse-string "^:foo []"))))
   (let [with-meta-val (p/parse-string "`^:foo []" {:syntax-quote true})]
     #?(:clj (is (:foo (meta (eval with-meta-val))))
-       :cljs (is (= 'clojure.core/with-meta (first with-meta-val))))))
+       :cljs (is (= `with-meta (first with-meta-val))))))
 
 (deftest shebang-test
   (let [m (p/parse-string "#!/usr/bin/env bash\n{:a 1}")]
