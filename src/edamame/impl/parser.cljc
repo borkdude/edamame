@@ -634,7 +634,7 @@
                       (v next-val))))))
             (throw-reader
              ctx reader
-             (str "Syntax unquote not allowed. Use the `:syntax-unquote` option")))
+             (str "Syntax unquote not allowed. Use the `:syntax-quote` option")))
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
           \{ (parse-map ctx reader)

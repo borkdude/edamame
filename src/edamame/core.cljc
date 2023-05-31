@@ -8,7 +8,8 @@
 (defn parse-string
   "Parses first EDN value from string.
 
-  Supported parsing options:
+  Supported parsing options can be `true` for default behavior or a function
+  that is called on the form and returns a form in its place:
 
   `:deref`: parse forms starting with `@`. If `true`, the resulting
   expression will be parsed as `(deref expr)`.
@@ -23,13 +24,24 @@
   `:regex`: parse regex literals (`#\"foo\"`). If `true`, defaults to
   `re-pattern`.
 
-  `:syntax-quote`: parse syntax-quote (`(+ 1 2 3)`). Symbols get
-  qualified using `:resolve-symbol` which defaults to `identity`:
-  `(parse-string \"`x\" {:syntax-quote {:resolve-symbol #(symbol \"user\" (str %))}})
-  ;;=> (quote user/x)`.
-
   `:var`: parse var literals (`#'foo`). If `true`, the resulting
   expression will be parsed as `(var foo)`.
+
+  `:syntax-quote`: parse syntax-quote (`(+ 1 2 3)`). Symbols get
+  qualified using `:resolve-symbol` which defaults to `identity`:
+  ```clojure
+  (parse-string \"`x\" {:syntax-quote {:resolve-symbol #(symbol \"user\" (str %))}})
+  ;;=> (quote user/x)
+  ```
+  By default, also parses `unquote` and `unquote-splicing` literals,
+  resolving them accordingly.
+
+  `:unquote`: parse unquote (`~x`). Requires `:syntax-quote` to be set.
+  If `true` and not inside `syntax-quote`, defaults to `clojure.core/unquote`.
+
+  `:unquote-splicing`: parse unquote-splicing (`~@x`). Requires `:syntax-quote`
+  to be set. If `true` and not inside `syntax-quote`, defaults
+  to `clojure.core/unquote-splicing`.
 
   `:all`: when `true`, the above options will be set to `true` unless
   explicitly provided.
