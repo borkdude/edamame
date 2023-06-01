@@ -34,6 +34,7 @@ Project using edamame:
 - [clerk](https://github.com/nextjournal/clerk)
 - [malli](https://github.com/metosin/malli)
 - [SCI](https://github.com/borkdude/sci)
+- [splint](https://github.com/noahtheduke/splint)
 - [zprint](https://github.com/kkinnear/zprint)
 - [zen](https://github.com/zen-lang/zen)
 
