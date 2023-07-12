@@ -11,6 +11,8 @@
    [edamame.core :as p]
    [edamame.test-utils]))
 
+#?(:cljs (def Exception js/Error))
+
 (deftest foo
   (is (thrown-with-data?
        #"The map literal starting with :a contains 3 form\(s\). Map literals must contain an even number of forms."
@@ -208,7 +210,11 @@
       (is (= '(+ 1 2 3) (p/parse-string "(+ #?@
  (:clj
    [1 2 3]))" {:read-cond true
-               :features #{:clj}}))))))
+               :features #{:clj}}))))
+    (is (thrown-with-msg? Exception #"keyword"
+                          (p/parse-string "#?(:clj 1 2 :bb 3)"
+                                          {:read-cond true
+                                           :features #{:bb}})))))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" re-pattern}}}) "foo"))
@@ -370,8 +376,6 @@
   #?(:cljs (let [obj (p/parse-string "#js [1 2 3]")]
              (is (instance? JSValue obj))
              (is (= [1 2 3] (.-val obj))))))
-
-#?(:cljs (def Exception js/Error))
 
 (deftest namespaced-map-test
   (is (= #:foo{:a 1} (p/parse-string "#:foo{:a 1}")))

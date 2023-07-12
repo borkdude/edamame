@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.3.23
+
+- Fix [#103](https://github.com/borkdude/edamame/issues/103): infinite loop with reader conditional expression
+
 ## 1.3.22
 
 - Add stricter checks for whitespace in parsing namespaced maps
