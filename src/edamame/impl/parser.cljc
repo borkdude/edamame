@@ -280,31 +280,36 @@
       (let [k (parse-next ctx reader)]
         (if (identical? expected-delimiter k)
           match
-          (let [next-is-match? (and (non-match? match)
-                                    (or (contains? features k)
-                                        (kw-identical? k :default)))]
-            (if next-is-match?
-              (let [match (parse-next ctx reader)
-                    ctx (assoc ctx ::suppress true)]
-                (loop []
-                  (let [next-val (parse-next ctx reader)]
-                    (when-not (identical? expected-delimiter
-                                          next-val)
-                      (if (identical? eof next-val)
-                        (let [delimiter (::expected-delimiter ctx)
-                              {:keys [:row :col :char]} (::opened-delimiter ctx)]
-                          (throw-reader ctx
-                                        reader
-                                        (str "EOF while reading, expected " delimiter " to match " char " at [" row "," col "]")
-                                        {:edamame/expected-delimiter (str delimiter)
-                                         :edamame/opened-delimiter (str char)}))
-                        (recur)))))
-                match)
-              (do
-                ;; skip over next val and try next key
-                (parse-next (assoc ctx ::suppress true)
-                            reader)
-                (recur match)))))))))
+          (do
+            (when-not (keyword? k)
+              (throw-reader ctx
+                            reader
+                            (str "Feature should be a keyword: " k)))
+            (let [next-is-match? (and (non-match? match)
+                                      (or (contains? features k)
+                                          (kw-identical? k :default)))]
+              (if next-is-match?
+                (let [match (parse-next ctx reader)
+                      ctx (assoc ctx ::suppress true)]
+                  (loop []
+                    (let [next-val (parse-next ctx reader)]
+                      (when-not (identical? expected-delimiter
+                                            next-val)
+                        (if (identical? eof next-val)
+                          (let [delimiter (::expected-delimiter ctx)
+                                {:keys [:row :col :char]} (::opened-delimiter ctx)]
+                            (throw-reader ctx
+                                          reader
+                                          (str "EOF while reading, expected " delimiter " to match " char " at [" row "," col "]")
+                                          {:edamame/expected-delimiter (str delimiter)
+                                           :edamame/opened-delimiter (str char)}))
+                          (recur)))))
+                  match)
+                (do
+                  ;; skip over next val and try next key
+                  (parse-next (assoc ctx ::suppress true)
+                              reader)
+                  (recur match))))))))))
 
 (defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
   (skip-whitespace ctx reader)
