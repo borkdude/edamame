@@ -33,6 +33,7 @@ Project using edamame:
 
 - [clerk](https://github.com/nextjournal/clerk)
 - [malli](https://github.com/metosin/malli)
+- [poly](https://cljdoc.org/d/polylith/clj-poly/0.2.18/doc/readme)
 - [SCI](https://github.com/borkdude/sci)
 - [splint](https://github.com/noahtheduke/splint)
 - [zprint](https://github.com/kkinnear/zprint)
