@@ -115,7 +115,7 @@
 
        (defn- string-pbr
          [^String s]
-         (->StringPBR s 0 (.length s) 1 1 true 0 0 "" true))))
+         (->StringPBR s 0 (.length s) 1 0 true 0 0 "" true))))
 
 (def eof #?(:clj (Object.) :cljs (js/Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
