@@ -78,10 +78,7 @@
                      (set! column 0)
                      (update! line inc))
                    (update! column inc)
-                   ch))))
-
-           
-           )
+                   ch)))))
          (peek-char [_]
            (when (< pos len)
              (.charAt s pos)))
@@ -95,8 +92,20 @@
                  (.getChars ^String s p end ^chars buffer start)))
              (if (pos? n) n -1)))
          r/IPushbackReader
-         (unread [_ _c]
+         (unread [_ _ch]
            (set! pos (unchecked-dec pos))
+           (if line-start?
+             (do (update! line dec)
+                 (set! column prev-column))
+             (update! column dec))
+           (set! line-start? prev)
+           #_(let [ch (if normalize?
+                      (do (set! normalize? false)
+                          (if (identical? \newline ch)
+                            \return
+                            ch))
+                      ch)]
+             )
            nil)
          #_(unreadChars [_ _buffer _start bufflen]
            (set! pos (unchecked-subtract pos bufflen))
@@ -115,7 +124,7 @@
 
        (defn- string-pbr
          [^String s]
-         (->StringPBR s 0 (.length s) 1 0 true 0 0 "" true))))
+         (->StringPBR s 0 (.length s) 1 1 true nil 0 "" false))))
 
 (def eof #?(:clj (Object.) :cljs (js/Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
