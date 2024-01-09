@@ -9,7 +9,7 @@
       :cljs [cljs.tools.reader.reader-types :as r])
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
-   #?(:clj [clojure.tools.reader.impl.utils :refer [namespace-keys]]
+   #?(:clj [clojure.tools.reader.impl.utils :refer [namespace-keys newline?]]
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional namespace-keys]])
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
@@ -24,6 +24,98 @@
   #?(:cljs (:require-macros [edamame.impl.parser :refer [kw-identical?]])))
 
 #?(:clj (set! *warn-on-reflection* true))
+
+#?(:clj
+   (do #_(definterface InternalPBR
+         (^int readChar [])
+         (^long readChars [^chars buffer ^long start ^long bufflen])
+         (^void unreadChar [^int c])
+         (^void unreadChars [^chars buffer ^int off ^int bufflen])
+         (^java.io.Reader toReader []))
+
+       #_(deftype ReaderPBR [^java.io.PushbackReader rdr]
+         InternalPBR
+         (readChar [_]
+           (.read rdr))
+         (readChars [_  buffer start bufflen]
+           (.read rdr ^chars buffer start bufflen))
+         (unreadChar [_ c]
+           (.unread rdr c))
+         (unreadChars [_ buffer start bufflen]
+           (.unread rdr buffer start bufflen))
+         (toReader [_]
+           rdr))
+
+       (defmacro ^:private update! [what f]
+         (list 'set! what (list f what)))
+
+       (deftype StringPBR [^String s ^:unsynchronized-mutable ^long pos ^long len
+                           ^:unsynchronized-mutable ^long line ^:unsynchronized-mutable ^long column
+                           ^:unsynchronized-mutable line-start? ^:unsynchronized-mutable prev
+                           ^:unsynchronized-mutable ^long prev-column file-name
+                           ^:unsynchronized-mutable normalize?]
+         r/Reader
+         (read-char [rdr]
+           (when (< pos len)
+             (let [p pos]
+               (set! pos (unchecked-inc pos))
+               (let [ch (.charAt s p)]
+                 (let [ch (if normalize?
+                            (do (set! normalize? false)
+                                (if (or (identical? \newline ch)
+                                        (identical? \formfeed ch))
+                                  (r/read-char rdr)
+                                  ch))
+                            ch)
+                       ch (if (identical? \return ch)
+                            (do (set! normalize? true)
+                                \newline)
+                            ch)]
+                   (set! prev line-start?)
+                   (set! line-start? (newline? ch))
+                   (when line-start?
+                     (set! prev-column column)
+                     (set! column 0)
+                     (update! line inc))
+                   (update! column inc)
+                   ch))))
+
+           
+           )
+         (peek-char [_]
+           (when (< pos len)
+             (.charAt s pos)))
+         #_(readChars [_  buffer start bufflen]
+           (let [remaining (- len pos)
+                 n (Math/min remaining bufflen)]
+             (when (pos? n)
+               (let [p pos
+                     end (+ p n)]
+                 (set! pos end)
+                 (.getChars ^String s p end ^chars buffer start)))
+             (if (pos? n) n -1)))
+         r/IPushbackReader
+         (unread [_ _c]
+           (set! pos (unchecked-dec pos))
+           nil)
+         #_(unreadChars [_ _buffer _start bufflen]
+           (set! pos (unchecked-subtract pos bufflen))
+           nil)
+         #_(toReader [_]
+             (java.io.StringReader. (.subSequence s pos len)))
+
+         r/IndexingReader
+         (get-line-number [_reader] (int line))
+         (get-column-number [_reader] (int column))
+         (get-file-name [_reader] file-name))
+
+       #_(defn- pushback-pbr
+         [^java.io.PushbackReader r]
+         (->ReaderPBR r))
+
+       (defn- string-pbr
+         [^String s]
+         (->StringPBR s 0 (.length s) 1 1 true 0 0 "" true))))
 
 (def eof #?(:clj (Object.) :cljs (js/Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
@@ -830,7 +922,8 @@
   (let [opts (normalize-opts opts)
         src? (:source opts)
         r (if src? (r/source-logging-push-back-reader s)
-              (string-reader s))
+              #?(:clj (string-pbr s)
+                 :default (string-reader s)))
         ctx (assoc opts ::expected-delimiter nil)
         v (parse-next ctx r)]
     (if (identical? eof v) nil v)))
