@@ -951,7 +951,9 @@
 
 (defn reader
   [x]
-  #?(:clj (r/indexing-push-back-reader (r/push-back-reader x))
+  #?(:clj (if (string? x)
+            (string-pbr x)
+            (r/indexing-push-back-reader (r/push-back-reader x)))
      :cljs (let [string-reader (r/string-reader x)
                  buf-len 1
                  pushback-reader (r/PushbackReader. string-reader

@@ -292,6 +292,10 @@
                         :location? seq?
                         :auto-resolve '{:current clojure.core}})))
 
+(comment
+  (do (core-read-test) nil)
+  )
+
 #?(:clj (defn pbr-test
           "Extracted so we can run this in the profiler"
           [indexing?]
