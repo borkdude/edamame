@@ -324,9 +324,6 @@
             (println "PBR - Edamame reader (reader provided):")
             (time (dotimes [_ 20]
                     (pbr-test false)))
-            (println "PBR - Edamame reader (optimized internal reader):")
-            (time (dotimes [_ 20]
-                    (pbr-test (p/reader (slurp (io/file "test-resources" "clojure" "core.clj"))))))
             (println "PBR - LispReader:")
             (time (dotimes [_ 20]
                     (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
@@ -339,9 +336,12 @@
                                                                  (repeatedly #(tr/read {:eof :edamame.core/eof} rdr)))))))))))
 
   #?(:clj (testing "With IndexingPushbackReader"
-            (println "IPBR - Edamame reader:")
+            (println "IPBR - Edamame reader (provided):")
             (time (dotimes [_ 20]
                     (pbr-test true)))
+            (println "IPBR - Edamame reader (optimized internal reader):")
+            (time (dotimes [_ 20]
+                    (pbr-test (p/reader (slurp (io/file "test-resources" "clojure" "core.clj"))))))
             (println "IPBR - LispReader:")
             (time (dotimes [_ 20]
                     (with-open [rdr (clojure.lang.LineNumberingPushbackReader. (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj"))))]
