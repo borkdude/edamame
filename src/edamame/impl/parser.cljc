@@ -92,13 +92,14 @@
                  (.getChars ^String s p end ^chars buffer start)))
              (if (pos? n) n -1)))
          r/IPushbackReader
-         (unread [_ _ch]
-           (set! pos (unchecked-dec pos))
-           (if line-start?
-             (do (update! line dec)
-                 (set! column prev-column))
-             (update! column dec))
-           (set! line-start? prev)
+         (unread [_ ch]
+           (when ch
+             (set! pos (unchecked-dec pos))
+             (if line-start?
+               (do (update! line dec)
+                   (set! column prev-column))
+               (update! column dec))
+             (set! line-start? prev))
            #_(let [ch (if normalize?
                       (do (set! normalize? false)
                           (if (identical? \newline ch)
