@@ -299,18 +299,19 @@
 #?(:clj (defn pbr-test
           "Extracted so we can run this in the profiler"
           [indexing?]
-          (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
-            (let [rdr (if indexing?
-                        (clojure.lang.LineNumberingPushbackReader. rdr)
-                        rdr)
-                  opts (p/normalize-opts {:all true
-                                          :row-key :line
-                                          :col-key :column
-                                          :location? seq?
-                                          :end-location false
-                                          :auto-resolve '{:current clojure.core}})]
-              (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
-                                                         (repeatedly #(p/parse-next rdr opts))))))))))
+          (let [rdr* (when (instance? java.io.Reader indexing?)
+                      indexing?)]
+            (with-open [rdr (or rdr*
+                                (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj"))))]
+              (let [rdr (if indexing? (clojure.lang.LineNumberingPushbackReader. rdr) rdr)
+                    opts (p/normalize-opts {:all true
+                                            :row-key :line
+                                            :col-key :column
+                                            :location? seq?
+                                            :end-location false
+                                            :auto-resolve '{:current clojure.core}})]
+                (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
+                                                           (repeatedly #(p/parse-next rdr opts)))))))))))
 
 (deftest parse-clojure-core
   (is
@@ -320,9 +321,12 @@
               (/ (count (core-read-test))
                  10)))))
   #?(:clj (testing "with pushback reader only"
-            (println "PBR - Edamame reader:")
+            (println "PBR - Edamame reader (reader provided):")
             (time (dotimes [_ 20]
                     (pbr-test false)))
+            (println "PBR - Edamame reader (optimized internal reader):")
+            (time (dotimes [_ 20]
+                    (pbr-test (p/reader (slurp (io/file "test-resources" "clojure" "core.clj"))))))
             (println "PBR - LispReader:")
             (time (dotimes [_ 20]
                     (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
