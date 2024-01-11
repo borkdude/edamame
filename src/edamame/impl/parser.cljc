@@ -940,7 +940,8 @@
 
 (defn parse-string-all [s opts]
   (let [opts (normalize-opts opts)
-        ^Closeable r (string-pbr s) #_(string-reader s)
+        ^Closeable r #?(:clj (string-pbr s)
+                        :default (string-reader s))
         ctx (assoc opts
                    ::expected-delimiter nil)]
     (loop [ret (transient [])]
