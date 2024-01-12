@@ -24,29 +24,10 @@
   #?(:cljs (:require-macros [edamame.impl.parser :refer [kw-identical?]])))
 
 #?(:clj (set! *warn-on-reflection* true))
+#?(:clj (set! *unchecked-math* :warn-on-boxed))
 
 #?(:clj
-   (do #_(definterface InternalPBR
-         (^int readChar [])
-         (^long readChars [^chars buffer ^long start ^long bufflen])
-         (^void unreadChar [^int c])
-         (^void unreadChars [^chars buffer ^int off ^int bufflen])
-         (^java.io.Reader toReader []))
-
-       #_(deftype ReaderPBR [^java.io.PushbackReader rdr]
-         InternalPBR
-         (readChar [_]
-           (.read rdr))
-         (readChars [_  buffer start bufflen]
-           (.read rdr ^chars buffer start bufflen))
-         (unreadChar [_ c]
-           (.unread rdr c))
-         (unreadChars [_ buffer start bufflen]
-           (.unread rdr buffer start bufflen))
-         (toReader [_]
-           rdr))
-
-       (defmacro ^:private update! [what f]
+   (do (defmacro ^:private update! [what f]
          (list 'set! what (list f what)))
 
        (deftype StringPBR [^String s ^:unsynchronized-mutable ^long pos ^long len
@@ -76,56 +57,34 @@
                    (when line-start?
                      (set! prev-column column)
                      (set! column 0)
-                     (update! line inc))
-                   (update! column inc)
+                     (update! line unchecked-inc))
+                   (update! column unchecked-inc)
                    ch)))))
          (peek-char [_]
            (when (< pos len)
              (.charAt s pos)))
-         #_(readChars [_  buffer start bufflen]
-           (let [remaining (- len pos)
-                 n (Math/min remaining bufflen)]
-             (when (pos? n)
-               (let [p pos
-                     end (+ p n)]
-                 (set! pos end)
-                 (.getChars ^String s p end ^chars buffer start)))
-             (if (pos? n) n -1)))
+
          r/IPushbackReader
          (unread [_ ch]
            (when ch
              (set! pos (unchecked-dec pos))
              (if line-start?
-               (do (update! line dec)
+               (do (update! line unchecked-dec)
                    (set! column prev-column))
-               (update! column dec))
+               (update! column unchecked-dec))
              (set! line-start? prev))
-           #_(let [ch (if normalize?
-                      (do (set! normalize? false)
-                          (if (identical? \newline ch)
-                            \return
-                            ch))
-                      ch)]
-             )
            nil)
-         #_(unreadChars [_ _buffer _start bufflen]
-           (set! pos (unchecked-subtract pos bufflen))
-           nil)
-         #_(toReader [_]
-             (java.io.StringReader. (.subSequence s pos len)))
 
          r/IndexingReader
          (get-line-number [_reader] (int line))
          (get-column-number [_reader] (int column))
          (get-file-name [_reader] file-name))
 
-       #_(defn- pushback-pbr
-         [^java.io.PushbackReader r]
-         (->ReaderPBR r))
-
+       (declare string-reader)
        (defn- string-pbr
          [^String s]
-         (->StringPBR s 0 (.length s) 1 1 true nil 0 "" false))))
+         (string-reader s)
+         #_(->StringPBR s 0 (.length s) 1 1 true nil 0 "" false))))
 
 (def eof #?(:clj (Object.) :cljs (js/Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
@@ -349,7 +308,7 @@
   ;; https://github.com/clojure/tools.reader/blob/97d5dac9f5e7c04d8fe6c4a52cd77d6ced560d76/src/main/cljs/cljs/tools/reader/impl/errors.cljs#L233
   (letfn [(duplicates [seq]
             (for [[id freq] (frequencies seq)
-                  :when (> freq 1)]
+                  :when (> ^long freq 1)]
               id))]
     (let [dups (duplicates coll)]
       (apply str msg
