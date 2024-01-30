@@ -8,7 +8,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 - Add `:map` and `:set` options to coerce map/set literals into customizable data structures, for example, an ordered collections to preserve key order.
 
-```
+``` clojure
 (require '[edamame.core :as e])
 (require '[flatland.ordered.map :as m])
 (e/parse-string "{:a 1}" {:map m/ordered-map}) ;;=> #ordered/map ([:a 1])
