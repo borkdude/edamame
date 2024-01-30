@@ -268,11 +268,13 @@
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [start-loc (when (r/indexing-reader? reader)
                     (location reader))
-        coll (parse-to-delimiter ctx reader \})
-        the-set (set coll)]
-    (when-not (= (count coll) (count the-set))
-      (throw-dup-keys ctx reader start-loc :set coll))
-    the-set))
+        coll (parse-to-delimiter ctx reader \})]
+    (if-let [sf (:set ctx)]
+      (apply sf coll)
+      (let [the-set (set coll)]
+        (when-not (= (count coll) (count the-set))
+          (throw-dup-keys ctx reader start-loc :set coll))
+        the-set))))
 
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
   (let [features (:features ctx)]
@@ -522,15 +524,17 @@
         start-loc (when ir? (location reader))
         elements (parse-to-delimiter ctx reader \})
         c (count elements)]
-    (when (pos? c)
-      (when (odd? c)
-        (throw-odd-map ctx reader start-loc elements))
-      (let [ks (take-nth 2 elements)]
-        (when-not (apply distinct? ks)
-          (throw-dup-keys ctx reader start-loc :map ks))))
-    (if (<= c 16)
-      (apply array-map elements)
-      (apply hash-map elements))))
+    (if-let [mf (:map ctx)]
+      (apply mf elements)
+      (do (when (pos? c)
+            (when (odd? c)
+              (throw-odd-map ctx reader start-loc elements))
+            (let [ks (take-nth 2 elements)]
+              (when-not (apply distinct? ks)
+                (throw-dup-keys ctx reader start-loc :map ks))))
+          (if (<= c 16)
+            (apply array-map elements)
+            (apply hash-map elements))))))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :

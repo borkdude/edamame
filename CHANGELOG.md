@@ -4,6 +4,19 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.4.24
+
+- Add `:map` and `:set` options to coerce map/set literals into customizable data structures, for example, an ordered collections to preserve key order.
+
+```
+(require '[edamame.core :as e])
+(require '[flatland.ordered.map :as m])
+(e/parse-string "{:a 1}" {:map m/ordered-map}) ;;=> #ordered/map ([:a 1])
+(require '[clojure.data.json :as j])
+(j/write-str (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9 :j 10 :k 11 :l 12}" {:map m/ordered-map}))
+;;=> "{\"a\":1,\"b\":2,\"c\":3,\"d\":4,\"e\":5,\"f\":6,\"g\":7,\"h\":8,\"i\":9,\"j\":10,\"k\":11,\"l\":12}"
+```
+
 ## 1.3.23
 
 - Fix [#103](https://github.com/borkdude/edamame/issues/103): infinite loop with reader conditional expression

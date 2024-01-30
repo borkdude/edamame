@@ -9,7 +9,9 @@
    [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
-   [edamame.test-utils]))
+   [edamame.test-utils]
+   #?(:clj [flatland.ordered.set :as oset])
+   #?(:clj [flatland.ordered.map :as omap]) ))
 
 #?(:cljs (def Exception js/Error))
 
@@ -612,6 +614,13 @@
     (is (= parsed [1 2 3]))
     (is (true? (:foo (meta parsed))))
     (is (nil? (p/parse-string "#_:foo" {:uneval identity})))))
+
+#?(:clj
+   (deftest map-set-test
+     (is (= "{:a #{1 2 3 4 5 6 7 8 9 10}, :b 2, :c 3, :d 4, :e 5, :f 6, :h 7, :i 8, :j 9, :k 10, :l 11}" (str (p/parse-string "{:a #{1 2 3 4 5 6 7 8 9 10} :b 2 :c 3 :d 4 :e 5 :f 6 :h 7 :i 8 :j 9 :k 10 :l 11}"
+                                                                                                                              {:map omap/ordered-map
+                                                                                                                               :set oset/ordered-set}))))))
+
 ;;;; Scratch
 
 (comment

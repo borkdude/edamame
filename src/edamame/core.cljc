@@ -27,6 +27,10 @@
   `:var`: parse var literals (`#'foo`). If `true`, the resulting
   expression will be parsed as `(var foo)`.
 
+  `:map`: parse map literal using a custom function, e.g. `flatland.ordered.map/ordered-map`
+
+  `:set`: parse set literal using a custom function, e.g. `flatland.ordered.set/ordered-set`
+
   `:syntax-quote`: parse syntax-quote (`(+ 1 2 3)`). Symbols get
   qualified using `:resolve-symbol` which defaults to `identity`:
   ```clojure
