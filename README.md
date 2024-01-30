@@ -237,6 +237,19 @@ Passing data readers:
 (js [1 2 3])
 ```
 
+### Preserve order of map and set keys
+
+To preserve order of map and set keys, you can use the `:map` and `:set` options:
+
+``` clojure
+(require '[edamame.core :as e])
+(require '[flatland.ordered.map :as m])
+(e/parse-string "{:a 1}" {:map m/ordered-map}) ;;=> #ordered/map ([:a 1])
+(require '[clojure.data.json :as j])
+(j/write-str (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9 :j 10 :k 11 :l 12}" {:map m/ordered-map}))
+;;=> "{\"a\":1,\"b\":2,\"c\":3,\"d\":4,\"e\":5,\"f\":6,\"g\":7,\"h\":8,\"i\":9,\"j\":10,\"k\":11,\"l\":12}"
+```
+
 ### Postprocess
 
 Postprocess read values:
