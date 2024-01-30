@@ -522,15 +522,17 @@
         start-loc (when ir? (location reader))
         elements (parse-to-delimiter ctx reader \})
         c (count elements)]
-    (when (pos? c)
-      (when (odd? c)
-        (throw-odd-map ctx reader start-loc elements))
-      (let [ks (take-nth 2 elements)]
-        (when-not (apply distinct? ks)
-          (throw-dup-keys ctx reader start-loc :map ks))))
-    (if (<= c 16)
-      (apply array-map elements)
-      (apply hash-map elements))))
+    (if-let [mf (:map ctx)]
+      (apply mf elements)
+      (do (when (pos? c)
+            (when (odd? c)
+              (throw-odd-map ctx reader start-loc elements))
+            (let [ks (take-nth 2 elements)]
+              (when-not (apply distinct? ks)
+                (throw-dup-keys ctx reader start-loc :map ks))))
+          (if (<= c 16)
+            (apply array-map elements)
+            (apply hash-map elements))))))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :
