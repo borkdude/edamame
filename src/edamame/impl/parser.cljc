@@ -268,11 +268,13 @@
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [start-loc (when (r/indexing-reader? reader)
                     (location reader))
-        coll (parse-to-delimiter ctx reader \})
-        the-set (set coll)]
-    (when-not (= (count coll) (count the-set))
-      (throw-dup-keys ctx reader start-loc :set coll))
-    the-set))
+        coll (parse-to-delimiter ctx reader \})]
+    (if-let [sf (:set ctx)]
+      (apply sf coll)
+      (let [the-set (set coll)]
+        (when-not (= (count coll) (count the-set))
+          (throw-dup-keys ctx reader start-loc :set coll))
+        the-set))))
 
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
   (let [features (:features ctx)]

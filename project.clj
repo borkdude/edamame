@@ -17,7 +17,9 @@
                                    [clj-commons/conch "0.9.2"]
                                    [criterium "0.4.5"]
                                    [com.clojure-goes-fast/clj-async-profiler "0.4.0"]
-                                   [io.github.borkdude/deflet "0.1.0"]]}
+                                   [io.github.borkdude/deflet "0.1.0"]
+                                   [org.flatland/ordered "1.15.11"]
+                                   [org.clojure/data.json "2.5.0"]]}
              :uberjar {:global-vars {*assert* false}
                        :jvm-opts ["-Dclojure.compiler.direct-linking=true"
                                   "-Dclojure.spec.skip-macros=true"]
