@@ -10,8 +10,8 @@
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
    [edamame.test-utils]
-   [flatland.ordered.set :as oset]
-   [flatland.ordered.map :as omap] ))
+   #?(:clj [flatland.ordered.set :as oset])
+   #?(:clj [flatland.ordered.map :as omap]) ))
 
 #?(:cljs (def Exception js/Error))
 
