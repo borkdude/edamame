@@ -621,6 +621,12 @@
                                                                                                                               {:map omap/ordered-map
                                                                                                                                :set oset/ordered-set}))))))
 
+(deftest param-tags-meta
+  (is (= '[String]
+         (-> (p/parse-string "^[String] x")
+             meta
+             :param-tags))))
+
 ;;;; Scratch
 
 (comment

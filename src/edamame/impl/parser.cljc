@@ -563,12 +563,14 @@
      (keyword? f) {f true}
      (symbol? f)  {:tag f}
      (string? f)  {:tag f}
+     (vector? f)  {:param-tags f}
      :else        f))
   ([f postprocess]
    (cond
      (keyword? f) {(postprocess f) (postprocess true)}
      (symbol? f)  {(postprocess :tag) (postprocess f)}
      (string? f)  {(postprocess :tag) (postprocess f)}
+     (vector? f)  {(postprocess :param-tags) (postprocess f)}
      :else        f)))
 
 ;; NOTE: I tried optimizing for the :all option by dispatching to a function
