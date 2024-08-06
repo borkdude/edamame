@@ -620,12 +620,14 @@
      (is (= "{:a #{1 2 3 4 5 6 7 8 9 10}, :b 2, :c 3, :d 4, :e 5, :f 6, :h 7, :i 8, :j 9, :k 10, :l 11}" (str (p/parse-string "{:a #{1 2 3 4 5 6 7 8 9 10} :b 2 :c 3 :d 4 :e 5 :f 6 :h 7 :i 8 :j 9 :k 10 :l 11}"
                                                                                                                               {:map omap/ordered-map
                                                                                                                                :set oset/ordered-set}))))))
-
 (deftest param-tags-meta
   (is (= '[String]
          (-> (p/parse-string "^[String] x")
              meta
              :param-tags))))
+
+(deftest array-notation-test
+  (is (= (symbol "byte/1") (p/parse-string "byte/1"))))
 
 ;;;; Scratch
 

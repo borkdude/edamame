@@ -96,7 +96,28 @@
           (str sb))
       (recur (.append sb ch) (r/read-char rdr)))))
 
-(def parse-symbol @#'commons/parse-symbol)
+(defn parse-symbol
+  "Parses a string into a vector of the namespace and symbol"
+  [^String token]
+  (when-not (or (= "" token)
+                (.endsWith token ":")
+                (.startsWith token "::"))
+    (let [ns-idx (.indexOf token "/")]
+      (if-let [^String ns (and (pos? ns-idx)
+                               (subs token 0 ns-idx))]
+        (let [ns-idx (inc ns-idx)]
+          (when-not (== ns-idx (count token))
+            (let [sym (subs token ns-idx)]
+              (when (and #_(not (utils/numeric? (nth sym 0)))
+                         (not (= "" sym))
+                         (not (.endsWith ns ":"))
+                         (or (= "/" sym )
+                             (== -1 (.indexOf sym "/"))))
+                [ns sym]))))
+        (when (or (= "/" token)
+                  (== -1 (.indexOf token "/")))
+          [nil token])))))
+
 (def number-literal? @#'commons/number-literal?)
 (def escape-char @#'edn/escape-char)
 (def read-char* @#'edn/read-char*)
