@@ -121,19 +121,19 @@
     (let [ns-idx (.indexOf token "/")]
       (if-let [^String ns (and (pos? ns-idx)
                                (subs token 0 ns-idx))]
-        (when-not (== ns-idx (str-len token))
-          (when-not (.endsWith ns ":")
-            (let [ns-idx (inc ns-idx)
-                  ^String sym (subs token ns-idx)]
-              (if-let [#?(:clj n :cljs ^js n) (array-dim sym)]
-                (when (<= 1 n 9)
-                  [ns sym])
-                (when (and (not (= "" sym))
-                           (or (== 1 (str-len sym) 1) ;; if len == 1, we already checked for numberic
-                               (not (parse-long* (subs sym 0 1))))
-                           (or (= "/" sym )
-                               (== -1 (.indexOf sym "/"))))
-                  [ns sym])))))
+        (let [ns-idx (inc ns-idx)]
+          (when-not (== ns-idx (str-len token))
+            (when-not (.endsWith ns ":")
+              (let [^String sym (subs token ns-idx)]
+                (if-let [#?(:clj n :cljs ^js n) (array-dim sym)]
+                  (when (<= 1 n 9)
+                    [ns sym])
+                  (when (and (not (= "" sym))
+                             (or (== 1 (str-len sym) 1) ;; if len == 1, we already checked for numberic
+                                 (not (parse-long* (subs sym 0 1))))
+                             (or (= "/" sym )
+                                 (== -1 (.indexOf sym "/"))))
+                    [ns sym]))))))
         (when (or (= "/" token)
                   (== -1 (.indexOf token "/")))
           [nil token])))))
