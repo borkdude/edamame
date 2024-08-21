@@ -27,6 +27,7 @@
 
 (def eof #?(:clj (Object.) :cljs (js/Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
+#?(:cljs (def Exception js/Error))
 
 (defn throw-reader
   "Throw reader exception, including line line/column. line/column is
@@ -96,6 +97,21 @@
           (str sb))
       (recur (.append sb ch) (r/read-char rdr)))))
 
+(defn str-len [^String s]
+  #?(:clj (.length s)
+     :cljs (.-length s)))
+
+(defn- parse-long* [^String s]
+  (try #?(:clj (Integer/parseInt s)
+          :cljs (let [x (js/parseInt s)]
+                  (when-not (NaN? x)
+                    x)))
+       (catch Exception _ nil)))
+
+(defn- array-dim [^String sym]
+  (when (= 1 (str-len sym))
+    (parse-long* sym)))
+
 (defn parse-symbol
   "Parses a string into a vector of the namespace and symbol"
   [^String token]
@@ -105,15 +121,19 @@
     (let [ns-idx (.indexOf token "/")]
       (if-let [^String ns (and (pos? ns-idx)
                                (subs token 0 ns-idx))]
-        (let [ns-idx (inc ns-idx)]
-          (when-not (== ns-idx (count token))
-            (let [sym (subs token ns-idx)]
-              (when (and #_(not (utils/numeric? (nth sym 0)))
-                         (not (= "" sym))
-                         (not (.endsWith ns ":"))
-                         (or (= "/" sym )
-                             (== -1 (.indexOf sym "/"))))
-                [ns sym]))))
+        (when-not (== ns-idx (str-len token))
+          (when-not (.endsWith ns ":")
+            (let [ns-idx (inc ns-idx)
+                  ^String sym (subs token ns-idx)]
+              (if-let [#?(:clj n :cljs ^js n) (array-dim sym)]
+                (when (<= 1 n 9)
+                  [ns sym])
+                (when (and (not (= "" sym))
+                           (or (== 1 (str-len sym) 1) ;; if len == 1, we already checked for numberic
+                               (not (parse-long* (subs sym 0 1))))
+                           (or (= "/" sym )
+                               (== -1 (.indexOf sym "/"))))
+                  [ns sym])))))
         (when (or (= "/" token)
                   (== -1 (.indexOf token "/")))
           [nil token])))))
@@ -614,7 +634,7 @@
                      (v next-val))))
                (throw-reader
                 ctx reader
-                (str "Deref not allowed. Use the `:deref` option")))
+                "Deref not allowed. Use the `:deref` option"))
           \' (if-let [v (:quote ctx)]
                (do
                  (r/read-char reader) ;; skip '
@@ -638,7 +658,7 @@
                      (v next-val))))
                (throw-reader
                 ctx reader
-                (str "Syntax quote not allowed. Use the `:syntax-quote` option")))
+                "Syntax quote not allowed. Use the `:syntax-quote` option"))
           \~
           (if-let [v (and (:syntax-quote ctx)
                           (or (:unquote ctx)
@@ -659,14 +679,14 @@
                           (v next-val))))
                     (throw-reader
                      ctx reader
-                     (str "Syntax unquote splice not allowed. Use the `:syntax-quote` option")))
+                     "Syntax unquote splice not allowed. Use the `:syntax-quote` option"))
                   (let [next-val (parse-next ctx reader)]
                     (if (true? v)
                       (list 'clojure.core/unquote next-val)
                       (v next-val))))))
             (throw-reader
              ctx reader
-             (str "Syntax unquote not allowed. Use the `:syntax-quote` option")))
+             "Syntax unquote not allowed. Use the `:syntax-quote` option"))
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
           \{ (parse-map ctx reader)
@@ -719,8 +739,6 @@
 (defn buf [reader]
   (:buffer @#?(:clj (.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader)
                :cljs (.-frames reader))))
-
-#?(:cljs (def Exception js/Error))
 
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))

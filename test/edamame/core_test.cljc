@@ -3,15 +3,15 @@
    #?(:clj [cljs.tagged-literals :as cljs-tags])
    #?(:clj [clojure.java.io :as io])
    #?(:clj [clojure.tools.reader :as tr])
+   #?(:clj [flatland.ordered.map :as omap])
+   #?(:clj [flatland.ordered.set :as oset])
    #?(:cljs [cljs.tagged-literals :refer [JSValue]])
    #?(:cljs [goog.object :as gobj])
    [borkdude.deflet :refer [deflet]]
    [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
-   [edamame.test-utils]
-   #?(:clj [flatland.ordered.set :as oset])
-   #?(:clj [flatland.ordered.map :as omap]) ))
+   [edamame.test-utils]))
 
 #?(:cljs (def Exception js/Error))
 
@@ -29,7 +29,7 @@
   (is (= :foo (p/parse-string ":foo")))
   (is (= :foo/bar (p/parse-string ":foo/bar")))
   (is (= '(1 2 3) (p/parse-string "(1 2 3)")))
-  (is ((every-pred vector? #(= % [1 2 3])) (p/parse-string "[1 2 3]")))
+  (is ((every-pred vector? #(= [1 2 3] %)) (p/parse-string "[1 2 3]")))
   (is (= #{1 2 3} (p/parse-string "#{1 2 3}")))
   (is (thrown-with-data?
        #"Set literal contains duplicate key: 1"
@@ -234,23 +234,23 @@
   (is (= (symbol "'foo") (p/parse-string "'foo"))))
 
 (deftest fn-test
-  #?(:clj (is (= (first (p/parse-string "#(inc 1 2 %)"
+  #?(:clj (is (= 'fn*
+                 (first (p/parse-string "#(inc 1 2 %)"
                                         {:dispatch
                                          {\# {\( (fn [expr]
-                                                   (read-string (str "#" expr)))}}}))
-                 'fn*)))
-  (is (= (p/parse-string "#(inc %1 %)"
-                         {:fn true})
-         '(fn* [%1] (inc %1 %1))))
-  (is (= (p/parse-string "#(inc %1 %)"
-                         {:fn true})
-         '(fn* [%1] (inc %1 %1))))
-  (is (= (p/parse-string "#(apply + % %1 %3 %&)"
-                         {:fn true})
-         '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
-  (is (= (p/parse-string "#(apply + % %1 %3 %&)"
-                         {:all true})
-         '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))))
+                                                   (read-string (str "#" expr)))}}})))))
+  (is (= '(fn* [%1] (inc %1 %1))
+         (p/parse-string "#(inc %1 %)"
+                         {:fn true})))
+  (is (= '(fn* [%1] (inc %1 %1))
+         (p/parse-string "#(inc %1 %)"
+                         {:fn true})))
+  (is (= '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))
+         (p/parse-string "#(apply + % %1 %3 %&)"
+                         {:fn true})))
+  (is (= '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))
+         (p/parse-string "#(apply + % %1 %3 %&)"
+                         {:all true})))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
                         #"Nested" (p/parse-string "(#(+ (#(inc %) 2)) 3)"
                                                   {:all true})))
@@ -397,9 +397,9 @@
   (is (let [d (try (p/parse-string-all "())")
                    (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) e
                      (ex-data e)))]
-        (is (= (:type d) :edamame/error))
-        (is (= (:row d) 1))
-        (is (= (:col d) 3)))))
+        (is (= :edamame/error (:type d)))
+        (is (= 1 (:row d)))
+        (is (= 3 (:col d))))))
 
 (deftest syntax-quote-test
   ;; NOTE: most of the syntax quote functionality is tested in sci
@@ -414,10 +414,10 @@
 
 (deftest unquote-test
   (is (= '(clojure.core/unquote x)
-           (p/parse-string "~x" {:syntax-quote true})))
+         (p/parse-string "~x" {:syntax-quote true})))
   (is (= '(clojure.core/unquote x)
-           (p/parse-string "~x" {:syntax-quote true
-                                 :unquote true})))
+         (p/parse-string "~x" {:syntax-quote true
+                               :unquote true})))
   (is (= '(uq x)
          (p/parse-string "~x" {:syntax-quote true
                                :unquote #(list 'uq %)})))
@@ -527,8 +527,8 @@
 
 (deftest location?-test
   (is (meta (p/parse-string "x")))
-  (is (not (meta (p/parse-string "x" {:location? (fn [obj] (seq? obj))}))))
-  (is (meta (p/parse-string "(x)" {:location? (fn [obj] (seq? obj))}))))
+  (is (not (meta (p/parse-string "x" {:location? seq?}))))
+  (is (meta (p/parse-string "(x)" {:location? seq?}))))
 
 (deftest array-map-test
   (is (instance? #?(:clj
@@ -611,7 +611,7 @@
       (p/parse-string "#_:foo [1 2 3]"
                       {:uneval (fn [{:keys [uneval next]}]
                                  (with-meta next {uneval true}))}))
-    (is (= parsed [1 2 3]))
+    (is (= [1 2 3] parsed))
     (is (true? (:foo (meta parsed))))
     (is (nil? (p/parse-string "#_:foo" {:uneval identity})))))
 
@@ -627,7 +627,13 @@
              :param-tags))))
 
 (deftest array-notation-test
-  (is (= (symbol "byte/1") (p/parse-string "byte/1"))))
+  (is (= (symbol "byte/1") (p/parse-string "byte/1")))
+  (is (= (symbol "byte/9") (p/parse-string "byte/9")))
+  (is (thrown? Exception (p/parse-string "byte/0")))
+  (is (thrown? Exception (p/parse-string "byte/11")))
+  (is (thrown? Exception (p/parse-string "byte:/1")))
+  (is (thrown? Exception (p/parse-string "byte/")))
+  (is (thrown? Exception (p/parse-string "byte/1a"))))
 
 ;;;; Scratch
 
