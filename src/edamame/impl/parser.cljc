@@ -9,7 +9,7 @@
       :cljs [cljs.tools.reader.reader-types :as r])
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
-   #?(:clj [clojure.tools.reader.impl.utils :refer [namespace-keys]]
+   #?(:clj [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys]]
       :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional namespace-keys]])
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
@@ -101,16 +101,23 @@
   #?(:clj (.length s)
      :cljs (.-length s)))
 
-(defn- parse-long* [^String s]
-  (try #?(:clj (Integer/parseInt s)
-          :cljs (let [x (js/parseInt s)]
+(defn- parse-long*
+  "Parses char to num"
+  [^Character c]
+  (try #?(:clj (let [i (int c)
+                     i (- i 48)]
+                 (when (<= 0 i 9)
+                   i))
+          :cljs (let [x (js/parseInt c)]
                   (when-not (NaN? x)
                     x)))
        (catch Exception _ nil)))
 
 (defn- array-dim [^String sym]
   (when (== 1 (str-len sym))
-    (parse-long* sym)))
+    (when-let [i (parse-long* (.charAt sym 0))]
+      (when (pos? i)
+        i))))
 
 (defn parse-symbol
   "Parses a string into a vector of the namespace and symbol"
@@ -125,12 +132,10 @@
           (when-not (== ns-idx (str-len token))
             (when-not (.endsWith ns ":")
               (let [^String sym (subs token ns-idx)]
-                (if-let [#?(:clj n :cljs ^js n) (array-dim sym)]
-                  (when (<= 1 n 9)
-                    [ns sym])
+                (if (array-dim sym)
+                  [ns sym]
                   (when (and (not (= "" sym))
-                             (or (== 1 (str-len sym) 1) ;; if len == 1, we already checked for numberic
-                                 (not (parse-long* (subs sym 0 1))))
+                             (not (parse-long* (.charAt sym 0)))
                              (or (= "/" sym )
                                  (== -1 (.indexOf sym "/"))))
                     [ns sym]))))))
@@ -581,7 +586,7 @@
   (r/read-char reader) ;; ignore :
   (let [init-c (r/read-char reader)]
     (when (whitespace? init-c)
-      (throw-reader ctx reader (str "Invalid token: :")))
+      (throw-reader ctx reader "Invalid token: :"))
     (let [^String token (read-token reader :keyword init-c)
           auto-resolve? (identical? \: (.charAt token 0))]
       (if auto-resolve?
