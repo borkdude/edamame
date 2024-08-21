@@ -109,7 +109,7 @@
        (catch Exception _ nil)))
 
 (defn- array-dim [^String sym]
-  (when (= 1 (str-len sym))
+  (when (== 1 (str-len sym))
     (parse-long* sym)))
 
 (defn parse-symbol
