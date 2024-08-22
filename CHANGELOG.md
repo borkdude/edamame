@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.4.27
+
+- Restrict numeric part of new Clojure 1.12 array notation
+
 ## 1.4.26
 
 - Support new `byte/1` array notation
