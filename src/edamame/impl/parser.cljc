@@ -104,14 +104,14 @@
 (defn- parse-long*
   "Parses char to num"
   [^Character c]
-  (try #?(:clj (let [i (int c)
-                     i (- i 48)]
-                 (when (<= 0 i 9)
-                   i))
-          :cljs (let [x (js/parseInt c)]
-                  (when-not (NaN? x)
-                    x)))
-       (catch Exception _ nil)))
+  #?(:clj (let [i (int c)
+               i (- i 48)]
+            (when (<= 0 i 9)
+              i))
+     :cljs (let [x (js/parseInt c)]
+             (when-not (NaN? x)
+               x))
+     (catch Exception _ nil)))
 
 (defn- array-dim [^String sym]
   (when (== 1 (str-len sym))
