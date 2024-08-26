@@ -110,8 +110,7 @@
               i))
      :cljs (let [x (js/parseInt c)]
              (when-not (NaN? x)
-               x))
-     (catch Exception _ nil)))
+               x))))
 
 (defn- array-dim [^String sym]
   (when (== 1 (str-len sym))
