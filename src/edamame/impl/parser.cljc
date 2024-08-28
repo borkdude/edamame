@@ -886,7 +886,9 @@
 
 (defn parse-string-all [s opts]
   (let [opts (normalize-opts opts)
-        ^Closeable r (string-reader s)
+        src? (:source opts)
+        r (if src? (r/source-logging-push-back-reader s)
+              (string-reader s))
         ctx (assoc opts
                    ::expected-delimiter nil)]
     (loop [ret (transient [])]

@@ -523,7 +523,16 @@
         opts (p/normalize-opts {:all true})]
     (is (= [1 "1"] (p/parse-next+string reader opts)))
     (is (= [[1 2 3] "[1  2 3]"] (p/parse-next+string reader opts)))
-    (is (= [{:a 1} "{:a   1}"] (p/parse-next+string reader opts)))))
+    (is (= [{:a 1} "{:a   1}"] (p/parse-next+string reader opts))))
+
+  (testing "parse-string"
+    (is (= "#(+ 1 2 3)" (:source
+                         (meta (p/parse-string "#(+ 1 2 3)"
+                                               {:all true :source true}))))))
+  (testing "parse-string-all"
+    (is (= ["#(+ 1 2 3)"] (map (comp :source meta)
+                               (p/parse-string-all "#(+ 1 2 3)"
+                                                   {:all true :source true}))))))
 
 (deftest location?-test
   (is (meta (p/parse-string "x")))
