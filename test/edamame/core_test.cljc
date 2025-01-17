@@ -644,6 +644,9 @@
   (is (thrown? Exception (p/parse-string "byte/")))
   (is (thrown? Exception (p/parse-string "byte/1a"))))
 
+(deftest issue-115-test
+  (is (= {:type :edamame/error, :row 1, :col 3} (try (p/parse-string "{:}") (catch Exception e (ex-data e))))))
+
 ;;;; Scratch
 
 (comment
