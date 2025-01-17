@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## Unreleased
+
+- [#115](https://github.com/borkdude/edamame/issues/115): add location to exception when parsing invalid keyword `:` 
+
 ## 1.4.27
 
 - Restrict numeric part of new Clojure 1.12 array notation
