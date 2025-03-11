@@ -8,6 +8,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 - [#115](https://github.com/borkdude/edamame/issues/115): add location to exception when parsing invalid keyword `:`
 - Bump tools.reader
+- [#111](https://github.com/borkdude/edamame/issues/111): fix `:source` in `parse-string-all` ([@NoahTheDuke](https://github.com/NoahTheDuke))
 
 ## 1.4.27
 
