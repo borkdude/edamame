@@ -655,3 +655,7 @@
      (let [edn-string (slurp "deps.edn")]
        (time (dotimes [_ 10000]
                (p/parse-string edn-string))))))
+
+(deftest issue-117-test
+  (is (thrown-with-msg? Exception #"Invalid keyword: :::foo" (p/parse-string ":::foo" {:auto-resolve identity})))
+  )

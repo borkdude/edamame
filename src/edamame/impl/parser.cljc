@@ -588,19 +588,22 @@
     (let [^String token (read-token reader :keyword init-c)]
       (if (str/blank? token)
         (throw-reader ctx reader "Invalid keyword: :")
-        (let [auto-resolve? (identical? \: (.charAt token 0))]
-          (if auto-resolve?
-            (let [token (if auto-resolve? (subs token 1) token)
-                  [token-ns token-name] (parse-symbol token)]
-              (if token-ns
-                (let [f (get-auto-resolve ctx reader token)
-                      kns (auto-resolve ctx f (symbol token-ns) reader token-ns)]
-                  (keyword (str kns) token-name))
-                ;; resolve current ns
-                (let [f (get-auto-resolve ctx reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")
-                      kns (auto-resolve ctx f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
-                  (keyword (str kns) token-name))))
-            (keyword token)))))))
+        (let [s (parse-symbol token)]
+          (if s
+            (let [auto-resolve? (identical? \: (.charAt token 0))]
+              (if auto-resolve?
+                (let [token (if auto-resolve? (subs token 1) token)
+                      [token-ns token-name] s]
+                  (if token-ns
+                    (let [f (get-auto-resolve ctx reader token)
+                          kns (auto-resolve ctx f (symbol (subs token-ns 1)) reader token-ns)]
+                      (keyword (str kns) token-name))
+                    ;; resolve current ns
+                    (let [f (get-auto-resolve ctx reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")
+                          kns (auto-resolve ctx f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
+                      (keyword (str kns) (subs token-name 1)))))
+                (keyword token)))
+            (throw-reader ctx reader (str "Invalid keyword: :"  token "."))))))))
 
 (defn desugar-meta
   "Resolves syntactical sugar in metadata" ;; could be combined with some other desugar?
