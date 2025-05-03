@@ -391,7 +391,7 @@
                 (if-let [ns-state (some-> ctx :ns-state deref)]
                   (fn [alias]
                     (or (ns-state alias)
-                        (ar alias)))
+                        (when ar (ar alias))))
                   ar))]
      v
      (throw-reader ctx reader
@@ -774,7 +774,7 @@
                                               (try (ns-parser/parse-ns-form obj)
                                                    (catch Exception _ nil)))]
                          (when-let [ns-state (:ns-state ctx)]
-                           (reset! ns-state (assoc (:aliases ns-parsed) :current (:name ns-parsed))))))
+                           (reset! ns-state (assoc (:aliases ns-parsed) :current (:current ns-parsed))))))
                    postprocess (:postprocess ctx)
                    location? (:location? ctx)
                    end-loc? (:end-location ctx)

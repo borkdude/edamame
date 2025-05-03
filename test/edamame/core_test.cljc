@@ -606,6 +606,8 @@
 (deftest auto-resolve-ns-test
   (is (= "[(ns foo (:require [clojure.set :as set])) :clojure.set/foo]"
          (str (p/parse-string-all "(ns foo (:require [clojure.set :as set])) ::set/foo" {:auto-resolve-ns true}))))
+  (is (= "[(ns foo) :foo/dude]"
+         (str (p/parse-string-all "(ns foo) ::dude" {:auto-resolve-ns true}))))
   (deflet
     (def rdr (p/reader "(ns foo (:require [clojure.set :as set])) ::set/foo ::quux/dude"))
     (def opts (p/normalize-opts {:auto-resolve-ns true
