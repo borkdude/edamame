@@ -18,3 +18,4 @@ pom.xml.asc
 /cljs-opts.edn
 /tmp
 /.lsp/
+.rebel_readline_history
