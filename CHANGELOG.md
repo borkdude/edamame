@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.4.30
+
+- [#120](https://github.com/borkdude/edamame/issues/120): fix `:auto-resolve-ns` failing case
+
 ## 1.4.29
 
 - [#117](https://github.com/borkdude/edamame/issues/117): throw on triple colon keyword
