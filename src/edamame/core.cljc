@@ -18,7 +18,7 @@
 
   `:quote`: parse quoted expression `'foo`. If `true`, will be parsed as `(quote foo)`.
 
-  `:read-eval`: parse read-eval (`=(+ 1 2 3)`). If `true`, the
+  `:read-eval`: parse read-eval (`#=(+ 1 2 3)`). If `true`, the
   resulting expression will be parsed as `(read-eval (+ 1 2 3))`.
 
   `:regex`: parse regex literals (`#\"foo\"`). If `true`, defaults to
