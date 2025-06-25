@@ -1,6 +1,6 @@
 {:tasks
  {quickdoc {:doc "Invoke quickdoc"
-            :extra-deps {io.github.borkdude/quickdoc {:git/sha "32e726cd6d785d00e49d4e614a05f7436d3831c0"}}
+            :extra-deps {io.github.borkdude/quickdoc {:git/sha "25784ca358f3f7d524db2e6e6969324061ffae60"}}
             :task (exec 'quickdoc.api/quickdoc)
             :exec-args {:git/branch "master"
                         :github/repo "https://github.com/borkdude/edamame"

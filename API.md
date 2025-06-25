@@ -1,5 +1,6 @@
 # Table of contents
 -  [`edamame.core`](#edamame.core) 
+    -  [`continue`](#edamame.core/continue) - Singleton value to be used as return value in <code>:read-cond</code> fn to indicate to continue parsing the next form.
     -  [`get-column-number`](#edamame.core/get-column-number)
     -  [`get-line-number`](#edamame.core/get-line-number)
     -  [`iobj?`](#edamame.core/iobj?) - Returns true if obj can carry metadata.
@@ -20,79 +21,95 @@
 
 
 
-## <a name="edamame.core/get-column-number">`get-column-number`</a><a name="edamame.core/get-column-number"></a>
+## <a name="edamame.core/continue">`continue`</a>
+
+
+
+
+Singleton value to be used as return value in `:read-cond` fn to indicate to continue parsing the next form
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L158-L160">Source</a></sub></p>
+
+## <a name="edamame.core/get-column-number">`get-column-number`</a>
 ``` clojure
 
 (get-column-number reader)
 ```
+Function.
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L108-L109">Source</a></sub></p>
 
-## <a name="edamame.core/get-line-number">`get-line-number`</a><a name="edamame.core/get-line-number"></a>
+## <a name="edamame.core/get-line-number">`get-line-number`</a>
 ``` clojure
 
 (get-line-number reader)
 ```
+Function.
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L105-L106">Source</a></sub></p>
 
-## <a name="edamame.core/iobj?">`iobj?`</a><a name="edamame.core/iobj?"></a>
+## <a name="edamame.core/iobj?">`iobj?`</a>
 ``` clojure
 
 (iobj? obj)
 ```
+Function.
 
 Returns true if obj can carry metadata.
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L144-L149">Source</a></sub></p>
 
-## <a name="edamame.core/normalize-opts">`normalize-opts`</a><a name="edamame.core/normalize-opts"></a>
+## <a name="edamame.core/normalize-opts">`normalize-opts`</a>
 ``` clojure
 
 (normalize-opts opts)
 ```
+Function.
 
 Expands `opts` into normalized opts, e.g. `:all true` is expanded
   into explicit options.
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L111-L115">Source</a></sub></p>
 
-## <a name="edamame.core/parse-next">`parse-next`</a><a name="edamame.core/parse-next"></a>
+## <a name="edamame.core/parse-next">`parse-next`</a>
 ``` clojure
 
 (parse-next reader)
 (parse-next reader normalized-opts)
 ```
+Function.
 
 Parses next form from reader. Accepts same opts as [`parse-string`](#edamame.core/parse-string),
   but must be normalized with [`normalize-opts`](#edamame.core/normalize-opts) first.
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L117-L130">Source</a></sub></p>
 
-## <a name="edamame.core/parse-next+string">`parse-next+string`</a><a name="edamame.core/parse-next+string"></a>
+## <a name="edamame.core/parse-next+string">`parse-next+string`</a>
 ``` clojure
 
 (parse-next+string reader)
 (parse-next+string reader normalized-opts)
 ```
+Function.
 
 Parses next form from reader. Accepts same opts as [`parse-string`](#edamame.core/parse-string),
   but must be normalized with [`normalize-opts`](#edamame.core/normalize-opts) first.
   Returns read value + string read (whitespace-trimmed).
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L132-L142">Source</a></sub></p>
 
-## <a name="edamame.core/parse-ns-form">`parse-ns-form`</a><a name="edamame.core/parse-ns-form"></a>
+## <a name="edamame.core/parse-ns-form">`parse-ns-form`</a>
 ``` clojure
 
 (parse-ns-form ns-form)
 ```
+Function.
 
 Parses `ns-form`, an s-expression, into map with:
   - `:name`: the name of the namespace
   - `:aliases`: a map of aliases to lib names
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L151-L156">Source</a></sub></p>
 
-## <a name="edamame.core/parse-string">`parse-string`</a><a name="edamame.core/parse-string"></a>
+## <a name="edamame.core/parse-string">`parse-string`</a>
 ``` clojure
 
 (parse-string s)
 (parse-string s opts)
 ```
+Function.
 
 Parses first EDN value from string.
 
@@ -106,7 +123,7 @@ Parses first EDN value from string.
 
   `:quote`: parse quoted expression `'foo`. If `true`, will be parsed as `(quote foo)`.
 
-  `:read-eval`: parse read-eval (`=(+ 1 2 3)`). If `true`, the
+  `:read-eval`: parse read-eval (`#=(+ 1 2 3)`). If `true`, the
   resulting expression will be parsed as `(read-eval (+ 1 2 3))`.
 
   `:regex`: parse regex literals (`#"foo"`). If `true`, defaults to
@@ -167,32 +184,35 @@ Parses first EDN value from string.
   
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L8-L83">Source</a></sub></p>
 
-## <a name="edamame.core/parse-string-all">`parse-string-all`</a><a name="edamame.core/parse-string-all"></a>
+## <a name="edamame.core/parse-string-all">`parse-string-all`</a>
 ``` clojure
 
 (parse-string-all s)
 (parse-string-all s opts)
 ```
+Function.
 
 Like [`parse-string`](#edamame.core/parse-string) but parses all values from string and returns them
   in a vector.
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L85-L91">Source</a></sub></p>
 
-## <a name="edamame.core/reader">`reader`</a><a name="edamame.core/reader"></a>
+## <a name="edamame.core/reader">`reader`</a>
 ``` clojure
 
 (reader x)
 ```
+Function.
 
 Coerces x into indexing pushback-reader to be used with
   parse-next. Accepts string or `java.io.Reader`
 <p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L93-L97">Source</a></sub></p>
 
-## <a name="edamame.core/source-reader">`source-reader`</a><a name="edamame.core/source-reader"></a>
+## <a name="edamame.core/source-reader">`source-reader`</a>
 ``` clojure
 
 (source-reader x)
 ```
+Function.
 
 Coerces x into source-logging-reader to be used with
   parse-next. Accepts string or `java.io.Reader`
