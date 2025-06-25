@@ -74,8 +74,18 @@
                       (swap! gensyms assoc form generated)
                       generated))
                   :else
-                  (let [f (-> ctx :syntax-quote :resolve-symbol)]
-                    ((or f identity) form)))))
+                  (let [f (-> ctx :syntax-quote :resolve-symbol)
+                        f (or f
+                              (if-let [ns-state (some-> ctx :ns-state deref)]
+                                (fn [sym]
+                                  (if-let [alias (some-> (namespace sym)
+                                                      symbol)]
+                                    (if-let [expanded-alias (ns-state alias)]
+                                      (symbol (str expanded-alias) sym-name)
+                                      sym)
+                                    sym))
+                                identity))]
+                    (f form)))))
     (unquote? form) (second form)
     (unquote-splicing? form) (throw (new #?(:cljs js/Error :clj IllegalStateException)
                                          "unquote-splice not in list"))
