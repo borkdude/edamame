@@ -265,6 +265,8 @@
          (map meta (p/parse-string "[#_#_ ar gu ment]")))))
 
 (deftest meta-test
+  (is (:foo (meta (p/parse-string "^:foo [1 2 3]" {:all true}))))
+  (is (:foo (meta (p/parse-string "#^:foo [1 2 3]" {:all true}))))
   (is (= '{:row 1, :col 1, :end-row 1, :end-col 34, :arglists (quote ([& items]))}
          (meta (p/parse-string "^{:arglists '([& items])} [1 2 3]" {:all true})))))
 

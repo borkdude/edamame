@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## Unreleased
+
+- Fix [#125](https://github.com/borkdude/edamame/issues/125): Support `#^:foo` deprecated metadata reader macro.
+
 ## 1.4.30
 
 - [#120](https://github.com/borkdude/edamame/issues/120): fix `:auto-resolve-ns` failing case

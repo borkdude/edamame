@@ -528,6 +528,12 @@
       \# (do
            (r/read-char reader)
            (read-symbolic-value reader nil nil))
+      \^ (do
+           (r/read-char reader) ;; ignore ^
+           (let [meta-val (parse-next ctx reader true)
+                 val-val (vary-meta (parse-next ctx reader)
+                                    merge meta-val)]
+             val-val))
       ;; catch-all
       (if (dispatch-macro? c)
         (do (r/unread reader \#)
