@@ -11,6 +11,7 @@
    [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as p]
+   [edamame.impl.parser :as impl]
    [edamame.test-utils]))
 
 #?(:cljs (def Exception js/Error))
@@ -216,7 +217,24 @@
     (is (thrown-with-msg? Exception #"keyword"
                           (p/parse-string "#?(:clj 1 2 :bb 3)"
                                           {:read-cond true
-                                           :features #{:bb}})))))
+                                           :features #{:bb}})))
+    (let [features #{:clj}]
+  (is (= [1 3]
+         (p/parse-string "[1 #?(:cljs 2) 3]"
+                         {:features #{:clj}
+                          :read-cond
+                          (fn read-cond [obj]
+                            (let [pairs (partition 2 obj)]
+                              (loop [pairs pairs]
+                                (if (seq pairs)
+                                  (let [[k v] (first pairs)]
+                                    (if (or (contains? features k)
+                                            (= k :default))
+                                      v
+                                      (recur (next pairs))))
+                                  impl/no-op))))}))))
+
+))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" re-pattern}}}) "foo"))

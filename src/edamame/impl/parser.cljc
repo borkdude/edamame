@@ -26,6 +26,7 @@
 
 (def eof #?(:clj (Object.) :cljs (js/Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
+(def no-op #?(:clj (Object.) :cljs (js/Object.)))
 #?(:cljs (def Exception js/Error))
 
 (defn throw-reader
@@ -209,7 +210,7 @@
 (defn parse-comment
   [#?(:cljs ^not-native reader :default reader)]
   (r/read-line reader)
-  reader)
+  no-op)
 
 (defn skip-whitespace
   "Skips whitespace. Returns :none or :some depending on whitespace
@@ -378,7 +379,7 @@
                         (assoc ::expected-delimiter \))
                         (assoc ::opened-delimiter {:char opened :row row :col col}))
                 match (parse-first-matching-condition ctx reader)]
-            (cond (non-match? match) reader
+            (cond (non-match? match) no-op
                   splice? (vary-meta match
                                      #(assoc % ::cond-splice true))
                   :else match)))))
@@ -511,7 +512,7 @@
                  (if (identical? eof val-val)
                    eof
                    (uneval-fn {:uneval uneval :next val-val})))
-               reader)))
+               no-op)))
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader
@@ -524,7 +525,7 @@
            (parse-namespaced-map ctx reader))
       \! (do
            (parse-comment reader)
-           reader)
+           no-op)
       \# (do
            (r/read-char reader)
            (read-symbolic-value reader nil nil))
@@ -769,7 +770,7 @@
                    #?(:clj (r/log-source reader (dispatch ctx reader c))
                       :cljs (r/log-source* reader #(dispatch ctx reader c)))
                    (dispatch ctx reader c))]
-         (if (identical? reader obj)
+         (if (identical? no-op obj)
            (recur ctx reader desugar)
            (if (identical? expected-delimiter obj)
              obj

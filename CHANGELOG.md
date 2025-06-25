@@ -7,6 +7,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 ## Unreleased
 
 - Fix [#125](https://github.com/borkdude/edamame/issues/125): Support `#^:foo` deprecated metadata reader macro.
+- Fix [#126](https://github.com/borkdude/edamame/issues/126): Add `edamame.impl.parser/no-op` to better support custom reader conditional parsing.
 
 ## 1.4.30
 
