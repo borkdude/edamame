@@ -4,7 +4,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
-## Unreleased
+## 1.4.31 (2025-06-25)
 
 - Fix [#124](https://github.com/borkdude/edamame/issues/124): add `:imports` to `parse-ns-form`
 - Fix [#125](https://github.com/borkdude/edamame/issues/125): Support `#^:foo` deprecated metadata reader macro.
@@ -37,7 +37,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 - Support new `^[String]` metadata notation which desugars into `^{:param-tags [String]}`
 
-## 1.4.24
+## 1.4.24 (2024-01-30)
 
 - Add `:map` and `:set` options to coerce map/set literals into customizable data structures, for example, an ordered collections to preserve key order.
 
