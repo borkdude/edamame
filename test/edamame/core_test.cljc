@@ -216,7 +216,22 @@
     (is (thrown-with-msg? Exception #"keyword"
                           (p/parse-string "#?(:clj 1 2 :bb 3)"
                                           {:read-cond true
-                                           :features #{:bb}})))))
+                                           :features #{:bb}})))
+    (let [features #{:clj}]
+      (is (= [1 3]
+             (p/parse-string "[1 #?(:cljs 2) 3]"
+                             {:features #{:clj}
+                              :read-cond
+                              (fn read-cond [obj]
+                                (let [pairs (partition 2 obj)]
+                                  (loop [pairs pairs]
+                                    (if (seq pairs)
+                                      (let [[k v] (first pairs)]
+                                        (if (or (contains? features k)
+                                                (= :default k))
+                                          v
+                                          (recur (next pairs))))
+                                      p/continue))))}))))))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" re-pattern}}}) "foo"))
