@@ -631,7 +631,13 @@
                                  :auto-resolve name}))
     (is (= "(ns foo (:require [clojure.set :as set]))" (str (p/parse-next rdr opts))))
     (is (= :clojure.set/foo (p/parse-next rdr opts)))
-    (is (= :quux/dude (p/parse-next rdr opts)))))
+    (is (= :quux/dude (p/parse-next rdr opts))))
+  (is
+   (= '[(ns foo (:require [clojure.set :as set]))
+        (quote clojure.set/foo)
+        (quote x/foo) :clojure.set/foo]
+      (p/parse-string-all "(ns foo (:require [clojure.set :as set])) `set/foo `x/foo `::set/foo"
+                          {:auto-resolve-ns true :all true}))))
 
 (deftest uneval-test
   (deflet
