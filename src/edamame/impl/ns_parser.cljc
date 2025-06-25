@@ -1,4 +1,5 @@
-(ns edamame.impl.ns-parser)
+(ns edamame.impl.ns-parser
+  (:require [clojure.string :as str]))
 
 (defn- libspec?
   "Returns true if x is a libspec"
@@ -51,7 +52,25 @@
         references (if metadata (next references) references)
         references (filter seq? references)
         references (group-by first references)
-        requires (mapcat #(load-libs :require (rest %)) (:require references))]
+        requires (mapcat #(load-libs :require (rest %)) (:require references))
+        imports (mapcat (fn [[_ & specs]]
+                          (mapcat (fn [spec]
+                                    (if (symbol? spec)
+                                      (let [last-dot-idx (str/last-index-of (str spec) ".")
+                                            spec-str (str spec)]
+                                        [{:full-classname spec
+                                          :classname (if last-dot-idx
+                                                       (symbol (subs spec-str (inc last-dot-idx)))
+                                                       spec)
+                                          :package (when last-dot-idx
+                                                     (symbol (subs spec-str 0 last-dot-idx)))}])
+                                        (let [[pkg & classes] spec]
+                                          (map (fn [clazz]
+                                                 {:full-classname (symbol (str pkg "." clazz))
+                                                  :package pkg
+                                                  :classname clazz}) classes))))
+                                  specs))
+                        (:import references))]
     ;;(println exp)
     {:current name
      :meta metadata
@@ -63,7 +82,8 @@
                           (assoc acc alias (:lib require))
                           acc))
                       {}
-                      requires)}))
+                      requires)
+     :imports imports}))
 
 (defn parse-ns-form [ns-form]
   (-ns ns-form))
