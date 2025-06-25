@@ -666,6 +666,24 @@
 (deftest issue-115-test
   (is (= {:type :edamame/error, :row 1, :col 3} (try (p/parse-string "{:}") (catch Exception e (ex-data e))))))
 
+(deftest parse-ns-test
+  (is (= '{:current foo, :meta nil
+           :requires
+           ({:as set, :require true, :lib clojure.set} {:as edn, :require true, :lib clojure.edn}
+            {:require true, :lib clojure.core.async}
+            {:require true, :lib clojure.walk}), :aliases {set clojure.set, edn clojure.edn},
+           :imports ({:full-classname NoPackage, :package nil :classname NoPackage}
+                     {:full-classname java.lang.Foo, :package java.lang :classname Foo}
+                     {:full-classname java.lang.Bar, :package java.lang, :classname Bar}
+                     {:full-classname java.lang.Baz, :package java.lang, :classname Baz})}
+         (p/parse-ns-form '(ns foo (:require [clojure [set :as set]]
+                                             [clojure.edn :as edn]
+                                             [clojure.core.async]
+                                             clojure.walk)
+                               (:import NoPackage
+                                        java.lang.Foo
+                                        [java.lang Bar Baz]))))))
+
 ;;;; Scratch
 
 (comment
