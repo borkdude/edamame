@@ -10,21 +10,23 @@
    #?(:clj  [clojure.tools.reader.impl.inspect :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i])
    #?(:clj [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys]]
-      :cljs [cljs.tools.reader.impl.utils :refer [reader-conditional namespace-keys]])
+      :cljs [cljs.tools.reader.impl.utils :refer [namespace-keys reader-conditional]])
    #?(:clj [clojure.tools.reader.impl.commons :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons])
    #?(:cljs [cljs.tagged-literals :refer [*cljs-data-readers*]])
    [clojure.string :as str]
    [edamame.impl.macros :as macros]
+   [edamame.impl.ns-parser :as ns-parser]
    [edamame.impl.read-fn :refer [read-fn]]
-   [edamame.impl.syntax-quote :refer [syntax-quote]]
-   [edamame.impl.ns-parser :as ns-parser])
-  #?(:cljs (:import [goog.string StringBuffer]))
+   [edamame.impl.syntax-quote :refer [syntax-quote]])
+  #?(:cljs (:import
+            [goog.string StringBuffer]))
   #?(:cljs (:require-macros [edamame.impl.parser :refer [kw-identical?]])))
 
 #?(:clj (set! *warn-on-reflection* true))
 
 (def eof #?(:clj (Object.) :cljs (js/Object.)))
+(def continue #?(:clj (Object.) :cljs (js/Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.)))
 #?(:cljs (def Exception js/Error))
 
@@ -209,7 +211,7 @@
 (defn parse-comment
   [#?(:cljs ^not-native reader :default reader)]
   (r/read-line reader)
-  reader)
+  continue)
 
 (defn skip-whitespace
   "Skips whitespace. Returns :none or :some depending on whitespace
@@ -378,7 +380,7 @@
                         (assoc ::expected-delimiter \))
                         (assoc ::opened-delimiter {:char opened :row row :col col}))
                 match (parse-first-matching-condition ctx reader)]
-            (cond (non-match? match) reader
+            (cond (non-match? match) continue
                   splice? (vary-meta match
                                      #(assoc % ::cond-splice true))
                   :else match)))))
@@ -458,7 +460,7 @@
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [c (r/peek-char reader)]
     (case c
-      nil (throw-reader ctx reader (str "Unexpected EOF."))
+      nil (throw-reader ctx reader "Unexpected EOF.")
       \" (if-let [v (:regex ctx)]
            (let [pat (read-regex-pattern ctx reader)]
              (if (true? v)
@@ -466,19 +468,19 @@
                (v pat)))
            (throw-reader
             ctx reader
-            (str "Regex not allowed. Use the `:regex` option")))
+            "Regex not allowed. Use the `:regex` option"))
       \( (if-let [v (:fn ctx)]
            (if (::fn-literal ctx)
              (throw-reader
               ctx reader
-              (str "Nested fn literals not allowed."))
+              "Nested fn literals not allowed.")
              (let [fn-expr (parse-next (assoc ctx ::fn-literal true) reader)]
                (if (true? v)
                  (read-fn fn-expr)
                  (v fn-expr))))
            (throw-reader
             ctx reader
-            (str "Function literal not allowed. Use the `:fn` option")))
+            "Function literal not allowed. Use the `:fn` option"))
       \' (if-let [v (:var ctx)]
            (do
              (r/read-char reader) ;; ignore quote
@@ -490,7 +492,7 @@
                  (v next-val))))
            (throw-reader
             ctx reader
-            (str "Var literal not allowed. Use the `:var` option")))
+            "Var literal not allowed. Use the `:var` option"))
       \= (if-let [v (:read-eval ctx)]
            (do
              (r/read-char reader) ;; ignore =
@@ -500,7 +502,7 @@
                  (v next-val))))
            (throw-reader
             ctx reader
-            (str "Read-eval not allowed. Use the `:read-eval` option")))
+            "Read-eval not allowed. Use the `:read-eval` option"))
       \{ (parse-set ctx reader)
       \_ (do
            (r/read-char reader) ;; read _
@@ -511,12 +513,12 @@
                  (if (identical? eof val-val)
                    eof
                    (uneval-fn {:uneval uneval :next val-val})))
-               reader)))
+               continue)))
       \? (do
            (when-not (:read-cond ctx)
              (throw-reader
               ctx reader
-              (str "Conditional read not allowed.")))
+              "Conditional read not allowed."))
            (r/read-char reader) ;; ignore ?
            (parse-reader-conditional ctx reader))
       \: (do
@@ -524,7 +526,7 @@
            (parse-namespaced-map ctx reader))
       \! (do
            (parse-comment reader)
-           reader)
+           continue)
       \# (do
            (r/read-char reader)
            (read-symbolic-value reader nil nil))
@@ -769,7 +771,7 @@
                    #?(:clj (r/log-source reader (dispatch ctx reader c))
                       :cljs (r/log-source* reader #(dispatch ctx reader c)))
                    (dispatch ctx reader c))]
-         (if (identical? reader obj)
+         (if (identical? continue obj)
            (recur ctx reader desugar)
            (if (identical? expected-delimiter obj)
              obj

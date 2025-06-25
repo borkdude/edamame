@@ -1,9 +1,9 @@
 (ns edamame.core
   (:require
-   [clojure.tools.reader.reader-types :as rt]
-   [edamame.impl.parser :as p]
    [clojure.string :as str]
-   [edamame.impl.ns-parser :as nsp]))
+   [clojure.tools.reader.reader-types :as rt]
+   [edamame.impl.ns-parser :as nsp]
+   [edamame.impl.parser :as p]))
 
 (defn parse-string
   "Parses first EDN value from string.
@@ -154,6 +154,10 @@
   - `:aliases`: a map of aliases to lib names"
   [ns-form]
   (nsp/parse-ns-form ns-form))
+
+(def continue
+  "Singleton value to be used as return value in `:read-cond` fn to indicate to continue parsing the next form"
+  p/continue)
 
 ;;;; Scratch
 
