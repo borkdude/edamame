@@ -10,7 +10,7 @@ Configurable EDN/Clojure parser with location metadata.
 
 - You want to include locations in feedback about Clojure and EDN files
 - You want to parse Clojure-like expressions without any evaluation
-- Anonymous functions are read deterministically
+- Function literal are read deterministically: `#(inc %)` => `(fn* [%1] (inc %1))`
 - Highly configurable
 - Auto-resolve aliased keywords based on the `ns` form
 
