@@ -338,7 +338,7 @@
                                           (kw-identical? k :default)))]
               (if next-is-match?
                 (let [match (parse-next ctx reader)
-                      ctx (assoc ctx ::suppress true)]
+                      ctx (assoc ctx :suppress-read true)]
                   (loop []
                     (let [next-val (parse-next ctx reader)]
                       (when-not (identical? expected-delimiter
@@ -355,7 +355,7 @@
                   match)
                 (do
                   ;; skip over next val and try next key
-                  (parse-next (assoc ctx ::suppress true)
+                  (parse-next (assoc ctx :suppress-read true)
                               reader)
                   (recur match))))))))))
 
@@ -541,13 +541,11 @@
         (do (r/unread reader \#)
             (edn-read ctx reader))
         ;; reader tag
-        (let [suppress? (::suppress ctx)]
+        (let [suppress? (:suppress-read ctx)]
           (if suppress?
-            (do
-              ;; read symbol
-              (parse-next ctx reader)
-              ;; read form
-              (parse-next ctx reader))
+            (tagged-literal (parse-next ctx reader)
+                            ;; read form
+                            (parse-next ctx reader))
             (let [sym (parse-next ctx reader)
                   data (parse-next ctx reader)
                   f (or (when-let [readers (:readers ctx)]
@@ -841,7 +839,7 @@
                     source source-key
                     postprocess location?
                     end-location
-                    ns-state])
+                    ns-state suppress-read])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]

@@ -74,6 +74,8 @@
 
   `:uneval`: a function of a map with `:uneval` and `:next` to preserve `#_` expressions by combining them with next value.
 
+  `:suppress-read`: counterpart to *suppress-read* in clojure
+
   Additional arguments to tools.reader may be passed with
   `:tools.reader/opts`, like `:readers` for passing reader tag functions.
   "
