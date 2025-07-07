@@ -702,3 +702,6 @@
 (deftest issue-117-test
   (is (thrown-with-msg? Exception #"Invalid keyword: :::foo" (p/parse-string ":::foo" {:auto-resolve identity})))
   )
+
+(deftest issue-132-suppress-read-test
+  (is (tagged-literal? (p/parse-string "#dude 1" {:suppress-read true}))))
