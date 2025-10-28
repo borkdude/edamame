@@ -10,6 +10,7 @@
                              (submap? v (get m2 k))))
             m1)
     #?(:clj (instance? java.util.regex.Pattern m1)
-       :cljs (regexp? m1))
+       :cljs (regexp? m1)
+       :cljr (instance? System.Text.RegularExpressions.Regex m1))
     (re-find m1 m2)
     :else (= m1 m2)))

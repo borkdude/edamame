@@ -87,12 +87,14 @@
                                 identity))]
                     (f form)))))
     (unquote? form) (second form)
-    (unquote-splicing? form) (throw (new #?(:cljs js/Error :clj IllegalStateException)
+    (unquote-splicing? form) (throw (new #?(:clj IllegalStateException
+                                         :cljs js/Error
+                                         :cljr InvalidOperationException)
                                          "unquote-splice not in list"))
 
     (coll? form)
     (cond
-      (instance? #?(:clj clojure.lang.IRecord :cljs IRecord) form) form
+      (instance? #?(:clj clojure.lang.IRecord :cljs IRecord :cljr clojure.lang.IRecord) form) form
       (map? form) (syntax-quote-coll ctx reader (map-func form) (flatten-map form))
       (vector? form) (list 'clojure.core/vec (syntax-quote-coll ctx reader nil form))
       (set? form) (syntax-quote-coll ctx reader 'clojure.core/hash-set form)
@@ -103,7 +105,8 @@
           '(clojure.core/list)))
 
       :else (throw (new #?(:clj UnsupportedOperationException
-                           :cljs js/Error) "Unknown Collection type")))
+                           :cljs js/Error
+                           :cljr NotSupportedException) "Unknown Collection type")))
 
     (or (keyword? form)
         (number? form)

@@ -1,0 +1,154 @@
+name: Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'master'
+  pull_request:
+    branches:
+      - 'master'
+
+env:
+  ACTIONS_CACHE_VERSION: '0'  # increment to "invalidate" caches
+  JAVA_VERSION: '8'
+  CLOJURE_CLI_VERSION: '1.12.3.1577'
+  LEIN_VERSION: '2.12.0'
+
+jobs:
+  test-jvm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '${{ env.JAVA_VERSION }}'
+      
+      - name: Install Leiningen ${{ env.LEIN_VERSION }}
+        run: |
+          curl -L -o lein "https://raw.githubusercontent.com/technomancy/leiningen/${{ env.LEIN_VERSION }}/bin/lein"
+          chmod +x lein
+          sudo mv lein /usr/local/bin/lein
+          lein --version
+      
+      - name: Restore dependency cache
+        id: cache-deps
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-jvm-deps-${{ hashFiles('**/project.clj', '**/deps.edn') }}
+          restore-keys: |
+            ${{ env.ACTIONS_CACHE_VERSION }}-jvm-deps-
+      
+      - name: Download dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: |
+          lein with-profiles +clojure-1.9.0 deps
+          lein with-profiles +clojure-1.10.1 deps
+      
+      - name: Save dependency cache
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-jvm-deps-${{ hashFiles('**/project.clj', '**/deps.edn') }}
+      
+      - name: Run JVM tests
+        run: ./script/test/jvm
+
+  test-clojureclr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Install ClojureCLR and cljr
+        run: |
+          dotnet tool install --global Clojure.Main --version 1.12.3-alpha3
+          dotnet tool install --global Clojure.Cljr --version 0.1.0-alpha8
+          echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: Restore dependency cache
+        id: cache-deps
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.gitlibs
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-clr-deps-${{ hashFiles('**/deps-clr.edn') }}
+          restore-keys: |
+            ${{ env.ACTIONS_CACHE_VERSION }}-clr-deps-
+
+      - name: Download dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: cljr -A:test -Stree
+
+      - name: Save dependency cache
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.gitlibs
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-clr-deps-${{ hashFiles('**/deps-clr.edn') }}
+      
+      - name: Run CLR tests
+        run: ./script/test-clr
+
+  test-node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '${{ env.JAVA_VERSION }}'
+      
+      - name: Install Clojure CLI ${{ env.CLOJURE_CLI_VERSION }}
+        run: |
+          curl -O https://download.clojure.org/install/linux-install-${{ env.CLOJURE_CLI_VERSION }}.sh
+          chmod +x linux-install-${{ env.CLOJURE_CLI_VERSION }}.sh
+          sudo ./linux-install-${{ env.CLOJURE_CLI_VERSION }}.sh
+          clojure --version
+      
+      - name: Restore dependency cache
+        id: cache-deps
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-node-deps-${{ hashFiles('**/deps.edn') }}
+          restore-keys: ${{ env.ACTIONS_CACHE_VERSION }}-node-deps-
+      
+      - name: Download dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: clojure -A:test:cljs-test-runner -Stree
+      
+      - name: Save dependency cache
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-node-deps-${{ hashFiles('**/deps.edn') }}
+      
+      - name: Run Node.js tests
+        run: ./script/test/node

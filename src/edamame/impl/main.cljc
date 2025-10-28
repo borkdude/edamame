@@ -3,7 +3,7 @@
   {:no-doc true}
   (:require
    [edamame.core :as c]
-   [#?(:clj clojure.edn :cljs cljs.reader) :as edn]
+   [#?(:cljs cljs.reader :default clojure.edn) :as edn]
    [clojure.string :as str])
   #?(:clj (:gen-class)))
 

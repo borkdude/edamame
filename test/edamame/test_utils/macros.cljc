@@ -1,10 +1,10 @@
 (ns edamame.test-utils.macros
-  (:require  #?(:clj [clojure.test :as test])
-             [cljs.test :as cljs-test]))
+  (:require #?@(:cljs [] :default [[clojure.test :as test]])
+            #?@(:cljr [] :default [[cljs.test :as cljs-test]])))
 
-#?(:clj (set! *warn-on-reflection* true))
+#?(:cljs (set! *warn-on-reflection* true))
 
-#?(:clj
+#?(:cljs nil :default
   (defmethod test/assert-expr 'thrown-with-data?
     [msg [_ msg-re data expr]]
     (let [[msg-re expected expr]
@@ -22,7 +22,9 @@
              :actual nil})
            (catch Exception ex#
              (let [data# (ex-data ex#)
-                   ex-msg# (.getMessage ex#)]
+                   ex-msg# #?(:clj (.getMessage ex#)
+                             :cljs (.getMessage ex#)
+                             :cljr (.-Message ex#))]
                (test/do-report
                 (if msg-re#
                   (if (re-find msg-re# ex-msg#)
@@ -40,9 +42,11 @@
 (defmacro deftime
   "From macrovich"
   [& body]
-  (when #?(:clj (not (:ns &env)) :cljs (re-matches #".*\$macros" (name (ns-name *ns*))))
+  (when #?(:cljs (re-matches #".*\$macros" (name (ns-name *ns*)))
+           :default (not (:ns &env)))
     `(do ~@body)))
 
+#?(:cljr nil :default
 (deftime
   (defmethod #?(:clj cljs.test/assert-expr
                 :cljs cljs.test$macros/assert-expr)
@@ -76,3 +80,4 @@
                      :message msg#
                      :expected msg-re#
                      :actual ex-msg#}))))))))))
+)
