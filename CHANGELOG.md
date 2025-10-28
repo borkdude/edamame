@@ -4,8 +4,9 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
-## Unreleased
+## 1.5.32 (2025-10-28)
 
+- Add ClojureCLR support
 - Fix [#132](https://github.com/borkdude/edamame/issues/132): Add counterpart to Clojure's `*suppress-read*`: `:suppress-read`
 
 ## 1.4.31 (2025-06-25)
