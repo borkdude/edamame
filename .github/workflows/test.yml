@@ -101,7 +101,7 @@ jobs:
           key: ${{ env.ACTIONS_CACHE_VERSION }}-clr-deps-${{ hashFiles('**/deps-clr.edn') }}
       
       - name: Run CLR tests
-        run: ./script/test-clr
+        run: ./script/test/clr
 
   test-node:
     runs-on: ubuntu-latest
