@@ -296,7 +296,12 @@ delimiters. This can be used to fix incomplete expressions:
 
 ## Test
 
-For the node tests, ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew). For the JVM tests you will require [leiningen](https://leiningen.org/) to be installed. The CLR tests assumes .NET 8.0 or later is installed with the cljr tool. Then run the following:
+For the node tests, ensure clojure is installed as a command line tool as shown [here](https://clojure.org/guides/getting_started#_installation_on_mac_via_homebrew).
+
+- JVM tests require [Leiningen](https://leiningen.org/) to be installed.
+- CLR tests assume .NET 8.0 or later is installed along with the cljr tool.
+
+Then run the following:
 
     script/test/jvm
     script/test/clr
