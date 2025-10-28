@@ -124,7 +124,8 @@
    (when (rt/source-logging-reader? reader)
      (let [^StringBuilder buf (p/buf reader)]
        #?(:clj (.setLength buf 0)
-          :cljs (.clear buf))))
+          :cljs (.clear buf)
+          :cljr (.set_Length buf 0))))
    (let [v (p/parse-next normalized-opts reader)]
      (if (identical? p/eof v)
        (or (get normalized-opts :eof)
@@ -148,7 +149,8 @@
   [obj]
   #?(:clj
      (instance? clojure.lang.IObj obj)
-     :cljs (satisfies? IWithMeta obj)))
+     :cljs (satisfies? IWithMeta obj)
+     :cljr (instance? clojure.lang.IObj obj)))
 
 (defn parse-ns-form
   "Parses `ns-form`, an s-expression, into map with:

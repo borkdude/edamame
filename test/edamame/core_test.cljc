@@ -2,6 +2,7 @@
   (:require
    #?(:clj [cljs.tagged-literals :as cljs-tags])
    #?(:clj [clojure.java.io :as io])
+   #?(:cljr [clojure.clr.io :as io])
    #?(:clj [clojure.tools.reader :as tr])
    #?(:clj [flatland.ordered.map :as omap])
    #?(:clj [flatland.ordered.set :as oset])
@@ -100,9 +101,9 @@
     (is (= '[1 2 3] (p/parse-string "(1 2 3 #_4)")))
     (is (= [1 2] (p/parse-string-all "#_(+ 1 2 3) 1 2"))))
   (testing "unmatched delimiter"
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected: ]"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"expected: ]"
                           (p/parse-string "[}")))
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo) #"expected ]"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"expected ]"
                           (p/parse-string "  [   ")))
     (is (thrown-with-data?
          #"Unmatched delimiter: \]"
@@ -128,10 +129,10 @@
      {:a 1}
      )
  }")))
-  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo)
                         #"EOF while reading"
                         (p/parse-string "'" {:quote true})))
-  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo)
                         #"EOF while reading"
                         (p/parse-string "#'" {:var true}))))
 
@@ -140,7 +141,7 @@
         fix-expression (fn fix-expression [expr]
                          (try (when (p/parse-string expr)
                                 expr)
-                              (catch #?(:clj clojure.lang.ExceptionInfo :cljs :default) e
+                              (catch #?(:clj clojure.lang.ExceptionInfo :cljs :default :cljr clojure.lang.ExceptionInfo) e
                                 (if-let [expected-delimiter (:edamame/expected-delimiter (ex-data e))]
                                   (fix-expression (str expr expected-delimiter))
                                   (throw e)))))]
@@ -148,7 +149,7 @@
 
 (deftest reader-conditional-test
   (testing "reader conditional processing"
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo)
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo)
                           #"allow"
                           (p/parse-string "#?(:clj 1)")))
     (is (= [1 2 3 5] (p/parse-string "[1 2 #?(:bb 3 :clj 4) 5]" {:features #{:bb}
@@ -266,7 +267,7 @@
   (is (= '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))
          (p/parse-string "#(apply + % %1 %3 %&)"
                          {:all true})))
-  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljr Exception)
                         #"Nested" (p/parse-string "(#(+ (#(inc %) 2)) 3)"
                                                   {:all true})))
   (let [[_fn _args expr] (p/parse-string "#(+ (/ 1 %))"
@@ -303,7 +304,9 @@
   (time
    (p/parse-string-all #?(:clj (str/join "\n"
                                          (repeat 10 (slurp (io/file "test-resources" "clojure" "core.clj"))))
-                          :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj"))))
+                          :cljs (str (readFileSync (join "test-resources" "clojure" "core.clj")))
+                          :cljr (str/join "\n"
+                                          (repeat 10 (slurp "test-resources/clojure/core.clj"))))
                        {:all true
                         :row-key :line
                         :col-key :column
@@ -365,14 +368,16 @@
                                                                  (repeatedly #(tr/read {:eof :edamame.core/eof} rdr)))))))))))
   (is (nil? (dotimes [_ 1]
               (reset! core-expr-count (count (p/parse-string-all #?(:clj (slurp (io/file "test-resources" "clojure" "core.cljs"))
-                                                                    :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs"))))
+                                                                    :cljs (str (readFileSync (join "test-resources" "clojure" "core.cljs")))
+                                                                    :cljr (slurp "test-resources/clojure/core.cljs"))
                                                                  {:all true
                                                                   :row-key :line
                                                                   :col-key :column
                                                                   :auto-resolve '{:current cljs.core}
                                                                   :end-location false
                                                                   :location? seq?
-                                                                  #?@(:clj [:readers cljs-tags/*cljs-data-readers*])}))))))
+                                                                  #?@(:clj [:readers cljs-tags/*cljs-data-readers*]
+                                                                      :cljr [:readers {'js (fn [x] (list 'js x))}])}))))))
   #?(:clj (testing "with pushback reader only"
             (println "Edamame reader:")
             (time (dotimes [_ 10]
@@ -412,7 +417,7 @@
 
 (deftest exception-test
   (is (let [d (try (p/parse-string-all "())")
-                   (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error) e
+                   (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error :cljr clojure.lang.ExceptionInfo) e
                      (ex-data e)))]
         (is (= :edamame/error (:type d)))
         (is (= 1 (:row d)))
@@ -457,7 +462,7 @@
 
 (deftest edge-cases-test
   (is (= '(quote x) (p/parse-string "' x" {:quote true})))
-  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error)
+  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljr Exception)
                         #"(?i)invalid token" (p/parse-string ": x")))
   (testing "#40"
     (is (= :nil (p/parse-string ":nil")))
@@ -481,7 +486,8 @@
 
 (defn iobj? [x]
   #?(:clj (instance? clojure.lang.IObj x)
-     :cljs (satisfies? IWithMeta x)))
+     :cljs (satisfies? IWithMeta x)
+     :cljr (instance? clojure.lang.IObj x)))
 
 (deftest postprocess-test
   (is (= [(->Wrapper 1 {:row 1, :col 2, :end-row 1, :end-col 3})]
@@ -560,12 +566,15 @@
   (is (instance? #?(:clj
                     clojure.lang.PersistentArrayMap
                     :cljs
-                    PersistentArrayMap)
+                    PersistentArrayMap
+                    :cljr clojure.lang.PersistentArrayMap)
                  (p/parse-string "{:a 1 :b 2}")))
   (is (instance? #?(:clj
                     clojure.lang.PersistentHashMap
                     :cljs
-                    PersistentHashMap)
+                    PersistentHashMap
+                    :cljr
+                    clojure.lang.PersistentHashMap)
                  (p/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}"))))
 
 (deftest number-test
@@ -579,7 +588,7 @@
 
 (deftest string-delimiter-test
   (try (p/parse-string "\"")
-       (catch #?(:clj Exception :cljs :default) e
+       (catch #?(:clj Exception :cljs :default :cljr Exception) e
          (is (= {:type :edamame/error,
                  :row 1, :col 2,
                  :edamame/expected-delimiter "\"",
@@ -596,7 +605,8 @@
                                                       (file-seq (io/file "test")))))]
        (doseq [f file-list]
          (is (p/parse-string-all #?(:clj (slurp (io/file f))
-                                    :cljs (str (readFileSync (join "src" "edamame" "impl" "parser.cljc"))))
+                                    :cljs (str (readFileSync (join "src" "edamame" "impl" "parser.cljc")))
+                                    :cljr (slurp f))
                                  {:read-cond :allow
                                   :features #{:clj :cljs}
                                   :all true
