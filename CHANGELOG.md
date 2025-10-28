@@ -6,7 +6,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 ## 1.5.33 (2025-10-28)
 
-- Add ClojureCLR support
+- Add ClojureCLR support ([@frenchy64](https://github.com/frenchy64))
 
 ## 1.4.32
 
