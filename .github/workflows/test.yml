@@ -14,6 +14,7 @@ env:
   JAVA_VERSION: '8'
   CLOJURE_CLI_VERSION: '1.12.3.1577'
   LEIN_VERSION: '2.12.0'
+  NODE_VERSION: '18'
 
 jobs:
   test-jvm:
@@ -110,7 +111,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '${{ env.NODE_VERSION }}'
       
       - name: Setup Java
         uses: actions/setup-java@v4
