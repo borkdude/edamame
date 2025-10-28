@@ -10,7 +10,7 @@ on:
       - 'master'
 
 env:
-  ACTIONS_CACHE_VERSION: '0'  # increment to "invalidate" caches
+  ACTIONS_CACHE_VERSION: '1'  # increment to "invalidate" caches
   JAVA_VERSION: '8'
   CLOJURE_CLI_VERSION: '1.12.3.1577'
   LEIN_VERSION: '2.12.0'
@@ -48,8 +48,8 @@ jobs:
       - name: Download dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          lein with-profiles +clojure-1.9.0 deps
-          lein with-profiles +clojure-1.10.1 deps
+          lein with-profiles +clojure-1.9.0,+test deps
+          lein with-profiles +clojure-1.10.1,+test deps
       
       - name: Save dependency cache
         if: steps.cache-deps.outputs.cache-hit != 'true'
