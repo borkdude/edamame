@@ -349,7 +349,7 @@
                             reader
                             (str "Feature should be a keyword: " k)))
             (let [next-is-match? (and (non-match? match)
-                                      (or (contains? features k)
+                                      (or (features k)
                                           (kw-identical? k :default)))]
               (if next-is-match?
                 (let [match (parse-next ctx reader)
