@@ -338,7 +338,8 @@
         the-set))))
 
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
-  (let [features (:features ctx)]
+  (let [features (:features ctx)
+        features? (some? features)]
     (loop [match non-match]
       (let [k (parse-next ctx reader)]
         (if (identical? expected-delimiter k)
@@ -349,7 +350,7 @@
                             reader
                             (str "Feature should be a keyword: " k)))
             (let [next-is-match? (and (non-match? match)
-                                      (or (features k)
+                                      (or (when features? (features k))
                                           (kw-identical? k :default)))]
               (if next-is-match?
                 (let [match (parse-next ctx reader)
