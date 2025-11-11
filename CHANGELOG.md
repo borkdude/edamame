@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.5.34 (2025-11-11)
+
+- Support function for `:features` option to just select the first feature that occurs
+
 ## 1.5.33 (2025-10-28)
 
 - Add ClojureCLR support ([@frenchy64](https://github.com/frenchy64))
