@@ -232,7 +232,9 @@
                                                 (= :default k))
                                           v
                                           (recur (next pairs))))
-                                      p/continue))))}))))))
+                                      p/continue))))}))))
+    (is (= 1 (p/parse-string "#?(:dude 1 :cljs 2 :clj 3)"
+                             {:read-cond :allow :features (constantly true)})))))
 
 (deftest regex-test
   (is (re-find (p/parse-string "#\"foo\"" {:dispatch {\# {\" re-pattern}}}) "foo"))
