@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.5.35 (2025-11-12)
+
+- The result from `:read-cond` with a function should be spliced. This behavior differs from `:read-cond` + `:preserve` which always returns a reader conditional object which cannot be spliced.
+
 ## 1.5.34 (2025-11-11)
 
 - Support function for `:features` option to just select the first feature that occurs
