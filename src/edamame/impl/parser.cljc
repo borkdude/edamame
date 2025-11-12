@@ -259,7 +259,7 @@
      (loop [vals (transient into)]
        (let [;; if next-val is uneval, we get back the expected delimiter...
              next-val (parse-next ctx reader)
-             cond-splice? (some-> next-val meta ::cond-splice)]
+             cond-splice? (some-> next-val meta :edamame/read-cond-splicing)]
          (cond
            (identical? eof next-val)
            (throw-reader ctx
@@ -375,6 +375,12 @@
                               reader)
                   (recur match))))))))))
 
+(defn iobj? [obj]
+  #?(:clj
+     (instance? clojure.lang.IObj obj)
+     :cljs (satisfies? IWithMeta obj)
+     :cljr (instance? clojure.lang.IObj obj)))
+
 (defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
   (skip-whitespace ctx reader)
   (let [opt (:read-cond ctx)
@@ -384,9 +390,12 @@
     (cond (kw-identical? :preserve opt)
           (reader-conditional (parse-next ctx reader) splice?)
           (fn? opt)
-          (opt (vary-meta
-                (parse-next ctx reader)
-                assoc :edamame/read-cond-splicing splice?))
+          (let [res (opt (vary-meta
+                          (parse-next ctx reader)
+                          assoc :edamame/read-cond-splicing splice?))]
+            (cond-> res
+              (iobj? res)
+              (vary-meta assoc :edamame/read-cond-splicing splice?)))
           :else
           (let [ir? (r/indexing-reader? reader)
                 row (when ir? (r/get-line-number reader))
@@ -398,7 +407,7 @@
                 match (parse-first-matching-condition ctx reader)]
             (cond (non-match? match) continue
                   splice? (vary-meta match
-                                     #(assoc % ::cond-splice true))
+                                     #(assoc % :edamame/read-cond-splicing true))
                   :else match)))))
 
 (defn get-auto-resolve
@@ -760,12 +769,6 @@
               (number-literal? reader c)
               (read-number ctx reader c)
               :else (read-symbol ctx reader c)))))))
-
-(defn iobj? [obj]
-  #?(:clj
-     (instance? clojure.lang.IObj obj)
-     :cljs (satisfies? IWithMeta obj)
-     :cljr (instance? clojure.lang.IObj obj)))
 
 (defn buf [reader]
   (:buffer @#?(:clj (.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader)
