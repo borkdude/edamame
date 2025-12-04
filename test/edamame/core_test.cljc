@@ -200,6 +200,14 @@
         (is (= '(:bb 1 :clj 2) res))
         (is (= {:row 1, :col 1, :end-row 2, :end-col 3, :edamame/read-cond-splicing true}
                (meta res))))
+      (let [read-cond-handler (fn [v]
+                                (let [splice? (:edamame/read-cond-splicing (meta v))
+                                      v (second v)
+                                      v (if splice? v [v])]
+                                  (with-meta v {:edamame/read-cond-splicing true})))
+            res (e/parse-string "[#?(:bb 1 :clj 2 \n ) #?@(:bb [1])]"
+                                {:read-cond read-cond-handler})]
+        (is (= [1 1] res)))
       (testing "in map"
         (is (= {:clj ["Clojure" true], :cljs ["ClojureScript" true]}
                (e/parse-string
