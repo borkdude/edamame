@@ -395,7 +395,10 @@
                           assoc :edamame/read-cond-splicing splice?))]
             (cond-> res
               (iobj? res)
-              (vary-meta assoc :edamame/read-cond-splicing splice?)))
+              (vary-meta (fn [m]
+                           (if (contains? m :edamame/read-cond-splicing)
+                             m
+                             (assoc m :edamame/read-cond-splicing splice?))))))
           :else
           (let [ir? (r/indexing-reader? reader)
                 row (when ir? (r/get-line-number reader))
