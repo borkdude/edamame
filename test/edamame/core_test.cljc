@@ -193,7 +193,7 @@
       (let [res (e/parse-string "#?(:bb 1 :clj 2 \n )"
                                 {:read-cond identity})]
         (is (= '(:bb 1 :clj 2) res))
-        (is (= {:row 1, :col 1, :end-row 2, :end-col 3, :edamame/read-cond-splicing false}
+        (is (= {:row 1, :col 1, :end-row 2, :end-col 3}
                (meta res))))
       (let [res (e/parse-string "#?@(:bb 1 :clj 2 \n )"
                                 {:read-cond identity})]

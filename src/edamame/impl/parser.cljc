@@ -381,6 +381,14 @@
      :cljs (satisfies? IWithMeta obj)
      :cljr (instance? clojure.lang.IObj obj)))
 
+(defn attach-splice [v splice? override?]
+  (if splice?
+    (vary-meta v (fn [m]
+                   (if (or override? (not (contains? m :edamame/read-cond-splicing)))
+                     (assoc m :edamame/read-cond-splicing splice?)
+                     m)))
+    v))
+
 (defn parse-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
   (skip-whitespace ctx reader)
   (let [opt (:read-cond ctx)
@@ -390,15 +398,8 @@
     (cond (kw-identical? :preserve opt)
           (reader-conditional (parse-next ctx reader) splice?)
           (fn? opt)
-          (let [res (opt (vary-meta
-                          (parse-next ctx reader)
-                          assoc :edamame/read-cond-splicing splice?))]
-            (cond-> res
-              (iobj? res)
-              (vary-meta (fn [m]
-                           (if (contains? m :edamame/read-cond-splicing)
-                             m
-                             (assoc m :edamame/read-cond-splicing splice?))))))
+          (let [ret (opt (attach-splice (parse-next ctx reader) splice? true))]
+            (attach-splice ret splice? false))
           :else
           (let [ir? (r/indexing-reader? reader)
                 row (when ir? (r/get-line-number reader))
@@ -408,10 +409,8 @@
                         (assoc ::expected-delimiter \))
                         (assoc ::opened-delimiter {:char opened :row row :col col}))
                 match (parse-first-matching-condition ctx reader)]
-            (cond (non-match? match) continue
-                  splice? (vary-meta match
-                                     #(assoc % :edamame/read-cond-splicing true))
-                  :else match)))))
+            (if (non-match? match) continue
+                (attach-splice match splice? true))))))
 
 (defn get-auto-resolve
   ([ctx reader next-val]

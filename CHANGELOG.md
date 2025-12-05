@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.5.37 (2025-12-05)
+
+- Minor: leave out `:edamame/read-cond-splicing` when not splicing
+
 ## 1.5.36 (2025-12-04)
 
 - Allow `:read-cond` function to override `:edamame/read-cond-splicing` value
