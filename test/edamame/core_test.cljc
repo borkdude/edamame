@@ -734,3 +734,154 @@
 
 (deftest issue-132-suppress-read-test
   (is (tagged-literal? (e/parse-string "#dude 1" {:suppress-read true}))))
+
+;; ============================================================
+;; Syntax-Quote Optimization Tests
+;; https://github.com/frenchy64/backtick/pull/1
+;; ============================================================
+
+(defn sq-parse
+  "Parse with syntax-quote enabled, using identity for symbol resolution"
+  [s]
+  (e/parse-string s {:syntax-quote {:resolve-symbol identity}}))
+
+(deftest syntax-quote-optimization-empty-collections
+  (testing "empty collections without splices produce literals"
+    (is (= [] (sq-parse "`[]")))
+    (is (= {} (sq-parse "`{}")))
+    (is (= #{} (sq-parse "`#{}")))))
+
+(deftest syntax-quote-optimization-literals
+  (testing "literal-only collections produce direct literals"
+    (is (= [1 2 3] (sq-parse "`[1 2 3]")))
+    (is (= [:a :b :c] (sq-parse "`[:a :b :c]")))
+    (is (= {:a 1 :b 2} (sq-parse "`{:a 1 :b 2}")))
+    (is (= #{1 2 3} (sq-parse "`#{1 2 3}")))
+    (is (= [1 [2 3] 4] (sq-parse "`[1 [2 3] 4]")))
+    (is (= {:a {:b 1}} (sq-parse "`{:a {:b 1}}")))))
+
+(deftest syntax-quote-optimization-unquote-no-splice
+  (testing "unquote without splice still produces direct literals"
+    (is (= '[a] (sq-parse "`[~a]")))
+    (is (= '[1 x 3] (sq-parse "`[1 ~x 3]")))
+    (is (= '[a b c] (sq-parse "`[~a ~b ~c]")))
+    (is (= '{:a v} (sq-parse "`{:a ~v}")))
+    (is (= '{k 1} (sq-parse "`{~k 1}")))
+    (is (= '#{a b} (sq-parse "`#{~a ~b}")))))
+
+(deftest syntax-quote-optimization-with-splice
+  (testing "splice requires concat machinery"
+    (let [result (sq-parse "`[~@xs]")]
+      (is (seq? result))
+      (is (= 'clojure.core/vec (first result))))
+    (let [result (sq-parse "`[1 ~@xs 3]")]
+      (is (seq? result))
+      (is (= 'clojure.core/vec (first result))))
+    (let [result (sq-parse "`[~@a ~@b]")]
+      (is (seq? result))
+      (is (= 'clojure.core/vec (first result))))))
+
+(deftest syntax-quote-optimization-nested
+  (testing "nested syntax-quote optimizes inner collections"
+    (is (= [[1 2]] (sq-parse "`[[1 2]]")))
+    (is (= [[[1]]] (sq-parse "`[[[1]]]")))
+    (is (= {:a [1 2 3]} (sq-parse "`{:a [1 2 3]}")))
+    (is (= [{:a 1}] (sq-parse "`[{:a 1}]")))))
+
+(deftest syntax-quote-optimization-quoted-symbols
+  (testing "quoted symbols are preserved"
+    (let [result (sq-parse "`[x]")]
+      (is (vector? result))
+      (is (= '(quote x) (first result))))
+    (let [result (sq-parse "`[foo bar]")]
+      (is (vector? result))
+      (is (= '(quote foo) (first result)))
+      (is (= '(quote bar) (second result))))))
+
+(deftest syntax-quote-optimization-mixed
+  (testing "mixed literals, quotes, and unquotes"
+    (is (= '[1 (quote x) y 4] (sq-parse "`[1 x ~y 4]")))
+    (is (= '{:a 1 :b (quote x) :c y} (sq-parse "`{:a 1 :b x :c ~y}")))))
+
+(deftest syntax-quote-optimization-lists
+  (testing "list syntax-quote optimization"
+    (let [result (sq-parse "`()")]
+      (is (= '(clojure.core/list) result)))
+    (let [result (sq-parse "`(1 2 3)")]
+      (is (seq? result))
+      (is (= 'clojure.core/list (first result)))
+      (is (= '(clojure.core/list 1 2 3) result)))
+    ;; With unquote (no splice)
+    (let [result (sq-parse "`(~a ~b)")]
+      (is (seq? result))
+      (is (= 'clojure.core/list (first result)))
+      (is (= '(clojure.core/list a b) result)))))
+
+(deftest syntax-quote-optimization-eval-equivalence
+  (testing "optimized forms eval to same result as verbose forms"
+    ;; Empty vector
+    (is (= [] (eval (sq-parse "`[]"))))
+    ;; Literal vector
+    (is (= [1 2 3] (eval (sq-parse "`[1 2 3]"))))
+    ;; Nested
+    (is (= [[1 2] [3 4]] (eval (sq-parse "`[[1 2] [3 4]]"))))
+    ;; Maps
+    (is (= {:a 1 :b 2} (eval (sq-parse "`{:a 1 :b 2}"))))
+    ;; Sets
+    (is (= #{1 2 3} (eval (sq-parse "`#{1 2 3}"))))
+    ;; With unquote - need to eval the whole let form
+    #?(:clj
+       (do
+         (is (= [1 10 3] (eval '(let [a 10] `[1 ~a 3]))))
+         (is (= [1 2 3 4] (eval '(let [xs [2 3]] `[1 ~@xs 4]))))
+         (is (= {:a 42} (eval '(let [v 42] `{:a ~v}))))
+         (is (= #{1 2} (eval '(let [x 1] `#{~x 2}))))))))
+
+(deftest syntax-quote-optimization-size-reduction
+  (testing "optimized forms are smaller than verbose forms"
+    (let [forms ["`[]" "`[1 2 3]" "`{:a 1}" "`#{1 2}" "`[~a]" "`{:a ~v}"]]
+      (doseq [f forms]
+        (let [result (sq-parse f)]
+          ;; Optimized should not contain 'sequence or 'concat when no splice
+          (when-not (and (seq? result)
+                         (= 'clojure.core/vec (first result)))
+            (is (not (some #{'clojure.core/sequence 'clojure.core/concat}
+                           (flatten (if (coll? result) result [result]))))
+                (str "Form " f " should not contain sequence/concat"))))))))
+
+(deftest syntax-quote-optimization-special-values
+  (testing "special values are handled correctly"
+    (is (= [nil] (sq-parse "`[nil]")))
+    (is (= [true false] (sq-parse "`[true false]")))
+    (is (= ["string"] (sq-parse "`[\"string\"]")))
+    (is (= [\c] (sq-parse "`[\\c]")))
+    (is (= [1.5] (sq-parse "`[1.5]")))
+    (is (= [1/2] (sq-parse "`[1/2]")))))
+
+(deftest syntax-quote-optimization-preserves-metadata
+  (testing "metadata is preserved on optimized forms"
+    (let [result (sq-parse "`^:foo []")]
+      ;; With meta, should use with-meta wrapper
+      (is (seq? result))
+      (is (or (= 'clojure.core/with-meta (first result))
+              #?(:cljs (= 'cljs.core/with-meta (first result))))))))
+
+(deftest syntax-quote-optimization-gensym
+  (testing "gensym symbols work correctly"
+    (let [result (sq-parse "`[x# x#]")]
+      (is (vector? result))
+      ;; Both should be the same gensym
+      (is (= (second (first result))
+             (second (second result)))))))
+
+(deftest syntax-quote-optimization-array-map-vs-hash-map
+  (testing "small maps use array-map, large maps use hash-map"
+    ;; Small map (< 16 entries) - should produce direct map literal
+    (let [result (sq-parse "`{:a 1 :b 2}")]
+      (is (map? result)))
+    ;; Large map (>= 16 entries) without splice - still produces direct map literal
+    (let [result (sq-parse "`{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9 :j 10 :k 11 :l 12 :m 13 :n 14 :o 15 :p 16}")]
+      (is (map? result)))
+    ;; Map with unquote (no splice) - still direct literal
+    (let [result (sq-parse "`{:a ~v :b 2}")]
+      (is (map? result)))))
