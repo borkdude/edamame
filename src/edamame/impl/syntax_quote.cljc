@@ -1,6 +1,9 @@
 (ns edamame.impl.syntax-quote
   "Taken and adapted from
-  https://github.com/clojure/tools.reader/blob/master/src/main/clojure/clojure/tools/reader.clj"
+  https://github.com/clojure/tools.reader/blob/master/src/main/clojure/clojure/tools/reader.clj
+
+  Optimized to avoid concat/sequence/seq scaffolding when no unquote-splicing
+  is present. Based on https://github.com/frenchy64/backtick/pull/1"
   {:no-doc true}
   (:require [clojure.string :as str]))
 
@@ -11,6 +14,11 @@
 (defn- unquote-splicing? [form]
   (and (seq? form)
        (= (first form) 'clojure.core/unquote-splicing)))
+
+(defn- has-splice?
+  "Check if any element in coll is an unquote-splicing form"
+  [coll]
+  (some unquote-splicing? coll))
 
 (declare syntax-quote)
 
@@ -28,16 +36,50 @@
         (recur (next s) ret))
       (seq (persistent! r)))))
 
+(defn- expand-list-simple
+  "Expand a list without splices - just collect quoted elements"
+  [ctx #?(:cljs ^not-native reader :default reader) s]
+  (loop [s (seq s) r (transient [])]
+    (if s
+      (let [item (first s)
+            ret (conj! r
+                       (cond
+                         (unquote? item) (second item)
+                         :else           (syntax-quote ctx reader item)))]
+        (recur (next s) ret))
+      (persistent! r))))
+
 (defn- syntax-quote-coll [ctx #?(:cljs ^not-native reader :default reader) type coll]
-  ;; We use sequence rather than seq here to fix http://dev.clojure.org/jira/browse/CLJ-1444
-  ;; But because of http://dev.clojure.org/jira/browse/CLJ-1586 we still need to call seq on the form
-  (let [res (list 'clojure.core/sequence
-                  (list 'clojure.core/seq
-                        (cons 'clojure.core/concat
-                              (expand-list ctx reader coll))))]
-    (if type
-      (list 'clojure.core/apply type res)
-      res)))
+  (if (has-splice? coll)
+    ;; Has splices - use the full concat machinery
+    (let [res (list 'clojure.core/sequence
+                    (list 'clojure.core/seq
+                          (cons 'clojure.core/concat
+                                (expand-list ctx reader coll))))]
+      (if type
+        (list 'clojure.core/apply type res)
+        res))
+    ;; No splices - produce direct collection
+    (let [elements (expand-list-simple ctx reader coll)]
+      (cond
+        (= type 'clojure.core/hash-set)
+        (set elements)
+
+        (= type 'clojure.core/hash-map)
+        (apply hash-map elements)
+
+        (= type 'clojure.core/array-map)
+        (apply array-map elements)
+
+        ;; For lists (type is nil), use list form
+        (nil? type)
+        (if (seq elements)
+          (cons 'clojure.core/list elements)
+          '(clojure.core/list))
+
+        ;; Fallback for other types
+        :else
+        (list 'clojure.core/apply type (vec elements))))))
 
 (defn map-func
   "Decide which map type to use, array-map if less than 16 elements"
@@ -96,8 +138,18 @@
     (cond
       (instance? #?(:clj clojure.lang.IRecord :cljs IRecord :cljr clojure.lang.IRecord) form) form
       (map? form) (syntax-quote-coll ctx reader (map-func form) (flatten-map form))
-      (vector? form) (list 'clojure.core/vec (syntax-quote-coll ctx reader nil form))
-      (set? form) (syntax-quote-coll ctx reader 'clojure.core/hash-set form)
+      (vector? form)
+      (if (has-splice? form)
+        ;; Has splices - need vec + concat machinery
+        (list 'clojure.core/vec (syntax-quote-coll ctx reader nil form))
+        ;; No splices - direct vector literal
+        (vec (expand-list-simple ctx reader form)))
+      (set? form)
+      (if (has-splice? form)
+        ;; Has splices - need concat machinery
+        (syntax-quote-coll ctx reader 'clojure.core/hash-set form)
+        ;; No splices - direct set literal
+        (set (expand-list-simple ctx reader form)))
       (or (seq? form) (list? form))
       (let [seq (seq form)]
         (if seq
