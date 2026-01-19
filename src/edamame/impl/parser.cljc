@@ -692,9 +692,7 @@
                  (r/read-char reader) ;; skip `
                  (let [next-val (parse-next ctx reader)]
                    (if (or (true? v) (map? v))
-                     (let [gensyms (atom {})
-                           ctx (assoc ctx :gensyms gensyms)
-                           ret (syntax-quote ctx reader next-val)]
+                     (let [ret (syntax-quote ctx reader next-val)]
                        ret)
                      (v next-val))))
                (throw-reader

@@ -20,7 +20,7 @@
   [coll]
   (some unquote-splicing? coll))
 
-(declare syntax-quote)
+(declare syntax-quote-inner)
 
 (defn- expand-list
   "Expand a list by resolving its syntax quotes and unquotes"
@@ -32,7 +32,7 @@
                        (cond
                          (unquote? item)          (list 'clojure.core/list (second item))
                          (unquote-splicing? item) (second item)
-                         :else                    (list 'clojure.core/list (syntax-quote ctx reader item))))]
+                         :else                    (list 'clojure.core/list (syntax-quote-inner ctx reader item))))]
         (recur (next s) ret))
       (seq (persistent! r)))))
 
@@ -45,7 +45,7 @@
             ret (conj! r
                        (cond
                          (unquote? item) (second item)
-                         :else           (syntax-quote ctx reader item)))]
+                         :else           (syntax-quote-inner ctx reader item)))]
         (recur (next s) ret))
       (persistent! r))))
 
@@ -179,6 +179,10 @@
              :cljs 'cljs.core/with-meta) ret (syntax-quote* ctx reader (meta form)))
     ret))
 
-(defn syntax-quote [ctx reader form]
+(defn syntax-quote-inner [ctx reader form]
   (let [ret (syntax-quote* ctx reader form)]
     (add-meta ctx reader form ret)))
+
+(defn syntax-quote [ctx reader form]
+  (let [ctx (assoc ctx :gensyms (atom {}))]
+    (syntax-quote-inner ctx reader form)))
