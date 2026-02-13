@@ -4,6 +4,7 @@ Configurable EDN/Clojure parser with location metadata.
 
 [![CircleCI](https://circleci.com/gh/borkdude/edamame/tree/master.svg?style=shield)](https://circleci.com/gh/borkdude/edamame/tree/master)
 [![Clojars Project](https://img.shields.io/clojars/v/borkdude/edamame.svg)](https://clojars.org/borkdude/edamame)
+[![bb built-in](https://raw.githubusercontent.com/babashka/babashka/master/logo/built-in-badge.svg)](https://book.babashka.org#badges)
 <!--[![cljdoc badge](https://cljdoc.org/badge/borkdude/edamame)](https://cljdoc.org/d/borkdude/edamame/CURRENT)-->
 
 ## Reasons to use edamame
@@ -17,6 +18,7 @@ Configurable EDN/Clojure parser with location metadata.
 This library works with:
 
 - Clojure on the JVM
+- Babashka (it is built-in, no need to add a dependency for edamame) 
 - [ClojureCLR](https://clojure.org/about/clojureclr) on the CLR
 - GraalVM compiled binaries
 - ClojureScript (including self-hosted and advanced compiled)
