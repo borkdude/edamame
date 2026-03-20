@@ -640,20 +640,26 @@
 
 (defn desugar-meta
   "Resolves syntactical sugar in metadata" ;; could be combined with some other desugar?
-  ([f]
-   (cond
-     (keyword? f) {f true}
-     (symbol? f)  {:tag f}
-     (string? f)  {:tag f}
-     (vector? f)  {:param-tags f}
-     :else        f))
-  ([f postprocess]
-   (cond
-     (keyword? f) {(postprocess f) (postprocess true)}
-     (symbol? f)  {(postprocess :tag) (postprocess f)}
-     (string? f)  {(postprocess :tag) (postprocess f)}
-     (vector? f)  {(postprocess :param-tags) (postprocess f)}
-     :else        f)))
+  ([ctx f]
+   (or (when-let [dfn (:desugar-meta ctx)]
+         (dfn f))
+       (cond
+         (keyword? f) {f true}
+         (symbol? f)  {:tag f}
+         (string? f)  {:tag f}
+         (vector? f)  {:param-tags f}
+         :else        f)))
+  ([ctx f postprocess]
+   (let [custom (when-let [dfn (:desugar-meta ctx)]
+                  (dfn f))]
+     (if custom
+       (reduce-kv (fn [m k v] (assoc m (postprocess k) (postprocess v))) {} custom)
+       (cond
+         (keyword? f) {(postprocess f) (postprocess true)}
+         (symbol? f)  {(postprocess :tag) (postprocess f)}
+         (string? f)  {(postprocess :tag) (postprocess f)}
+         (vector? f)  {(postprocess :param-tags) (postprocess f)}
+         :else        f)))))
 
 ;; NOTE: I tried optimizing for the :all option by dispatching to a function
 ;; that doesn't do any checking, but saw no significant speedup.
@@ -837,8 +843,8 @@
                                                    src))))
                    obj (if desugar
                          (if postprocess-fn
-                           (desugar-meta obj postprocess-fn)
-                           (desugar-meta obj)) obj)
+                           (desugar-meta ctx obj postprocess-fn)
+                           (desugar-meta ctx obj)) obj)
                    obj (cond postprocess (postprocess-fn obj)
                              loc? (vary-meta obj
                                              #(cond->
@@ -866,7 +872,8 @@
                     source source-key
                     postprocess location?
                     end-location
-                    ns-state suppress-read])
+                    ns-state suppress-read
+                    desugar-meta])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]

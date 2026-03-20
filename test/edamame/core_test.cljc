@@ -734,3 +734,12 @@
 
 (deftest issue-132-suppress-read-test
   (is (tagged-literal? (e/parse-string "#dude 1" {:suppress-read true}))))
+
+(deftest desugar-meta-test
+  (let [opts {:readers {'/ identity}
+              :desugar-meta (fn [f]
+                              (when (list? f)
+                                {:tag f}))}]
+    (is (= '(int -> Null)
+           (:tag (meta (e/parse-string "^#/(int -> Null) []" opts)))))
+    (is (:foo (meta (e/parse-string "^:foo []" opts))))))
