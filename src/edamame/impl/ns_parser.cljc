@@ -52,7 +52,10 @@
         references (if metadata (next references) references)
         references (filter seq? references)
         references (group-by first references)
-        requires (mapcat #(load-libs :require (rest %)) (:require references))
+        requires (concat
+                  (mapcat #(load-libs :require (rest %)) (:require references))
+                  (mapcat #(load-libs :require (rest %)) (:use references))
+                  (mapcat #(load-libs :require (rest %)) (:require-macros references)))
         imports (mapcat (fn [[_ & specs]]
                           (mapcat (fn [spec]
                                     (if (symbol? spec)

@@ -717,7 +717,14 @@
                                              clojure.walk)
                                (:import NoPackage
                                         java.lang.Foo
-                                        [java.lang Bar Baz]))))))
+                                        [java.lang Bar Baz])))))
+  (testing ":use and :require-macros are included in :requires"
+    (is (= '[a.b c.d e.f]
+           (mapv :lib (:requires (e/parse-ns-form
+                                  '(ns foo
+                                     (:require [a.b])
+                                     (:use c.d)
+                                     (:require-macros [e.f])))))))))
 
 ;;;; Scratch
 
