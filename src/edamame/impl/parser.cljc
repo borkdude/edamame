@@ -382,7 +382,7 @@
      :cljr (instance? clojure.lang.IObj obj)))
 
 (defn attach-splice [v splice? override?]
-  (if splice?
+  (if (and splice? (iobj? v))
     (vary-meta v (fn [m]
                    (if (or override? (not (contains? m :edamame/read-cond-splicing)))
                      (assoc m :edamame/read-cond-splicing splice?)

@@ -249,6 +249,20 @@
                                                 (= :default k))
                                           v
                                           (recur (next pairs))))
+                                      e/continue))))})))
+      (is (= [1 3]
+             (e/parse-string "[1 #?@(:cljs [2]) 3]"
+                             {:features #{:clj}
+                              :read-cond
+                              (fn read-cond [obj]
+                                (let [pairs (partition 2 obj)]
+                                  (loop [pairs pairs]
+                                    (if (seq pairs)
+                                      (let [[k v] (first pairs)]
+                                        (if (or (contains? features k)
+                                                (= :default k))
+                                          v
+                                          (recur (next pairs))))
                                       e/continue))))}))))
     (is (= 1 (e/parse-string "#?(:dude 1 :cljs 2 :clj 3)"
                              {:read-cond :allow :features (constantly true)})))))
