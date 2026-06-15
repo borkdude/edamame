@@ -7,14 +7,16 @@
   (cond
     (list? form) (with-meta (outer (apply list (map inner form)))
                    (meta form))
-    #?(:clj (instance? clojure.lang.IMapEntry form) :cljs (map-entry? form) :cljr (instance? clojure.lang.IMapEntry form))
+    #?(:clj (instance? clojure.lang.IMapEntry form) :cljs (map-entry? form) :cljd (map-entry? form) :cljr (instance? clojure.lang.IMapEntry form))
     (outer #?(:clj (clojure.lang.MapEntry/create (inner (key form)) (inner (val form)))
               :cljs (MapEntry. (inner (key form)) (inner (val form)) nil)
+              :cljd [(inner (key form)) (inner (val form))]
               :cljr (clojure.lang.MapEntry/create (inner (key form)) (inner (val form)))))
     (seq? form) (with-meta (outer (doall (map inner form)))
                   (meta form))
     #?(:clj (instance? clojure.lang.IRecord form)
        :cljs (record? form)
+       :cljd (record? form)
        :cljr (instance? clojure.lang.IRecord form))
     (outer (reduce (fn [r x] (conj r (inner x))) form form))
     (coll? form) (outer (into (empty form) (map inner form)))
@@ -38,6 +40,7 @@
                                         elt)
                                     :else (do (let [n #?(:clj (Integer/parseInt m)
                                                          :cljs (js/parseInt m)
+                                                         :cljd (int/parse m)
                                                          :cljr (Int32/Parse m))]
                                                 (vswap! state update :max-fixed max n))
                                               elt))

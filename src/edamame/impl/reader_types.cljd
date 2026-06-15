@@ -1,0 +1,327 @@
+(ns edamame.impl.reader-types
+  "Self-contained reader for ClojureDart: a string-backed, indexing,
+  push-back reader plus the subset of clojure.tools.reader helpers that
+  edamame needs (char/number reading, ns-keys, reader conditionals).
+  Replaces the clojure.tools.reader dependency on the :cljd platform.")
+
+;;;; char helpers
+
+(defn whitespace? [ch]
+  (when ch
+    (let [c (int ch)]
+      (or (== c 9) (== c 10) (== c 11) (== c 12) (== c 13)
+          (== c 32) (== c 44)))))
+
+(defn numeric? [ch]
+  (when ch
+    (let [c (int ch)]
+      (and (>= c 48) (<= c 57)))))
+
+(defn newline? [c]
+  (or (identical? \newline c)
+      (nil? c)))
+
+(defn- macro-terminating? [ch]
+  (case ch
+    (\" \; \^ \( \) \[ \] \{ \} \\) true
+    false))
+
+(defn- not-constituent? [ch]
+  (or (identical? \@ ch)
+      (identical? \` ch)
+      (identical? \~ ch)))
+
+(defn- digit
+  "Digit value of char in base, or -1."
+  [ch base]
+  (let [c (int ch)
+        d (cond
+            (and (>= c 48) (<= c 57)) (- c 48)
+            (and (>= c 97) (<= c 122)) (+ 10 (- c 97))
+            (and (>= c 65) (<= c 90)) (+ 10 (- c 65))
+            :else 99)]
+    (if (< d base) d -1)))
+
+;;;; reader
+
+(defprotocol IRdr
+  (-read-char [r])
+  (-peek-char [r])
+  (-unread [r ch])
+  (-line [r])
+  (-col [r])
+  (-indexing? [r]))
+
+(deftype StrRdr [^String s
+                 ^int slen
+                 ^:mutable ^int idx
+                 ^:mutable ^int line
+                 ^:mutable ^int column
+                 ^:mutable line-start?
+                 ^:mutable prev
+                 ^:mutable ^int prev-column
+                 indexing?]
+  IRdr
+  (-read-char [_]
+    (when (< idx slen)
+      (let [ch (nth s idx)]
+        (set! idx (inc idx))
+        (set! prev line-start?)
+        (set! line-start? (identical? \newline ch))
+        (when line-start?
+          (set! prev-column column)
+          (set! column 0)
+          (set! line (inc line)))
+        (set! column (inc column))
+        ch)))
+  (-peek-char [_]
+    (when (< idx slen)
+      (nth s idx)))
+  (-unread [_ ch]
+    (when ch
+      (if line-start?
+        (do (set! line (dec line))
+            (set! column prev-column))
+        (set! column (dec column)))
+      (set! line-start? prev)
+      (set! idx (dec idx))))
+  (-line [_] line)
+  (-col [_] column)
+  (-indexing? [_] indexing?))
+
+(defn read-char [r] (-read-char r))
+(defn peek-char [r] (-peek-char r))
+(defn unread [r ch] (-unread r ch))
+(defn indexing-reader? [r] (-indexing? r))
+(defn get-line-number [r] (-line r))
+(defn get-column-number [r] (-col r))
+(defn source-logging-reader? [_r] false)
+
+(defn read-line [r]
+  (loop [sb (StringBuffer)]
+    (let [c (read-char r)]
+      (if (or (nil? c) (identical? \newline c))
+        (.toString sb)
+        (recur (doto sb (.write c)))))))
+
+;; constructors: edamame composes (indexing-push-back-reader (string-push-back-reader s))
+
+(defn- new-rdr [^String s indexing?]
+  (StrRdr. s (.-length s) 0 0 0 false false 0 indexing?))
+
+(defn string-push-back-reader [s] (new-rdr s true))
+(defn indexing-push-back-reader [r] r) ;; identity: StrRdr already indexes
+(defn push-back-reader [x] (new-rdr x true))
+(defn string-reader [s] (new-rdr s true))
+
+;; source logging is not yet supported on cljd
+(defn source-logging-push-back-reader [_s]
+  (throw (Exception. "source-logging reader not supported on ClojureDart yet")))
+(defn log-source* [_reader f] (f))
+(defmacro log-source [_reader & body] `(do ~@body))
+
+;;;; tokens
+
+(defn- read-token
+  "Read a logical token (used for char/symbolic-value literals)."
+  [rdr initch]
+  (loop [sb (doto (StringBuffer) (.write initch))
+         ch (read-char rdr)]
+    (if (or (nil? ch)
+            (whitespace? ch)
+            (macro-terminating? ch)
+            (not-constituent? ch))
+      (do (when ch (unread rdr ch))
+          (.toString sb))
+      (recur (doto sb (.write ch)) (read-char rdr)))))
+
+;;;; char + escape reading (edn equivalents)
+
+(def ^:private upper-limit 55295) ;; 0xD7FF
+(def ^:private lower-limit 57344) ;; 0xE000
+
+(defn- read-unicode-char-token
+  "Read `length` digits of `base` from `token` starting at `offset`."
+  [^String token offset length base]
+  (let [l (+ offset length)]
+    (when-not (== (count token) l)
+      (throw (Exception. (str "Invalid unicode literal: " token))))
+    (loop [i offset uc 0]
+      (if (== i l)
+        (char uc)
+        (let [d (digit (nth token i) base)]
+          (if (== d -1)
+            (throw (Exception. (str "Invalid digit in unicode literal: " token)))
+            (recur (inc i) (+ d (* uc base)))))))))
+
+(defn- read-unicode-char-stream
+  [rdr initch base length exact?]
+  (loop [i 1 uc (digit initch base)]
+    (if (== uc -1)
+      (throw (Exception. (str "Invalid unicode digit: " initch)))
+      (if-not (== i length)
+        (let [ch (peek-char rdr)]
+          (if (or (whitespace? ch) (nil? ch))
+            (if exact?
+              (throw (Exception. "Invalid unicode character length"))
+              (char uc))
+            (let [d (digit ch base)]
+              (if (== d -1)
+                (throw (Exception. (str "Invalid unicode digit: " ch)))
+                (do (read-char rdr)
+                    (recur (inc i) (+ d (* uc base))))))))
+        (char uc)))))
+
+(defn read-char*
+  "Reads a character literal. `backslash` is the already-consumed leading
+  backslash (unused); the actual character is read from `rdr`."
+  [rdr _backslash _opts]
+  (let [ch (read-char rdr)]
+   (if-not (nil? ch)
+    (let [token (if (or (macro-terminating? ch)
+                        (not-constituent? ch)
+                        (whitespace? ch))
+                  (str ch)
+                  (read-token rdr ch))
+          token-len (count token)]
+      (cond
+        (== 1 token-len) (nth token 0)
+        (= token "newline") \newline
+        (= token "space") \space
+        (= token "tab") \tab
+        (= token "backspace") \backspace
+        (= token "formfeed") \formfeed
+        (= token "return") \return
+        (= (nth token 0) \u)
+        (let [c (read-unicode-char-token token 1 4 16)
+              ic (int c)]
+          (if (and (> ic upper-limit) (< ic lower-limit))
+            (throw (Exception. (str "Invalid character literal: \\u" (subs token 1))))
+            c))
+        (= (nth token 0) \o)
+        (let [len (dec token-len)]
+          (if (> len 3)
+            (throw (Exception. (str "Invalid octal escape sequence length: " len)))
+            (let [uc (read-unicode-char-token token 1 len 8)]
+              (if (> (int uc) 0377)
+                (throw (Exception. "Octal escape sequence must be in range [0, 377]"))
+                uc))))
+        :else (throw (Exception. (str "Unsupported character: \\" token)))))
+    (throw (Exception. "EOF while reading character")))))
+
+(defn escape-char
+  "Reads a string escape sequence (after the backslash). Returns a string."
+  [_sb rdr]
+  (let [ch (read-char rdr)]
+    (case ch
+      \t "\t"
+      \r "\r"
+      \n "\n"
+      \\ "\\"
+      \" "\""
+      \b "\b"
+      \f "\f"
+      \u (let [ch (read-char rdr)]
+           (if (== -1 (digit ch 16))
+             (throw (Exception. (str "Invalid unicode escape: \\u" ch)))
+             (str (read-unicode-char-stream rdr ch 16 4 true))))
+      (if (numeric? ch)
+        (let [ch (read-unicode-char-stream rdr ch 8 3 false)]
+          (if (> (int ch) 0377)
+            (throw (Exception. "Octal escape sequence must be in range [0, 377]"))
+            (str ch)))
+        (throw (Exception. (str "Unsupported escape character: \\" ch)))))))
+
+(defn read-symbolic-value
+  "Reads ##Inf / ##-Inf / ##NaN (the leading ## already consumed)."
+  [rdr _ _opts]
+  (let [initch (read-char rdr)
+        token (read-token rdr initch)]
+    (case token
+      "Inf" (/ 1.0 0.0)
+      "-Inf" (/ -1.0 0.0)
+      "NaN" (/ 0.0 0.0)
+      (throw (Exception. (str "Invalid token: ##" token))))))
+
+;;;; edn fallback reader (rare: unhandled dispatch macros)
+
+(defn read [_opts _reader]
+  (throw (Exception. "edn fallback reader not supported on ClojureDart yet")))
+
+;;;; numbers
+
+(def ^:private int-pattern
+  #"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)(N)?")
+(def ^:private float-pattern
+  #"([-+]?[0-9]+(\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
+
+(defn number-literal? [reader initch]
+  (or (numeric? initch)
+      (and (or (identical? \+ initch) (identical? \- initch))
+           (numeric? (peek-char reader)))))
+
+(defn- parse-int-radix [^String s radix big?]
+  (if big?
+    (BigInt/parse s .radix radix)
+    (int/parse s .radix radix)))
+
+(defn- match-int [groups]
+  (let [sign (nth groups 1)
+        zero (nth groups 2)
+        dec* (nth groups 3)
+        hex (nth groups 4)
+        oct (nth groups 5)
+        radix-base (nth groups 6)
+        radix-digits (nth groups 7)
+        bign (nth groups 8)
+        negate? (= "-" sign)
+        big? (some? bign)
+        [^String digits radix]
+        (cond
+          dec* [dec* 10]
+          hex [hex 16]
+          oct [oct 8]
+          radix-digits [radix-digits (int/parse radix-base)]
+          :else [nil nil])]
+    (cond
+      zero (if big? (BigInt/parse "0") 0)
+      (nil? digits) nil
+      :else (let [n (parse-int-radix digits radix big?)]
+              (if negate? (- n) n)))))
+
+(defn- match-float [^String s groups]
+  ;; group 4 = trailing M (bigdec); cljd has no BigDecimal, fall back to double
+  (double/parse s))
+
+(defn match-number [^String s]
+  (let [im (re-matches int-pattern s)]
+    (if im
+      (match-int im)
+      (let [fm (re-matches float-pattern s)]
+        (when fm
+          (match-float s fm))))))
+
+;;;; utils
+
+(defn namespace-keys [ns keys]
+  (for [key keys]
+    (if (or (symbol? key) (keyword? key))
+      (let [key-ns (namespace key)
+            key-name (name key)
+            ->key (if (symbol? key) symbol keyword)]
+        (cond
+          (nil? key-ns) (->key ns key-name)
+          (= "_" key-ns) (->key key-name)
+          :else key))
+      key)))
+
+(defrecord ReaderConditional [splicing? form])
+
+(defn reader-conditional [form splicing?]
+  (->ReaderConditional splicing? form))
+
+(defn reader-conditional? [x]
+  (instance? ReaderConditional x))
+
+(defn inspect [x]
+  (pr-str x))

@@ -3,21 +3,26 @@
   who contribured to those projects."
   {:no-doc true}
   (:require
-   #?(:clj  [clojure.tools.reader.edn :as edn]
+   #?(:cljd [edamame.impl.reader-types :as edn]
       :cljs [cljs.tools.reader.edn :as edn]
-      :cljr [clojure.tools.reader.edn :as edn])
-   #?(:clj  [clojure.tools.reader.reader-types :as r]
+      :cljr [clojure.tools.reader.edn :as edn]
+      :clj  [clojure.tools.reader.edn :as edn])
+   #?(:cljd [edamame.impl.reader-types :as r]
       :cljs [cljs.tools.reader.reader-types :as r]
-      :cljr [clojure.tools.reader.reader-types :as r])
-   #?(:clj  [clojure.tools.reader.impl.inspect :as i]
+      :cljr [clojure.tools.reader.reader-types :as r]
+      :clj  [clojure.tools.reader.reader-types :as r])
+   #?(:cljd [edamame.impl.reader-types :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i]
-      :cljr [clojure.tools.reader.impl.inspect :as i])
-   #?(:clj [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys]]
+      :cljr [clojure.tools.reader.impl.inspect :as i]
+      :clj  [clojure.tools.reader.impl.inspect :as i])
+   #?(:cljd [edamame.impl.reader-types :as utils :refer [namespace-keys reader-conditional]]
       :cljs [cljs.tools.reader.impl.utils :refer [namespace-keys reader-conditional]]
-      :cljr [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys whitespace?]])
-   #?(:clj [clojure.tools.reader.impl.commons :as commons]
+      :cljr [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys whitespace?]]
+      :clj [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys]])
+   #?(:cljd [edamame.impl.reader-types :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons]
-      :cljr [clojure.tools.reader.impl.commons :as commons])
+      :cljr [clojure.tools.reader.impl.commons :as commons]
+      :clj [clojure.tools.reader.impl.commons :as commons])
    #?(:cljs [cljs.tagged-literals :refer [*cljs-data-readers*]])
    [clojure.string :as str]
    [edamame.impl.macros :as macros]
@@ -30,9 +35,12 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-(def eof #?(:clj (Object.) :cljs (js/Object.) :cljr (Object.)))
-(def continue #?(:clj (Object.) :cljs (js/Object.) :cljr (Object.)))
-(def expected-delimiter #?(:clj (Object.) :cljs (js/Object.) :cljr (Object.)))
+;; NOTE: on :cljd a plain (Object) is const-folded into a single shared
+;; instance, so all sentinels would be identical?. Use mutable StringBuffer
+;; instances to get distinct identities.
+(def eof #?(:clj (Object.) :cljs (js/Object.) :cljd (StringBuffer) :cljr (Object.)))
+(def continue #?(:clj (Object.) :cljs (js/Object.) :cljd (StringBuffer) :cljr (Object.)))
+(def expected-delimiter #?(:clj (Object.) :cljs (js/Object.) :cljd (StringBuffer) :cljr (Object.)))
 #?(:cljs (def Exception js/Error))
 
 (defn throw-reader
@@ -78,12 +86,15 @@
     (\" \; \@ \^ \` \~ \( \) \[ \] \{ \} \\) true
     false))
 
-#?(:cljs
+#?(:cljd
    (defn whitespace?
      [c]
-     (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c)))))
-
-#?(:clj
+     (r/whitespace? c))
+   :cljs
+   (defn whitespace?
+     [c]
+     (and c (< -1 (.indexOf #js [\return \newline \tab \space ","] c))))
+   :clj
    (defmacro whitespace? [c]
      `(and ~c (or (identical? ~c \,)
                   (Character/isWhitespace ~(with-meta c
@@ -91,9 +102,10 @@
 
 (defn- read-token
   "Read in a single logical token from the reader"
-  ^String [#?(:clj rdr :cljs ^not-native rdr :cljr rdr) _kind initch]
+  ^String [#?(:clj rdr :cljs ^not-native rdr :cljd rdr :cljr rdr) _kind initch]
   (loop [sb #?(:clj (StringBuilder.)
                :cljs (StringBuffer.)
+               :cljd (StringBuffer)
                :cljr (StringBuilder.))
          ch initch]
     (if (or (whitespace? ch)
@@ -102,16 +114,17 @@
       (do (when ch
             (r/unread rdr ch))
           (str sb))
-      (recur #?(:clj (.append sb ch) :cljs (.append sb ch) :cljr (.Append sb (str ch))) (r/read-char rdr)))))
+      (recur #?(:clj (.append sb ch) :cljs (.append sb ch) :cljd (doto sb (.write ch)) :cljr (.Append sb (str ch))) (r/read-char rdr)))))
 
 (defn str-len [^String s]
   #?(:clj (.length s)
      :cljs (.-length s)
+     :cljd (.-length s)
      :cljr (.Length s)))
 
 (defn- parse-long*
   "Parses char to num"
-  [#?(:clj ^Character c :cljs c :cljr c)]
+  [#?(:clj ^Character c :cljs c :cljd c :cljr c)]
   #?(:clj (let [i (int c)
                i (- i 48)]
             (when (<= 0 i 9)
@@ -119,6 +132,10 @@
      :cljs (let [x (js/parseInt c)]
              (when-not (NaN? x)
                x))
+     :cljd (let [i (int c)
+                 i (- i 48)]
+             (when (<= 0 i 9)
+               i))
      :cljr (let [i (int c)
                 i (- i 48)]
             (when (<= 0 i 9)
@@ -126,7 +143,7 @@
 
 (defn- array-dim [^String sym]
   (when (== 1 (str-len sym))
-    (when-let [i (parse-long* #?(:clj (.charAt sym 0) :cljs (.charAt sym 0) :cljr (.get_Chars sym 0)))]
+    (when-let [i (parse-long* #?(:clj (.charAt sym 0) :cljs (.charAt sym 0) :cljd (nth sym 0) :cljr (.get_Chars sym 0)))]
       (when (pos? i)
         i))))
 
@@ -134,36 +151,45 @@
   "Parses a string into a vector of the namespace and symbol"
   [^String token]
   (when-not (or (= "" token)
-                (#?(:clj .endsWith :cljs .endsWith :cljr .EndsWith) token ":")
-                (#?(:clj .startsWith :cljs .startsWith :cljr .StartsWith) token "::"))
-    (let [ns-idx #?(:clj (.indexOf token "/") :cljs (.indexOf token "/") :cljr (.IndexOf token "/"))]
+                (#?(:clj .endsWith :cljs .endsWith :cljd .endsWith :cljr .EndsWith) token ":")
+                (#?(:clj .startsWith :cljs .startsWith :cljd .startsWith :cljr .StartsWith) token "::"))
+    (let [ns-idx #?(:clj (.indexOf token "/") :cljs (.indexOf token "/") :cljd (.indexOf token "/") :cljr (.IndexOf token "/"))]
       (if-let [^String ns (and (pos? ns-idx)
                                (subs token 0 ns-idx))]
         (let [ns-idx (inc ns-idx)]
           (when-not (== ns-idx (str-len token))
-            (when-not (#?(:clj .endsWith :cljs .endsWith :cljr .EndsWith) ns ":")
+            (when-not (#?(:clj .endsWith :cljs .endsWith :cljd .endsWith :cljr .EndsWith) ns ":")
               (let [^String sym (subs token ns-idx)]
                 (if (array-dim sym)
                   [ns sym]
                   (when (and (not (= "" sym))
-                             (not (parse-long* #?(:clj (.charAt sym 0) :cljs (.charAt sym 0) :cljr (.get_Chars sym 0))))
+                             (not (parse-long* #?(:clj (.charAt sym 0) :cljs (.charAt sym 0) :cljd (nth sym 0) :cljr (.get_Chars sym 0))))
                              (or (= "/" sym )
-                                 (== -1 #?(:clj (.indexOf sym "/") :cljs (.indexOf sym "/") :cljr (.IndexOf sym "/")))))
+                                 (== -1 #?(:clj (.indexOf sym "/") :cljs (.indexOf sym "/") :cljd (.indexOf sym "/") :cljr (.IndexOf sym "/")))))
                     [ns sym]))))))
         (when (or (= "/" token)
-                  (== -1 #?(:clj (.indexOf token "/") :cljs (.indexOf token "/") :cljr (.IndexOf token "/"))))
+                  (== -1 #?(:clj (.indexOf token "/") :cljs (.indexOf token "/") :cljd (.indexOf token "/") :cljr (.IndexOf token "/"))))
           [nil token])))))
 
-(def number-literal? @#'commons/number-literal?)
-(def escape-char @#'edn/escape-char)
-(def read-char* @#'edn/read-char*)
-(def read-symbolic-value  @#'edn/read-symbolic-value)
+#?(:cljd
+   (do
+     (def number-literal? commons/number-literal?)
+     (def escape-char edn/escape-char)
+     (def read-char* edn/read-char*)
+     (def read-symbolic-value edn/read-symbolic-value))
+   :default
+   (do
+     (def number-literal? @#'commons/number-literal?)
+     (def escape-char @#'edn/escape-char)
+     (def read-char* @#'edn/read-char*)
+     (def read-symbolic-value  @#'edn/read-symbolic-value)))
 
 (defn- read-number
-  [ctx #?(:clj rdr :cljs ^not-native rdr :cljr rdr) initch]
+  [ctx #?(:clj rdr :cljs ^not-native rdr :cljd rdr :cljr rdr) initch]
   (loop [sb (doto #?(:clj (StringBuilder.)
                      :cljs (StringBuffer.)
-                     :cljr (StringBuilder.)) #?(:clj (.append initch) :cljs (.append initch) :cljr (.Append (str initch))))
+                     :cljd (StringBuffer)
+                     :cljr (StringBuilder.)) #?(:clj (.append initch) :cljs (.append initch) :cljd (.write initch) :cljr (.Append (str initch))))
          ch (r/read-char rdr)]
     (if (or (whitespace? ch)
             ;; why isn't this macro-terminating in tools.reader?
@@ -176,7 +202,7 @@
         (r/unread rdr ch)
         (or (commons/match-number s)
             (throw-reader ctx rdr (str "Invalid number: " s))))
-      (recur (doto sb #?(:clj (.append ch) :cljs (.append ch) :cljr (.Append (str ch)))) (r/read-char rdr)))))
+      (recur (doto sb #?(:clj (.append ch) :cljs (.append ch) :cljd (.write ch) :cljr (.Append (str ch)))) (r/read-char rdr)))))
 
 (defn edn-read [ctx #?(:cljs ^not-native reader :default reader)]
   (let [tools-reader-opts (:tools.reader/opts ctx)]
@@ -190,6 +216,7 @@
         opened (r/read-char reader)]
     (loop [sb #?(:clj (StringBuilder.)
                  :cljs (StringBuffer.)
+                 :cljd (StringBuffer)
                  :cljr (StringBuilder.))
            ch (r/read-char reader)]
       (case ch
@@ -200,10 +227,10 @@
                            :edamame/opened-delimiter (str opened)
                            :edamame/opened-delimiter-loc {:row row
                                                           :col col}})
-        \\ (recur (doto sb #?(:clj (.append (escape-char sb reader)) :cljs (.append (escape-char sb reader)) :cljr (.Append (str (escape-char sb reader)))))
+        \\ (recur (doto sb #?(:clj (.append (escape-char sb reader)) :cljs (.append (escape-char sb reader)) :cljd (.write (escape-char sb reader)) :cljr (.Append (str (escape-char sb reader)))))
                   (r/read-char reader))
         \" (str sb)
-        (recur (doto sb #?(:clj (.append ch) :cljs (.append ch) :cljr (.Append (str ch)))) (r/read-char reader))))))
+        (recur (doto sb #?(:clj (.append ch) :cljs (.append ch) :cljd (.write ch) :cljr (.Append (str ch)))) (r/read-char reader))))))
 
 ;;;; end tools.reader
 
@@ -215,9 +242,10 @@
    (r/get-column-number reader)))
 
 (defmacro kw-identical? [k v]
-  (macros/?
-   :clj `(identical? ~k ~v)
-   :cljs `(cljs.core/keyword-identical? ~k ~v)))
+  #?(:cljd `(identical? ~k ~v)
+     :default (macros/?
+               :clj `(identical? ~k ~v)
+               :cljs `(cljs.core/keyword-identical? ~k ~v))))
 
 (declare parse-next)
 
@@ -287,21 +315,23 @@
   (r/read-char reader) ;; ignore leading double-quote
   (let [sb #?(:clj (StringBuilder.)
               :cljs (StringBuffer.)
+              :cljd (StringBuffer)
               :cljr (StringBuilder.))]
     (loop [ch (r/read-char reader)]
       (if (identical? \" ch)
         #?(:clj (str sb)
            :cljs (str sb)
+           :cljd (str sb)
            :cljr (str sb))
         (if (nil? ch)
           (throw-reader ctx reader "Error while parsing regex")
           (do
-            #?(:clj (.append sb ch) :cljs (.append sb ch) :cljr (.Append sb (str ch)))
+            #?(:clj (.append sb ch) :cljs (.append sb ch) :cljd (doto sb (.write ch)) :cljr (.Append sb (str ch)))
             (when (identical? \\ ch)
               (let [ch (r/read-char reader)]
                 (when (nil? ch)
                   (throw-reader ctx reader "Error while parsing regex"))
-                #?(:clj (.append sb ch) :cljs (.append sb ch) :cljr (.Append sb (str ch)))))
+                #?(:clj (.append sb ch) :cljs (.append sb ch) :cljd (doto sb (.write ch)) :cljr (.Append sb (str ch)))))
             (recur (r/read-char reader))))))))
 
 (defn- duplicate-keys-error [msg coll]
@@ -580,7 +610,7 @@
                         #?(:cljs (*cljs-data-readers* sym)
                            :default (default-data-readers sym)))]
               (if f (f data)
-                  (throw (new #?(:clj Exception :cljs js/Error :cljr Exception)
+                  (throw (new #?(:clj Exception :cljs js/Error :cljd Exception :cljr Exception)
                               (str "No reader function for tag " sym)))))))))))
 
 (defn throw-odd-map
@@ -610,7 +640,7 @@
               (when-not (apply distinct? ks)
                 (throw-dup-keys ctx reader start-loc :map ks))))
           (if (<= c 16)
-            (apply array-map elements)
+            (apply #?(:cljd hash-map :default array-map) elements)
             (apply hash-map elements))))))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
@@ -623,7 +653,7 @@
         (throw-reader ctx reader "Invalid keyword: :")
         (let [s (parse-symbol token)]
           (if s
-            (let [auto-resolve? (identical? \: #?(:clj (.charAt token 0) :cljs (.charAt token 0) :cljr (.get_Chars token 0)))]
+            (let [auto-resolve? (identical? \: #?(:clj (.charAt token 0) :cljs (.charAt token 0) :cljd (nth token 0) :cljr (.get_Chars token 0)))]
               (if auto-resolve?
                 (let [token (if auto-resolve? (subs token 1) token)
                       [token-ns token-name] s]
@@ -773,9 +803,10 @@
               :else (read-symbol ctx reader c)))))))
 
 (defn buf [reader]
-  (:buffer @#?(:clj (.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader)
-               :cljs (.-frames reader)
-               :cljr (.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader))))
+  #?(:cljd nil ;; source logging not supported on cljd yet
+     :clj (:buffer @(.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader))
+     :cljs (:buffer @(.-frames reader))
+     :cljr (:buffer @(.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader))))
 
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
@@ -785,13 +816,15 @@
                      (r/peek-char reader))]
        (let [loc (when ir? (location reader))
              log? (:source ctx)
-             ^StringBuilder buf (when log? (buf reader))
+             #?(:clj ^StringBuilder buf :default buf) (when log? (buf reader))
              offset (when log? #?(:clj (.length buf)
                                   :cljs (.getLength buf)
+                                  :cljd nil
                                   :cljr (.Length buf)))
              obj (if log?
                    #?(:clj (r/log-source reader (dispatch ctx reader c))
                       :cljs (r/log-source* reader #(dispatch ctx reader c))
+                      :cljd (dispatch ctx reader c)
                       :cljr (r/log-source reader (dispatch ctx reader c)))
                    (dispatch ctx reader c))]
          (if (identical? continue obj)
@@ -813,6 +846,7 @@
                    src (when log?
                          #?(:clj (.trim (subs (str buf) offset))
                             :cljs (.trim (subs (str buf) offset))
+                            :cljd nil
                             :cljr (.Trim (subs (str buf) offset))))
                    loc? (and ir? (or (and iobj??
                                           (or (not location?)
@@ -839,7 +873,7 @@
                          (if postprocess-fn
                            (desugar-meta obj postprocess-fn)
                            (desugar-meta obj)) obj)
-                   obj (cond postprocess (postprocess-fn obj)
+                   obj (cond postprocess-fn (postprocess-fn obj)
                              loc? (vary-meta obj
                                              #(cond->
                                                   (-> %
@@ -943,6 +977,7 @@
                                                     (object-array buf-len)
                                                     buf-len buf-len)]
              (r/indexing-push-back-reader pushback-reader))
+     :cljd (r/indexing-push-back-reader (r/push-back-reader x))
      :cljr (r/indexing-push-back-reader (r/push-back-reader x))))
 
 (defn get-line-number [reader]
@@ -960,6 +995,7 @@
                                                     (object-array buf-len)
                                                     buf-len buf-len)]
              (r/source-logging-push-back-reader pushback-reader))
+     :cljd (r/source-logging-push-back-reader x)
      :cljr (r/source-logging-push-back-reader (r/push-back-reader x))))
 
 ;;;; Scratch
