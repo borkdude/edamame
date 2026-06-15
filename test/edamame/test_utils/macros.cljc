@@ -1,10 +1,28 @@
 (ns edamame.test-utils.macros
-  (:require #?@(:cljs [] :default [[clojure.test :as test]])
-            #?@(:cljr [] :default [[cljs.test :as cljs-test]])))
+  (:require #?@(:cljs [] :cljd [] :default [[clojure.test :as test]])
+            #?@(:cljr [] :cljd [] :default [[cljs.test :as cljs-test]])
+            #?@(:cljd [[edamame.test-utils.utils]] :default [])))
 
 #?(:cljs (set! *warn-on-reflection* true))
 
-#?(:cljs nil :default
+;; ClojureDart: cljd.test/assert-expr is a plain function, not an extensible
+;; multimethod. So we provide thrown-with-data? as a boolean-returning macro;
+;; cljd's `is` routes it through assert-any.
+#?(:cljd
+   (defmacro thrown-with-data? [& args]
+     (let [[msg-re expected expr] (if (= 3 (count args))
+                                    args
+                                    [nil (first args) (second args)])]
+       `(try
+          ~expr
+          false
+          (catch cljd.core/ExceptionInfo e#
+            (let [data# (ex-data e#)
+                  msg# (ex-message e#)]
+              (and (or (nil? ~msg-re) (re-find ~msg-re msg#))
+                   (edamame.test-utils.utils/submap? ~expected data#))))))))
+
+#?(:cljs nil :cljd nil :default
   (defmethod test/assert-expr 'thrown-with-data?
     [msg [_ msg-re data expr]]
     (let [[msg-re expected expr]
@@ -46,7 +64,7 @@
            :default (not (:ns &env)))
     `(do ~@body)))
 
-#?(:cljr nil :default
+#?(:cljr nil :cljd nil :default
 (deftime
   (defmethod #?(:clj cljs.test/assert-expr
                 :cljs cljs.test$macros/assert-expr)

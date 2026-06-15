@@ -35,12 +35,12 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-;; NOTE: on :cljd a plain (Object) is const-folded into a single shared
-;; instance, so all sentinels would be identical?. Use mutable StringBuffer
-;; instances to get distinct identities.
-(def eof #?(:clj (Object.) :cljs (js/Object.) :cljd (StringBuffer) :cljr (Object.)))
-(def continue #?(:clj (Object.) :cljs (js/Object.) :cljd (StringBuffer) :cljr (Object.)))
-(def expected-delimiter #?(:clj (Object.) :cljs (js/Object.) :cljd (StringBuffer) :cljr (Object.)))
+;; NOTE: on :cljd a plain (Object.) is const-folded into a single shared
+;; instance (const objects are allocated once at compile time), so all
+;; sentinels would be identical?. ^:unique opts out of const-folding.
+(def eof #?(:clj (Object.) :cljs (js/Object.) :cljd ^:unique (Object.) :cljr (Object.)))
+(def continue #?(:clj (Object.) :cljs (js/Object.) :cljd ^:unique (Object.) :cljr (Object.)))
+(def expected-delimiter #?(:clj (Object.) :cljs (js/Object.) :cljd ^:unique (Object.) :cljr (Object.)))
 #?(:cljs (def Exception js/Error))
 
 (defn throw-reader
@@ -242,7 +242,9 @@
    (r/get-column-number reader)))
 
 (defmacro kw-identical? [k v]
-  #?(:cljd `(identical? ~k ~v)
+  ;; cljd keywords are not reference-equal (const literal vs runtime-parsed),
+  ;; so use value equality there.
+  #?(:cljd `(= ~k ~v)
      :default (macros/?
                :clj `(identical? ~k ~v)
                :cljs `(cljs.core/keyword-identical? ~k ~v))))
@@ -409,6 +411,7 @@
   #?(:clj
      (instance? clojure.lang.IObj obj)
      :cljs (satisfies? IWithMeta obj)
+     :cljd (satisfies? IWithMeta obj)
      :cljr (instance? clojure.lang.IObj obj)))
 
 (defn attach-splice [v splice? override?]

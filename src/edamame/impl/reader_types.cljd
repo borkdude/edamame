@@ -107,7 +107,8 @@
 ;; constructors: edamame composes (indexing-push-back-reader (string-push-back-reader s))
 
 (defn- new-rdr [^String s indexing?]
-  (StrRdr. s (.-length s) 0 0 0 false false 0 indexing?))
+  ;; line/column are 1-based, matching tools.reader's IndexingPushbackReader
+  (StrRdr. s (.-length s) 0 1 1 false false 0 indexing?))
 
 (defn string-push-back-reader [s] (new-rdr s true))
 (defn indexing-push-back-reader [r] r) ;; identity: StrRdr already indexes
