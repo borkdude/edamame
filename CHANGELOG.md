@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## Unreleased
+
+- With `:auto-resolve-ns`, qualify bare syntax-quoted symbols (e.g. `` `foo ``) with the current namespace, matching Clojure
+
 ## 1.5.39
 
 - Check if object is iobj before attaching metadata [#141](https://github.com/borkdude/edamame/issues/141) [#142](https://github.com/borkdude/edamame/pull/142)

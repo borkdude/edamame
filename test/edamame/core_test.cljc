@@ -680,7 +680,11 @@
         (quote clojure.set/foo)
         (quote x/foo) :clojure.set/foo]
       (e/parse-string-all "(ns foo (:require [clojure.set :as set])) `set/foo `x/foo `::set/foo"
-                          {:auto-resolve-ns true :all true}))))
+                          {:auto-resolve-ns true :all true})))
+  (testing "bare syntax-quoted symbol is qualified with the current ns"
+    (is (= '[(ns foo) (quote foo/bar) (quote baz)]
+           (e/parse-string-all "(ns foo) `bar 'baz"
+                               {:auto-resolve-ns true :all true})))))
 
 (deftest uneval-test
   (deflet

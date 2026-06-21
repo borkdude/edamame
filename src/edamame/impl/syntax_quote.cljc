@@ -83,7 +83,11 @@
                                     (if-let [expanded-alias (ns-state alias)]
                                       (symbol (str expanded-alias) sym-name)
                                       sym)
-                                    sym))
+                                    ;; bare symbol: qualify with the current ns
+                                    ;; if known, matching Clojure's syntax-quote
+                                    (if-let [current (:current ns-state)]
+                                      (symbol (str current) sym-name)
+                                      sym)))
                                 identity))]
                     (f form)))))
     (unquote? form) (second form)
