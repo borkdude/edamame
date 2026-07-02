@@ -4,8 +4,9 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
-## Unreleased
+## 1.6.40
 
+- Add [ClojureDart](https://github.com/tensegritics/ClojureDart) support
 - With `:auto-resolve-ns`, qualify bare syntax-quoted symbols (e.g. `` `foo ``) with the current namespace, matching Clojure
 
 ## 1.5.39

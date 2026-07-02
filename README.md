@@ -18,8 +18,9 @@ Configurable EDN/Clojure parser with location metadata.
 This library works with:
 
 - Clojure on the JVM
-- Babashka (it is built-in, no need to add a dependency for edamame) 
+- Babashka (it is built-in, no need to add a dependency for edamame)
 - [ClojureCLR](https://clojure.org/about/clojureclr) on the CLR
+- [ClojureDart](https://github.com/tensegritics/ClojureDart)
 - GraalVM compiled binaries
 - ClojureScript (including self-hosted and advanced compiled)
 
