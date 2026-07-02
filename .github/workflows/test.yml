@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - 'master'
+      - 'cljd'
   pull_request:
     branches:
       - 'master'
@@ -12,7 +13,6 @@ on:
 env:
   ACTIONS_CACHE_VERSION: '1'  # increment to "invalidate" caches
   JAVA_VERSION: '8'
-  CLOJURE_CLI_VERSION: '1.12.3.1577'
   LEIN_VERSION: '2.12.0'
   NODE_VERSION: '18'
 
@@ -119,12 +119,10 @@ jobs:
           distribution: 'temurin'
           java-version: '${{ env.JAVA_VERSION }}'
       
-      - name: Install Clojure CLI ${{ env.CLOJURE_CLI_VERSION }}
-        run: |
-          curl -O https://download.clojure.org/install/linux-install-${{ env.CLOJURE_CLI_VERSION }}.sh
-          chmod +x linux-install-${{ env.CLOJURE_CLI_VERSION }}.sh
-          sudo ./linux-install-${{ env.CLOJURE_CLI_VERSION }}.sh
-          clojure --version
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          cli: 'latest'
       
       - name: Restore dependency cache
         id: cache-deps
@@ -151,3 +149,52 @@ jobs:
       
       - name: Run Node.js tests
         run: ./script/test/node
+
+  test-cljd:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '${{ env.JAVA_VERSION }}'
+
+      - name: Setup Dart
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: '3.12.2'
+
+      - name: Setup Clojure
+        uses: DeLaGuardo/setup-clojure@13.4
+        with:
+          cli: 'latest'
+
+      - name: Restore dependency cache
+        id: cache-deps
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+            ~/.pub-cache
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-cljd-deps-${{ hashFiles('**/deps.edn') }}
+          restore-keys: ${{ env.ACTIONS_CACHE_VERSION }}-cljd-deps-
+
+      - name: Download dependencies
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        run: clojure -A:cljd -Stree
+
+      - name: Save dependency cache
+        if: steps.cache-deps.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.m2
+            ~/.gitlibs
+            ~/.pub-cache
+          key: ${{ env.ACTIONS_CACHE_VERSION }}-cljd-deps-${{ hashFiles('**/deps.edn') }}
+
+      - name: Run ClojureDart tests
+        run: ./script/test/cljd

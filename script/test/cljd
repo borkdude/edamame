@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -eo pipefail
+
+echo 'Running ClojureDart tests'
+clojure -M:cljd test edamame.core-test "$@"

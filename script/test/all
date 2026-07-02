@@ -5,3 +5,4 @@ set -eo pipefail
 script/test/jvm
 script/test/clr
 script/test/node
+script/test/cljd

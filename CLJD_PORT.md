@@ -8,8 +8,9 @@ Run tests:
 
     clj -M:cljd test edamame.core-test
 
-(Needs Dart SDK >= 3.0 and the `:cljd` alias in deps.edn, which uses a
-local/root for tensegritics/clojuredart - adjust path or switch to a git sha.)
+(Needs Dart SDK >= 3.0. `:cljd` pins ClojureDart to a git sha and runs in
+CI via `script/test/cljd`. `:cljd-local` uses the local checkout at
+~/dev/ClojureDart for hacking on ClojureDart itself.)
 
 ## What is cljd-specific
 
