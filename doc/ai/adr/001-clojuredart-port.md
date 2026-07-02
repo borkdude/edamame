@@ -14,13 +14,19 @@ CI via `script/test/cljd`. `:cljd-local` uses the local checkout at
 
 ## What is cljd-specific
 
-- `src/edamame/impl/cljd_shim.cljd` - self-contained string reader
-  (indexing + pushback + char/number/util helpers) that replaces
-  clojure.tools.reader on cljd. line/col are 1-based. In parser.cljc all
-  tools.reader aliases (edn, r, i, utils, commons) point at this one
-  namespace on cljd, so call sites stay untouched. Includes source
-  logging (readers know their string + index, so :source is a subs)
-  and a ReaderConditional deftype with IPrint for :preserve printing.
+- Two cljd-only namespaces replace clojure.tools.reader, split so SCI
+  can require the reader types directly (as it does with tools.reader):
+  - `src/edamame/impl/cljd_reader_types.cljd` - self-contained
+    string-backed indexing push-back reader, line/col 1-based, with
+    source logging (readers know their string + index, so :source is a
+    subs). Stands in for clojure.tools.reader.reader-types: the `r` and
+    `rt` aliases in parser.cljc and core.cljc point here on cljd, and
+    SCI's parser should too.
+  - `src/edamame/impl/cljd_shim.cljd` - the rest of the tools.reader
+    surface: char/number reading, edn fallback, ns-keys, ReaderConditional
+    deftype with IPrint for :preserve printing. The `edn`, `i`, `utils`
+    and `commons` aliases in parser.cljc point here on cljd.
+  Call sites stay untouched on all platforms.
 - `#?(:cljd ...)` reader-conditional arms across parser.cljc, core.cljc,
   syntax_quote.cljc, read_fn.cljc, macros.cljc.
 - `cljd-shim/list` replaces `cljd.core/list` in parser, read-fn and

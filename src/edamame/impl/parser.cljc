@@ -8,7 +8,7 @@
       :cljs [cljs.tools.reader.edn :as edn]
       :cljr [clojure.tools.reader.edn :as edn]
       :clj  [clojure.tools.reader.edn :as edn])
-   #?(:cljd [edamame.impl.cljd-shim :as r]
+   #?(:cljd [edamame.impl.cljd-reader-types :as r]
       :cljs [cljs.tools.reader.reader-types :as r]
       :cljr [clojure.tools.reader.reader-types :as r]
       :clj  [clojure.tools.reader.reader-types :as r])

@@ -1,0 +1,119 @@
+(ns edamame.impl.cljd-reader-types
+  "Self-contained reader for ClojureDart: a string-backed, indexing,
+  push-back reader with source logging. Replaces
+  clojure.tools.reader.reader-types on the :cljd platform.")
+
+;;;; char predicates
+
+(defn whitespace? [ch]
+  (when ch
+    (let [c (int ch)]
+      (or (== c 9) (== c 10) (== c 11) (== c 12) (== c 13)
+          (== c 32) (== c 44)))))
+
+(defn numeric? [ch]
+  (when ch
+    (let [c (int ch)]
+      (and (>= c 48) (<= c 57)))))
+
+(defn newline? [c]
+  (or (identical? \newline c)
+      (nil? c)))
+
+;;;; reader
+
+(defprotocol IRdr
+  (-read-char [r])
+  (-peek-char [r])
+  (-unread [r ch])
+  (-line [r])
+  (-col [r])
+  (-indexing? [r])
+  (-logging? [r])
+  (-index [r])
+  (-source [r])
+  (-log-start! [r])
+  (-log-string [r]))
+
+(deftype StrRdr [^String s
+                 ^int slen
+                 ^:mutable ^int idx
+                 ^:mutable ^int line
+                 ^:mutable ^int column
+                 ^:mutable line-start?
+                 ^:mutable prev
+                 ^:mutable ^int prev-column
+                 indexing?
+                 logging?
+                 ^:mutable ^int log-start]
+  IRdr
+  (-read-char [_]
+    (when (< idx slen)
+      (let [ch (nth s idx)]
+        (set! idx (inc idx))
+        (set! prev line-start?)
+        (set! line-start? (identical? \newline ch))
+        (when line-start?
+          (set! prev-column column)
+          (set! column 0)
+          (set! line (inc line)))
+        (set! column (inc column))
+        ch)))
+  (-peek-char [_]
+    (when (< idx slen)
+      (nth s idx)))
+  (-unread [_ ch]
+    (when ch
+      (if line-start?
+        (do (set! line (dec line))
+            (set! column prev-column))
+        (set! column (dec column)))
+      (set! line-start? prev)
+      (set! idx (dec idx))))
+  (-line [_] line)
+  (-col [_] column)
+  (-indexing? [_] indexing?)
+  (-logging? [_] logging?)
+  (-index [_] idx)
+  (-source [_] s)
+  (-log-start! [_] (set! log-start idx))
+  (-log-string [_] (subs s log-start idx)))
+
+(defn read-char [r] (-read-char r))
+(defn peek-char [r] (-peek-char r))
+(defn unread [r ch] (-unread r ch))
+(defn indexing-reader? [r] (-indexing? r))
+(defn get-line-number [r] (-line r))
+(defn get-column-number [r] (-col r))
+(defn source-logging-reader? [r] (-logging? r))
+(defn current-index [r] (-index r))
+(defn source-string [r] (-source r))
+(defn log-start! [r] (-log-start! r))
+(defn log-string [r] (-log-string r))
+
+(defn read-line [r]
+  (loop [^StringBuffer sb (StringBuffer)]
+    (let [c (read-char r)]
+      (if (or (nil? c) (identical? \newline c))
+        (.toString sb)
+        (recur (doto sb (.write c)))))))
+
+;; constructors: edamame composes (indexing-push-back-reader (string-push-back-reader s))
+
+(defn- new-rdr
+  ;; line/column are 1-based, matching tools.reader's IndexingPushbackReader
+  ([^String s indexing?] (new-rdr s indexing? false))
+  ([^String s indexing? logging?]
+   (StrRdr. s (.-length s) 0 1 1 false false 0 indexing? logging? 0)))
+
+(defn string-push-back-reader [s] (new-rdr s true))
+(defn indexing-push-back-reader [r] r) ;; identity: StrRdr already indexes
+(defn push-back-reader [x] (new-rdr x true))
+(defn string-reader [s] (new-rdr s true))
+
+(defn source-logging-push-back-reader [s]
+  (if (string? s)
+    (new-rdr s true true)
+    (throw (ArgumentError. "source-logging reader requires a string"))))
+(defn log-source* [_reader f] (f))
+(defmacro log-source [_reader & body] `(do ~@body))
