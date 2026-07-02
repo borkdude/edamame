@@ -155,11 +155,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ClojureDart needs Java 11+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '${{ env.JAVA_VERSION }}'
+          java-version: '21'
 
       - name: Setup Dart
         uses: dart-lang/setup-dart@v1
