@@ -16,10 +16,6 @@
     (let [c (int ch)]
       (and (>= c 48) (<= c 57)))))
 
-(defn newline? [c]
-  (or (identical? \newline c)
-      (nil? c)))
-
 ;;;; reader
 
 (defprotocol IRdr
@@ -40,8 +36,6 @@
                  ^:mutable ^int idx
                  ^:mutable ^int line
                  ^:mutable ^int column
-                 ^:mutable line-start?
-                 ^:mutable prev
                  ^:mutable ^int prev-column
                  indexing?
                  logging?
@@ -51,24 +45,28 @@
     (when (< idx slen)
       (let [ch (nth s idx)]
         (set! idx (inc idx))
-        (set! prev line-start?)
-        (set! line-start? (identical? \newline ch))
-        (when line-start?
-          (set! prev-column column)
-          (set! column 0)
-          (set! line (inc line)))
-        (set! column (inc column))
-        ch)))
+        (if (or (identical? \newline ch)
+                (identical? \return ch))
+          ;; normalize \r and \r\n to \n, like tools.reader
+          (do (when (and (identical? \return ch)
+                         (< idx slen)
+                         (identical? \newline (nth s idx)))
+                (set! idx (inc idx)))
+              (set! prev-column column)
+              (set! column 1)
+              (set! line (inc line))
+              \newline)
+          (do (set! column (inc column))
+              ch)))))
   (-peek-char [_]
     (when (< idx slen)
       (nth s idx)))
   (-unread [_ ch]
     (when ch
-      (if line-start?
+      (if (identical? \newline ch)
         (do (set! line (dec line))
             (set! column prev-column))
         (set! column (dec column)))
-      (set! line-start? prev)
       (set! idx (dec idx))))
   (-line [_] line)
   (-col [_] column)
@@ -79,17 +77,17 @@
   (-log-start! [_] (set! log-start idx))
   (-log-string [_] (subs s log-start idx)))
 
-(defn read-char [r] (-read-char r))
-(defn peek-char [r] (-peek-char r))
-(defn unread [r ch] (-unread r ch))
-(defn indexing-reader? [r] (-indexing? r))
-(defn get-line-number [r] (-line r))
-(defn get-column-number [r] (-col r))
-(defn source-logging-reader? [r] (-logging? r))
-(defn current-index [r] (-index r))
-(defn source-string [r] (-source r))
-(defn log-start! [r] (-log-start! r))
-(defn log-string [r] (-log-string r))
+(defn read-char [^StrRdr r] (-read-char r))
+(defn peek-char [^StrRdr r] (-peek-char r))
+(defn unread [^StrRdr r ch] (-unread r ch))
+(defn indexing-reader? [^StrRdr r] (-indexing? r))
+(defn get-line-number [^StrRdr r] (-line r))
+(defn get-column-number [^StrRdr r] (-col r))
+(defn source-logging-reader? [^StrRdr r] (-logging? r))
+(defn current-index [^StrRdr r] (-index r))
+(defn source-string [^StrRdr r] (-source r))
+(defn log-start! [^StrRdr r] (-log-start! r))
+(defn log-string [^StrRdr r] (-log-string r))
 
 (defn read-line [r]
   (loop [^StringBuffer sb (StringBuffer)]
@@ -104,16 +102,13 @@
   ;; line/column are 1-based, matching tools.reader's IndexingPushbackReader
   ([^String s indexing?] (new-rdr s indexing? false))
   ([^String s indexing? logging?]
-   (StrRdr. s (.-length s) 0 1 1 false false 0 indexing? logging? 0)))
+   (StrRdr. s (.-length s) 0 1 1 0 indexing? logging? 0)))
 
 (defn string-push-back-reader [s] (new-rdr s true))
 (defn indexing-push-back-reader [r] r) ;; identity: StrRdr already indexes
 (defn push-back-reader [x] (new-rdr x true))
-(defn string-reader [s] (new-rdr s true))
 
 (defn source-logging-push-back-reader [s]
   (if (string? s)
     (new-rdr s true true)
     (throw (ArgumentError. "source-logging reader requires a string"))))
-(defn log-source* [_reader f] (f))
-(defmacro log-source [_reader & body] `(do ~@body))

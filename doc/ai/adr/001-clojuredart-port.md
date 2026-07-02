@@ -2,15 +2,15 @@
 
 Branch: `cljd`. Target: compile edamame to Dart so SCI can run on ClojureDart.
 
-## Status: all 38 tests pass
+## Status: all tests pass
 
 Run tests:
 
     clj -M:cljd test edamame.core-test
 
 (Needs Dart SDK >= 3.0. `:cljd` pins ClojureDart to a git sha and runs in
-CI via `script/test/cljd`. `:cljd-local` uses the local checkout at
-~/dev/ClojureDart for hacking on ClojureDart itself.)
+CI via `script/test/cljd`. For hacking on ClojureDart itself, compose the
+local checkout: `clj -M:cljd:cljd-local test edamame.core-test`.)
 
 ## What is cljd-specific
 
@@ -51,6 +51,15 @@ reader conditionals (incl :default and :preserve printing), syntax-quote,
 namespaced maps, deref/quote/var/fn-literals, regex via :regex, tagged
 literals, uneval, :auto-resolve, :source (source-logging reader), edn
 fallback. No known gaps.
+
+Platform semantics on cljd:
+
+- No Ratio and no BigDecimal in Dart: `1/2` and `3.14M` parse as double
+  (like cljs). `N` suffix parses as Dart BigInt.
+- `\r\n` and `\r` normalize to `\n` in the reader, like tools.reader.
+- syntax-quote treats `ns` as a special symbol (unqualified), matching
+  cljs and cljd.reader. The special set follows cljd.reader plus
+  catch, finally and `&`.
 
 ## edn fallback
 

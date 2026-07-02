@@ -1,5 +1,11 @@
 {:linters {:unresolved-symbol {:exclude [(clojure.test/is [thrown-with-data?])
                                          (cljs.test/is [thrown-with-data?])]}}
- ;; cljd.core protocols are unknown to clj-kondo
- :config-in-ns {edamame.impl.cljd-shim {:linters {:unresolved-symbol {:level :off}}}
-                edamame.impl.cljd-reader-types {:linters {:unresolved-symbol {:level :off}}}}}
+ ;; cljd.core protocols and Dart types are unknown to clj-kondo
+ :config-in-ns {edamame.impl.cljd-shim
+                {:linters {:unresolved-symbol
+                           {:exclude [IPrint ILookup IMeta IWithMeta IEquiv IHash
+                                      -print -lookup StringSink RegExp RegExpMatch
+                                      StringBuffer BigInt]}}}
+                edamame.impl.cljd-reader-types
+                {:linters {:unresolved-symbol
+                           {:exclude [StringBuffer ArgumentError StrRdr]}}}}}

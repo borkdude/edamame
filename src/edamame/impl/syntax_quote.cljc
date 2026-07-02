@@ -7,17 +7,19 @@
    [clojure.string :as str]
    #?(:cljd [edamame.impl.cljd-shim :refer [list]])))
 
+;; cljd special forms per cljd.reader, plus catch finally &
 #?(:cljd
    (defn- special-symbol? [s]
      (contains? '#{def if do let* quote var fn* loop* recur throw try
-                   catch finally . new set! & monitor-enter monitor-exit
-                   deftype* reify* letfn* case* import* ns def*}
+                   catch finally . new set! & ns letfn letfn* case*
+                   deftype* reify* defprotocol* defmethod* defmulti*
+                   extend-type-protocol*}
                 s)))
 
 (defn- record?* [x]
   #?(:clj (instance? clojure.lang.IRecord x)
      :cljs (record? x)
-     :cljd (satisfies? IRecord x)
+     :cljd (record? x)
      :cljr (instance? clojure.lang.IRecord x)))
 
 (defn- regex?* [x]
@@ -150,10 +152,8 @@
 (defn- add-meta [ctx reader form ret]
   (if (and (with-meta-able? form)
            (seq (dissoc (meta form) (:row-key ctx) (:col-key ctx) (:end-row-key ctx) (:end-col-key ctx))))
-    (list #?(:clj 'clojure.core/with-meta
-             :cljs 'cljs.core/with-meta
-             :cljd 'clojure.core/with-meta
-             :cljr 'clojure.core/with-meta) ret (syntax-quote* ctx reader (meta form)))
+    (list #?(:cljs 'cljs.core/with-meta
+             :default 'clojure.core/with-meta) ret (syntax-quote* ctx reader (meta form)))
     ret))
 
 (defn syntax-quote [ctx reader form]

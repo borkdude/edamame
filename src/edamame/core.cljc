@@ -150,10 +150,7 @@
 (defn iobj?
   "Returns true if obj can carry metadata."
   [obj]
-  #?(:clj
-     (instance? clojure.lang.IObj obj)
-     :cljs (satisfies? IWithMeta obj)
-     :cljr (instance? clojure.lang.IObj obj)))
+  (p/iobj? obj))
 
 (defn parse-ns-form
   "Parses `ns-form`, an s-expression, into map with:

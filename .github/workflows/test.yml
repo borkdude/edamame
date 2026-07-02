@@ -185,7 +185,9 @@ jobs:
 
       - name: Download dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
-        run: clojure -A:cljd -Stree
+        run: |
+          clojure -P -A:cljd
+          clojure -M:cljd init
 
       - name: Save dependency cache
         if: steps.cache-deps.outputs.cache-hit != 'true'

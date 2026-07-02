@@ -8,16 +8,29 @@
    [edamame.impl.cljd-reader-types :refer [read-char peek-char unread
                                            whitespace? numeric?]]))
 
+(def ^:private empty-list
+  ;; the () literal itself carries const-folded meta, strip it once
+  (with-meta () nil))
+
 (defn list
   "cljd.core/list leaks const-folded meta from its empty-list literal."
-  [& xs]
-  (with-meta (apply cljd.core/list xs) nil))
+  ([] empty-list)
+  ([a] (conj empty-list a))
+  ([a b] (conj (conj empty-list b) a))
+  ([a b c] (conj (conj (conj empty-list c) b) a))
+  ([a b c & xs]
+   (with-meta (apply cljd.core/list a b c xs) nil)))
 
 ;;;; char helpers
 
 (defn- macro-terminating? [ch]
   (case ch
     (\" \; \^ \( \) \[ \] \{ \} \\) true
+    false))
+
+(defn- macro? [ch]
+  (case ch
+    (\: \; \' \@ \^ \` \~ \( \) \[ \] \{ \} \\ \% \# \") true
     false))
 
 (defn- not-constituent? [ch]
@@ -77,7 +90,7 @@
       (throw (Exception. (str "Invalid unicode digit: " initch)))
       (if-not (== i length)
         (let [ch (peek-char rdr)]
-          (if (or (whitespace? ch) (nil? ch))
+          (if (or (whitespace? ch) (macro? ch) (nil? ch))
             (if exact?
               (throw (Exception. "Invalid unicode character length"))
               (char uc))
@@ -170,10 +183,13 @@
 
 ;;;; numbers
 
-(def ^:private int-pattern
-  #"([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)(N)?")
-(def ^:private float-pattern
-  #"([-+]?[0-9]+(\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?")
+;; anchored at def time: cljd re-matches rebuilds the RegExp on every call
+(def ^:private ^RegExp int-pattern
+  (RegExp. "^([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)(N)?$"))
+(def ^:private ^RegExp float-pattern
+  (RegExp. "^([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?$"))
+(def ^:private ^RegExp ratio-pattern
+  (RegExp. "^([-+]?[0-9]+)/([0-9]+)$"))
 
 (defn number-literal? [reader initch]
   (or (numeric? initch)
@@ -185,15 +201,15 @@
     (BigInt/parse s .radix radix)
     (int/parse s .radix radix)))
 
-(defn- match-int [groups]
-  (let [sign (nth groups 1)
-        zero (nth groups 2)
-        dec* (nth groups 3)
-        hex (nth groups 4)
-        oct (nth groups 5)
-        radix-base (nth groups 6)
-        radix-digits (nth groups 7)
-        bign (nth groups 8)
+(defn- match-int [^RegExpMatch m]
+  (let [sign (.group m 1)
+        zero (.group m 2)
+        dec* (.group m 3)
+        hex (.group m 4)
+        oct (.group m 5)
+        radix-base (.group m 6)
+        radix-digits (.group m 7)
+        bign (.group m 8)
         negate? (= "-" sign)
         big? (some? bign)
         [^String digits radix]
@@ -206,20 +222,23 @@
     (cond
       zero (if big? (BigInt/parse "0") 0)
       (nil? digits) nil
-      :else (let [n (parse-int-radix digits radix big?)]
-              (if negate? (- n) n)))))
+      :else (parse-int-radix (if negate? (str "-" digits) digits) radix big?))))
 
-(defn- match-float [^String s groups]
-  ;; group 4 = trailing M (bigdec); cljd has no BigDecimal, fall back to double
-  (double/parse s))
+(defn- match-float [^RegExpMatch m]
+  ;; cljd has no BigDecimal, a trailing M falls back to double
+  (double/parse (.group m 1)))
+
+(defn- match-ratio [^RegExpMatch m]
+  ;; cljd has no Ratio, divide like cljs
+  (/ (int/parse (.group m 1)) (int/parse (.group m 2))))
 
 (defn match-number [^String s]
-  (let [im (re-matches int-pattern s)]
-    (if im
-      (match-int im)
-      (let [fm (re-matches float-pattern s)]
-        (when fm
-          (match-float s fm))))))
+  (if-some [m (.firstMatch int-pattern s)]
+    (match-int m)
+    (if-some [m (.firstMatch float-pattern s)]
+      (match-float m)
+      (when-some [m (.firstMatch ratio-pattern s)]
+        (match-ratio m)))))
 
 ;;;; utils
 

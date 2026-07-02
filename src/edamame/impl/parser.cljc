@@ -36,9 +36,7 @@
 
 #?(:clj (set! *warn-on-reflection* true))
 
-;; NOTE: on :cljd a plain (Object.) is const-folded into a single shared
-;; instance (const objects are allocated once at compile time), so all
-;; sentinels would be identical?. ^:unique opts out of const-folding.
+;; cljd const-folds (Object.) into one shared instance, ^:unique opts out
 (def eof #?(:clj (Object.) :cljs (js/Object.) :cljd ^:unique (Object.) :cljr (Object.)))
 (def continue #?(:clj (Object.) :cljs (js/Object.) :cljd ^:unique (Object.) :cljr (Object.)))
 (def expected-delimiter #?(:clj (Object.) :cljs (js/Object.) :cljd ^:unique (Object.) :cljr (Object.)))
@@ -88,9 +86,7 @@
     false))
 
 #?(:cljd
-   (defn whitespace?
-     [c]
-     (r/whitespace? c))
+   (def whitespace? r/whitespace?)
    :cljs
    (defn whitespace?
      [c]
@@ -126,22 +122,14 @@
 
 (defn- parse-long*
   "Parses char to num"
-  [#?(:clj ^Character c :cljs c :cljd c :cljr c)]
-  #?(:clj (let [i (int c)
-               i (- i 48)]
-            (when (<= 0 i 9)
-              i))
-     :cljs (let [x (js/parseInt c)]
+  [#?(:clj ^Character c :default c)]
+  #?(:cljs (let [x (js/parseInt c)]
              (when-not (NaN? x)
                x))
-     :cljd (let [i (int c)
-                 i (- i 48)]
-             (when (<= 0 i 9)
-               i))
-     :cljr (let [i (int c)
-                i (- i 48)]
-            (when (<= 0 i 9)
-              i))))
+     :default (let [i (int c)
+                    i (- i 48)]
+                (when (<= 0 i 9)
+                  i))))
 
 (defn- array-dim [^String sym]
   (when (== 1 (str-len sym))
@@ -246,8 +234,7 @@
    (r/get-column-number reader)))
 
 (defmacro kw-identical? [k v]
-  ;; cljd keywords are not reference-equal (const literal vs runtime-parsed),
-  ;; so use value equality there.
+  ;; cljd keywords are not reference-equal
   #?(:cljd `(= ~k ~v)
      :default (macros/?
                :clj `(identical? ~k ~v)
@@ -325,10 +312,7 @@
               :cljr (StringBuilder.))]
     (loop [ch (r/read-char reader)]
       (if (identical? \" ch)
-        #?(:clj (str sb)
-           :cljs (str sb)
-           :cljd (str sb)
-           :cljr (str sb))
+        (str sb)
         (if (nil? ch)
           (throw-reader ctx reader "Error while parsing regex")
           (do
@@ -823,7 +807,7 @@
                      (r/peek-char reader))]
        (let [loc (when ir? (location reader))
              log? (:source ctx)
-             #?(:clj ^StringBuilder buf :default buf) (when log? #?(:cljd nil :default (buf reader)))
+             #?(:cljd buf :default ^StringBuilder buf) (when log? #?(:cljd nil :default (buf reader)))
              offset (when log? #?(:clj (.length buf)
                                   :cljs (.getLength buf)
                                   :cljd (r/current-index reader)

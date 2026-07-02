@@ -600,7 +600,6 @@
   (is (not (meta (e/parse-string "x" {:location? seq?}))))
   (is (meta (e/parse-string "(x)" {:location? seq?}))))
 
-;; cljd: edamame builds all maps via hash-map, no PersistentArrayMap distinction
 #?(:cljd nil :default
    (deftest array-map-test
      (is (instance? #?(:clj
@@ -762,3 +761,33 @@
 
 (deftest issue-132-suppress-read-test
   (is (tagged-literal? (e/parse-string "#dude 1" {:suppress-read true}))))
+
+(deftest ratio-test
+  (is (= #?(:clj 1/2 :cljr 1/2 :default 0.5) (e/parse-string "1/2")))
+  (is (= #?(:clj -3/4 :cljr -3/4 :default -0.75) (e/parse-string "-3/4"))))
+
+(deftest big-decimal-test
+  (is (= #?(:clj 3.14M :cljr 3.14M :default 3.14) (e/parse-string "3.14M")))
+  (is (== 3 (e/parse-string "3M"))))
+
+(deftest big-int-test
+  (is (= "-100" (str (e/parse-string "-100N"))))
+  (is (= "100" (str (e/parse-string "100N")))))
+
+(deftest octal-escape-test
+  (is (= (str (char 0)) (e/parse-string "\"\\0\"")))
+  (is (= (str (char 7)) (e/parse-string "\"\\7\""))))
+
+(deftest newline-normalization-test
+  (is (= "a\nb" (e/parse-string "\"a\r\nb\"")))
+  (is (= "a\nb" (e/parse-string "\"a\rb\"")))
+  (is (= 2 (:row (meta (second (e/parse-string-all "x\r\ny" {:location? symbol?}))))))
+  (is (= 2 (:row (meta (second (e/parse-string-all "x\ry" {:location? symbol?})))))))
+
+(deftest syntax-quote-special-symbol-test
+  (let [opts {:syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
+    (testing "ns is special on cljs and cljd"
+      (is (= '(quote #?(:clj user/ns :cljr user/ns :default ns))
+             (e/parse-string "`ns" opts))))
+    (is (= ''user/import* (e/parse-string "`import*" opts)))
+    (is (= ''user/def* (e/parse-string "`def*" opts)))))

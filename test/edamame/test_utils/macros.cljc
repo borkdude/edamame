@@ -5,9 +5,7 @@
 
 #?(:cljs (set! *warn-on-reflection* true))
 
-;; ClojureDart: cljd.test/assert-expr is a plain function, not an extensible
-;; multimethod. So we provide thrown-with-data? as a boolean-returning macro;
-;; cljd's `is` routes it through assert-any.
+;; cljd assert-expr is not extensible, use a boolean-returning macro
 #?(:cljd
    (defmacro thrown-with-data? [& args]
      (let [[msg-re expected expr] (if (= 3 (count args))

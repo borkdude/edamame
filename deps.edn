@@ -8,10 +8,8 @@
                        :git/sha "4cdb4be7240bcb3e62c65d7fa160175c70336c3b"}
                       io.github.borkdude/deflet {:mvn/version "0.1.0"}}
          :main-opts ["-m" "cljd.build"]}
-  :cljd-local {:extra-paths ["test"]
-               :extra-deps {tensegritics/clojuredart {:local/root "/Users/borkdude/dev/ClojureDart"}
-                            io.github.borkdude/deflet {:mvn/version "0.1.0"}}
-               :main-opts ["-m" "cljd.build"]}
+  ;; local ClojureDart checkout, compose as -M:cljd:cljd-local
+  :cljd-local {:override-deps {tensegritics/clojuredart {:local/root "/Users/borkdude/dev/ClojureDart"}}}
   :test {:extra-paths ["test"]
          :extra-deps {org.clojure/clojure {:mvn/version "1.9.0"}
                       org.clojure/clojurescript {:mvn/version "1.11.132"}
