@@ -123,7 +123,7 @@
   ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader normalized-opts]
    (when (rt/source-logging-reader? reader)
-     #?(:cljd nil ;; source logging not supported on cljd yet
+     #?(:cljd (rt/log-start! reader)
         :default
         (let [^StringBuilder buf (p/buf reader)]
           #?(:clj (.setLength buf 0)

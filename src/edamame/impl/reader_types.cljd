@@ -2,7 +2,13 @@
   "Self-contained reader for ClojureDart: a string-backed, indexing,
   push-back reader plus the subset of clojure.tools.reader helpers that
   edamame needs (char/number reading, ns-keys, reader conditionals).
-  Replaces the clojure.tools.reader dependency on the :cljd platform.")
+  Replaces the clojure.tools.reader dependency on the :cljd platform."
+  (:refer-clojure :exclude [list]))
+
+(defn list
+  "cljd.core/list leaks const-folded meta from its empty-list literal."
+  [& xs]
+  (with-meta (apply cljd.core/list xs) nil))
 
 ;;;; char helpers
 
@@ -50,7 +56,12 @@
   (-unread [r ch])
   (-line [r])
   (-col [r])
-  (-indexing? [r]))
+  (-indexing? [r])
+  (-logging? [r])
+  (-index [r])
+  (-source [r])
+  (-log-start! [r])
+  (-log-string [r]))
 
 (deftype StrRdr [^String s
                  ^int slen
@@ -60,7 +71,9 @@
                  ^:mutable line-start?
                  ^:mutable prev
                  ^:mutable ^int prev-column
-                 indexing?]
+                 indexing?
+                 logging?
+                 ^:mutable ^int log-start]
   IRdr
   (-read-char [_]
     (when (< idx slen)
@@ -87,7 +100,12 @@
       (set! idx (dec idx))))
   (-line [_] line)
   (-col [_] column)
-  (-indexing? [_] indexing?))
+  (-indexing? [_] indexing?)
+  (-logging? [_] logging?)
+  (-index [_] idx)
+  (-source [_] s)
+  (-log-start! [_] (set! log-start idx))
+  (-log-string [_] (subs s log-start idx)))
 
 (defn read-char [r] (-read-char r))
 (defn peek-char [r] (-peek-char r))
@@ -95,7 +113,11 @@
 (defn indexing-reader? [r] (-indexing? r))
 (defn get-line-number [r] (-line r))
 (defn get-column-number [r] (-col r))
-(defn source-logging-reader? [_r] false)
+(defn source-logging-reader? [r] (-logging? r))
+(defn current-index [r] (-index r))
+(defn source-string [r] (-source r))
+(defn log-start! [r] (-log-start! r))
+(defn log-string [r] (-log-string r))
 
 (defn read-line [r]
   (loop [sb (StringBuffer)]
@@ -106,18 +128,21 @@
 
 ;; constructors: edamame composes (indexing-push-back-reader (string-push-back-reader s))
 
-(defn- new-rdr [^String s indexing?]
+(defn- new-rdr
   ;; line/column are 1-based, matching tools.reader's IndexingPushbackReader
-  (StrRdr. s (.-length s) 0 1 1 false false 0 indexing?))
+  ([^String s indexing?] (new-rdr s indexing? false))
+  ([^String s indexing? logging?]
+   (StrRdr. s (.-length s) 0 1 1 false false 0 indexing? logging? 0)))
 
 (defn string-push-back-reader [s] (new-rdr s true))
 (defn indexing-push-back-reader [r] r) ;; identity: StrRdr already indexes
 (defn push-back-reader [x] (new-rdr x true))
 (defn string-reader [s] (new-rdr s true))
 
-;; source logging is not yet supported on cljd
-(defn source-logging-push-back-reader [_s]
-  (throw (Exception. "source-logging reader not supported on ClojureDart yet")))
+(defn source-logging-push-back-reader [s]
+  (if (string? s)
+    (new-rdr s true true)
+    (throw (ArgumentError. "source-logging reader requires a string"))))
 (defn log-source* [_reader f] (f))
 (defmacro log-source [_reader & body] `(do ~@body))
 
@@ -316,10 +341,31 @@
           :else key))
       key)))
 
-(defrecord ReaderConditional [splicing? form])
+(deftype ReaderConditional [splicing? form mta]
+  IPrint
+  (-print [_ sink]
+    (.write ^StringSink sink (if splicing? "#?@" "#?"))
+    (-print form sink))
+  ILookup
+  (-lookup [this k] (-lookup this k nil))
+  (-lookup [_ k not-found]
+    (cond (= :splicing? k) splicing?
+          (= :form k) form
+          :else not-found))
+  IMeta
+  (-meta [_] mta)
+  IWithMeta
+  (-with-meta [_ m] (ReaderConditional. splicing? form m))
+  IEquiv
+  (-equiv [_ other]
+    (and (instance? ReaderConditional other)
+         (= splicing? (.-splicing? ^ReaderConditional other))
+         (= form (.-form ^ReaderConditional other))))
+  IHash
+  (-hash [_] (hash [splicing? form])))
 
 (defn reader-conditional [form splicing?]
-  (->ReaderConditional splicing? form))
+  (ReaderConditional. splicing? form nil))
 
 (defn reader-conditional? [x]
   (instance? ReaderConditional x))

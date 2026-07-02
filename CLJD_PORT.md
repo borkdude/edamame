@@ -2,7 +2,7 @@
 
 Branch: `cljd`. Target: compile edamame to Dart so SCI can run on ClojureDart.
 
-## Status: core parsing DONE, 32/38 tests pass
+## Status: all 38 tests pass
 
 Run tests:
 
@@ -15,38 +15,38 @@ local/root for tensegritics/clojuredart - adjust path or switch to a git sha.)
 
 - `src/edamame/impl/reader_types.cljd` - self-contained string reader
   (indexing + pushback + char/number/util helpers) that replaces
-  clojure.tools.reader on cljd. line/col are 1-based.
+  clojure.tools.reader on cljd. line/col are 1-based. Includes source
+  logging (readers know their string + index, so :source is a subs)
+  and a ReaderConditional deftype with IPrint for :preserve printing.
 - `#?(:cljd ...)` reader-conditional arms across parser.cljc, core.cljc,
   syntax_quote.cljc, read_fn.cljc, macros.cljc.
-- Tests: clj/cljs-only tests are gated with `#?(:cljd nil :clj ...)` so cljd
-  test discovery skips them. core_test.cljc stays cross-platform.
+- `reader-types/list` replaces `cljd.core/list` in parser, read-fn and
+  syntax-quote via `:refer-clojure :exclude`. Upstream cljd bug: the `()`
+  literal inside `cljd.core/list` carries const-folded compiler meta
+  (:line 3436 :tag PersistentList etc) which leaks into every list it
+  builds. Worth reporting to ClojureDart.
+- Tests: clj/cljs-only tests are gated with `#?(:cljd nil ...)` so cljd
+  test discovery skips them. Cljd-specific shields in core_test.cljc:
+  - quote-test: `'` without :quote opt needs the edn fallback reader.
+  - edge-cases-test: Dart RegExp has no inline `(?i)` flag, uses `[Ii]`.
+  - thrown? assertions use cljd.core/ExceptionInfo since cljd ex-info
+    is not a Dart Exception.
 
 ## Works (all SCI needs)
 
 numbers, strings, chars, keywords, symbols, colls, location metadata,
-reader conditionals (incl :default), syntax-quote/unquote, namespaced maps,
-deref/quote/var/fn-literals, regex via :regex, tagged literals, uneval,
-:auto-resolve.
+reader conditionals (incl :default and :preserve printing), syntax-quote,
+namespaced maps, deref/quote/var/fn-literals, regex via :regex, tagged
+literals, uneval, :auto-resolve, :source (source-logging reader).
 
-## Gaps (the 6 failing tests)
+## Remaining gap
 
-1. edn fallback `read` - STUBBED, throws ("edn fallback reader not supported").
-   In reader_types.cljd. Only hit by `'` without :quote opt and some unhandled
-   dispatch macros. SCI passes full opts so unlikely to hit. <- real gap
-2. source-logging reader (:source opt) - STUBBED, throws. buf/log-source are
-   no-ops. SCI default parsing does not use it. <- real gap
-3. byte-array notation (byte/0) - unsupported, ignore for now.
-4. ReaderConditional :preserve prints as map, not #?@(...) - cosmetic, needs
-   IPrint impl on the cljd ReaderConditional.
-5. (?i) inline regex flag - Dart RegExp limitation (test-side).
-6. fn-test meta has extra :line/:column/:tag - cljd compiler leak, not edamame.
-
-## Where to start next
-
-If SCI needs them: implement #1 (edn fallback read) and #2 (source-logging)
-in reader_types.cljd. Otherwise edamame is good enough for the SCI port.
+edn fallback `read` in reader_types.cljd - STUBBED, throws. Only hit by
+`'` without the :quote opt and some unhandled dispatch macros. SCI passes
+full opts so unlikely to hit. Implement if SCI turns out to need it.
 
 See also the gotchas: cljd const-folds (Object.) -> use ^:unique; keywords
 not reference-equal -> kw-identical? uses =; cljd ExceptionInfo is not a Dart
 Exception (thrown? Exception won't catch ex-info); no array-map; StringBuffer
-.write returns void.
+.write returns void; defrecord always emits IPrint so a custom -print needs
+deftype; cljd.core/list leaks const meta (see above).

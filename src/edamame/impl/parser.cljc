@@ -2,6 +2,7 @@
   "This code is largely inspired by rewrite-clj(sc), so thanks to all
   who contribured to those projects."
   {:no-doc true}
+  #?(:cljd (:refer-clojure :exclude [list]))
   (:require
    #?(:cljd [edamame.impl.reader-types :as edn]
       :cljs [cljs.tools.reader.edn :as edn]
@@ -15,7 +16,7 @@
       :cljs [cljs.tools.reader.impl.inspect :as i]
       :cljr [clojure.tools.reader.impl.inspect :as i]
       :clj  [clojure.tools.reader.impl.inspect :as i])
-   #?(:cljd [edamame.impl.reader-types :as utils :refer [namespace-keys reader-conditional]]
+   #?(:cljd [edamame.impl.reader-types :as utils :refer [namespace-keys reader-conditional list]]
       :cljs [cljs.tools.reader.impl.utils :refer [namespace-keys reader-conditional]]
       :cljr [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys whitespace?]]
       :clj [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys]])
@@ -806,7 +807,7 @@
               :else (read-symbol ctx reader c)))))))
 
 (defn buf [reader]
-  #?(:cljd nil ;; source logging not supported on cljd yet
+  #?(:cljd (r/log-string reader)
      :clj (:buffer @(.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader))
      :cljs (:buffer @(.-frames reader))
      :cljr (:buffer @(.source-log-frames ^clojure.tools.reader.reader_types.SourceLoggingPushbackReader reader))))
@@ -819,10 +820,10 @@
                      (r/peek-char reader))]
        (let [loc (when ir? (location reader))
              log? (:source ctx)
-             #?(:clj ^StringBuilder buf :default buf) (when log? (buf reader))
+             #?(:clj ^StringBuilder buf :default buf) (when log? #?(:cljd nil :default (buf reader)))
              offset (when log? #?(:clj (.length buf)
                                   :cljs (.getLength buf)
-                                  :cljd nil
+                                  :cljd (r/current-index reader)
                                   :cljr (.Length buf)))
              obj (if log?
                    #?(:clj (r/log-source reader (dispatch ctx reader c))
@@ -849,7 +850,7 @@
                    src (when log?
                          #?(:clj (.trim (subs (str buf) offset))
                             :cljs (.trim (subs (str buf) offset))
-                            :cljd nil
+                            :cljd (.trim (subs (r/source-string reader) offset (r/current-index reader)))
                             :cljr (.Trim (subs (str buf) offset))))
                    loc? (and ir? (or (and iobj??
                                           (or (not location?)

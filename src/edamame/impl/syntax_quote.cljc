@@ -2,7 +2,10 @@
   "Taken and adapted from
   https://github.com/clojure/tools.reader/blob/master/src/main/clojure/clojure/tools/reader.clj"
   {:no-doc true}
-  (:require [clojure.string :as str]))
+  #?(:cljd (:refer-clojure :exclude [list]))
+  (:require
+   [clojure.string :as str]
+   #?(:cljd [edamame.impl.reader-types :refer [list]])))
 
 #?(:cljd
    (defn- special-symbol? [s]

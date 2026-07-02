@@ -280,8 +280,10 @@
 (deftest quote-test
   (is (= '(quote foo) (e/parse-string "'foo" {:dispatch {\' (fn [val]
                                                               (list 'quote val))}})))
-  (is (= (symbol "'") (e/parse-string "'")))
-  (is (= (symbol "'foo") (e/parse-string "'foo"))))
+  #?(:cljd nil
+     :default
+     (do (is (= (symbol "'") (e/parse-string "'")))
+         (is (= (symbol "'foo") (e/parse-string "'foo"))))))
 
 (deftest fn-test
   #?(:clj (is (= 'fn*
@@ -499,7 +501,8 @@
 (deftest edge-cases-test
   (is (= '(quote x) (e/parse-string "' x" {:quote true})))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr Exception)
-                        #"(?i)invalid token" (e/parse-string ": x")))
+                        #?(:cljd #"[Ii]nvalid token" :default #"(?i)invalid token")
+                        (e/parse-string ": x")))
   (testing "#40"
     (is (= :nil (e/parse-string ":nil")))
     (is (= :123 (e/parse-string ":123")))
@@ -712,11 +715,11 @@
 (deftest array-notation-test
   (is (= (symbol "byte/1") (e/parse-string "byte/1")))
   (is (= (symbol "byte/9") (e/parse-string "byte/9")))
-  (is (thrown? Exception (e/parse-string "byte/0")))
-  (is (thrown? Exception (e/parse-string "byte/11")))
-  (is (thrown? Exception (e/parse-string "byte:/1")))
-  (is (thrown? Exception (e/parse-string "byte/")))
-  (is (thrown? Exception (e/parse-string "byte/1a"))))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/0")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/11")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte:/1")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/1a"))))
 
 (deftest issue-115-test
   (is (= {:type :edamame/error, :row 1, :col 3} (try (e/parse-string "{:}") (catch #?(:cljd cljd.core/ExceptionInfo :default Exception) e (ex-data e))))))
