@@ -1,7 +1,8 @@
 (ns edamame.core
   (:require
    [clojure.string :as str]
-   [clojure.tools.reader.reader-types :as rt]
+   #?(:cljd [edamame.impl.cljd-reader-types :as rt]
+      :default [clojure.tools.reader.reader-types :as rt])
    [edamame.impl.ns-parser :as nsp]
    [edamame.impl.parser :as p]))
 
@@ -122,10 +123,12 @@
   ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader normalized-opts]
    (when (rt/source-logging-reader? reader)
-     (let [^StringBuilder buf (p/buf reader)]
-       #?(:clj (.setLength buf 0)
-          :cljs (.clear buf)
-          :cljr (.set_Length buf 0))))
+     #?(:cljd (rt/log-start! reader)
+        :default
+        (let [^StringBuilder buf (p/buf reader)]
+          #?(:clj (.setLength buf 0)
+             :cljs (.clear buf)
+             :cljr (.set_Length buf 0)))))
    (let [v (p/parse-next normalized-opts reader)]
      (if (identical? p/eof v)
        (or (get normalized-opts :eof)
@@ -147,10 +150,7 @@
 (defn iobj?
   "Returns true if obj can carry metadata."
   [obj]
-  #?(:clj
-     (instance? clojure.lang.IObj obj)
-     :cljs (satisfies? IWithMeta obj)
-     :cljr (instance? clojure.lang.IObj obj)))
+  (p/iobj? obj))
 
 (defn parse-ns-form
   "Parses `ns-form`, an s-expression, into map with:

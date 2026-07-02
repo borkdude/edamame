@@ -19,3 +19,16 @@ pom.xml.asc
 /tmp
 /.lsp/
 .rebel_readline_history
+# ClojureDart generated artifacts
+/lib
+/bin
+/pubspec.yaml
+/pubspec.lock
+/.dart_tool
+/test/cljd-out
+/.clojuredart
+/analysis_options.yaml
+/.packages
+/build
+.gitattributes
+/test/edamame_test.dart

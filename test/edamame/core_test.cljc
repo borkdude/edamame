@@ -1,18 +1,19 @@
 (ns edamame.core-test
   (:require
-   #?(:clj [cljs.tagged-literals :as cljs-tags])
-   #?(:clj [clojure.java.io :as io])
+   #?@(:cljd [] :clj [[cljs.tagged-literals :as cljs-tags]])
+   #?@(:cljd [] :clj [[clojure.java.io :as io]])
    #?(:cljr [clojure.clr.io :as io])
-   #?(:clj [clojure.tools.reader :as tr])
-   #?(:clj [flatland.ordered.map :as omap])
-   #?(:clj [flatland.ordered.set :as oset])
+   #?@(:cljd [] :clj [[clojure.tools.reader :as tr]])
+   #?@(:cljd [] :clj [[flatland.ordered.map :as omap]])
+   #?@(:cljd [] :clj [[flatland.ordered.set :as oset]])
    #?(:cljs [cljs.tagged-literals :refer [JSValue]])
    #?(:cljs [goog.object :as gobj])
    [borkdude.deflet :refer [deflet]]
    [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as e]
-   [edamame.test-utils]))
+   #?(:cljd [edamame.test-utils.macros :refer [thrown-with-data?]]
+      :default [edamame.test-utils])))
 
 #?(:cljs (def Exception js/Error))
 
@@ -101,9 +102,9 @@
     (is (= '[1 2 3] (e/parse-string "(1 2 3 #_4)")))
     (is (= [1 2] (e/parse-string-all "#_(+ 1 2 3) 1 2"))))
   (testing "unmatched delimiter"
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"expected: ]"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"expected: ]"
                           (e/parse-string "[}")))
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"expected ]"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"expected ]"
                           (e/parse-string "  [   ")))
     (is (thrown-with-data?
          #"Unmatched delimiter: \]"
@@ -129,10 +130,10 @@
      {:a 1}
      )
  }")))
-  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo)
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo)
                         #"EOF while reading"
                         (e/parse-string "'" {:quote true})))
-  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo)
+  (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo)
                         #"EOF while reading"
                         (e/parse-string "#'" {:var true}))))
 
@@ -141,7 +142,7 @@
         fix-expression (fn fix-expression [expr]
                          (try (when (e/parse-string expr)
                                 expr)
-                              (catch #?(:clj clojure.lang.ExceptionInfo :cljs :default :cljr clojure.lang.ExceptionInfo) e
+                              (catch #?(:clj clojure.lang.ExceptionInfo :cljs :default :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo) e
                                 (if-let [expected-delimiter (:edamame/expected-delimiter (ex-data e))]
                                   (fix-expression (str expr expected-delimiter))
                                   (throw e)))))]
@@ -149,7 +150,7 @@
 
 (deftest reader-conditional-test
   (testing "reader conditional processing"
-    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljr clojure.lang.ExceptionInfo)
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo)
                           #"allow"
                           (e/parse-string "#?(:clj 1)")))
     (is (= [1 2 3 5] (e/parse-string "[1 2 #?(:bb 3 :clj 4) 5]" {:features #{:bb}
@@ -231,7 +232,7 @@
  (:clj
    [1 2 3]))" {:read-cond true
                :features #{:clj}}))))
-    (is (thrown-with-msg? Exception #"keyword"
+    (is (thrown-with-msg? #?(:cljd cljd.core/ExceptionInfo :default Exception) #"keyword"
                           (e/parse-string "#?(:clj 1 2 :bb 3)"
                                           {:read-cond true
                                            :features #{:bb}})))
@@ -300,7 +301,7 @@
   (is (= '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))
          (e/parse-string "#(apply + % %1 %3 %&)"
                          {:all true})))
-  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljr Exception)
+  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr Exception)
                         #"Nested" (e/parse-string "(#(+ (#(inc %) 2)) 3)"
                                                   {:all true})))
   (let [[_fn _args expr] (e/parse-string "#(+ (/ 1 %))"
@@ -331,6 +332,7 @@
 
 (def core-expr-count (atom 0))
 
+#?(:cljd nil :default
 (defn core-read-test
   "Extracted so we can run this in the profiler"
   []
@@ -345,9 +347,9 @@
                         :col-key :column
                         :end-location false
                         :location? seq?
-                        :auto-resolve '{:current clojure.core}})))
+                        :auto-resolve '{:current clojure.core}}))))
 
-#?(:clj (defn pbr-test
+#?(:cljd nil :clj (defn pbr-test
           "Extracted so we can run this in the profiler"
           [indexing?]
           (with-open [rdr (java.io.PushbackReader. (io/reader (io/file "test-resources" "clojure" "core.clj")))]
@@ -363,6 +365,7 @@
               (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
                                                          (repeatedly #(e/parse-next rdr opts))))))))))
 
+#?(:cljd nil :default
 (deftest parse-clojure-core
   (is
    (nil?
@@ -422,7 +425,7 @@
                                                     :end-location false
                                                     :readers cljs-tags/*cljs-data-readers*})]
                         (is (= @core-expr-count (count (take-while #(not= :edamame.core/eof %)
-                                                                   (repeatedly #(e/parse-next rdr opts)))))))))))))
+                                                                   (repeatedly #(e/parse-next rdr opts))))))))))))))
 
 (deftest readers-test
   (is (= '(foo [1 2 3]) (e/parse-string "#foo [1 2 3]" {:readers {'foo (fn [v] (list 'foo v))}})))
@@ -440,21 +443,21 @@
          (e/parse-string "#::foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})
          (e/parse-string "#::foo {:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
   (is (thrown-with-msg?
-       Exception #"Namespaced map must specify a namespace"
+       #?(:cljd cljd.core/ExceptionInfo :default Exception) #"Namespaced map must specify a namespace"
        (e/parse-string "#:: foo{:a 1 :bar/dude 1}" '{:auto-resolve {foo foo.foo}})))
   (is (= #:foo{:a 1} (e/parse-string "#::{:a 1}" '{:auto-resolve {:current foo}})))
   (is (= #:foo{:a 1} (e/parse-string "#:: {:a 1}" '{:auto-resolve {:current foo}})))
   (is (thrown-with-msg?
-       Exception #"Namespaced map must specify a namespace"
+       #?(:cljd cljd.core/ExceptionInfo :default Exception) #"Namespaced map must specify a namespace"
        (e/parse-string "#: :{:a 1}" '{:auto-resolve {:current foo}}))))
 
 (deftest exception-test
-  (is (let [d (try (e/parse-string-all "())")
-                   (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error :cljr clojure.lang.ExceptionInfo) e
-                     (ex-data e)))]
-        (is (= :edamame/error (:type d)))
-        (is (= 1 (:row d)))
-        (is (= 3 (:col d))))))
+  (let [d (try (e/parse-string-all "())")
+               (catch #?(:clj clojure.lang.ExceptionInfo :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo) e
+                 (ex-data e)))]
+    (is (= :edamame/error (:type d)))
+    (is (= 1 (:row d)))
+    (is (= 3 (:col d)))))
 
 (deftest syntax-quote-test
   ;; NOTE: most of the syntax quote functionality is tested in sci
@@ -495,8 +498,9 @@
 
 (deftest edge-cases-test
   (is (= '(quote x) (e/parse-string "' x" {:quote true})))
-  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljr Exception)
-                        #"(?i)invalid token" (e/parse-string ": x")))
+  (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr Exception)
+                        #?(:cljd #"[Ii]nvalid token" :default #"(?i)invalid token")
+                        (e/parse-string ": x")))
   (testing "#40"
     (is (= :nil (e/parse-string ":nil")))
     (is (= :123 (e/parse-string ":123")))
@@ -520,6 +524,7 @@
 (defn iobj? [x]
   #?(:clj (instance? clojure.lang.IObj x)
      :cljs (satisfies? IWithMeta x)
+     :cljd (satisfies? IWithMeta x)
      :cljr (instance? clojure.lang.IObj x)))
 
 (deftest postprocess-test
@@ -537,7 +542,7 @@
            (meta (e/parse-string "^:foo []" {:postprocess p-fn}))
            (meta (e/parse-string "^{:foo true} []" {:postprocess p-fn}))))))
 
-#?(:clj
+#?(:cljd nil :clj
    (deftest pushback-reader-test
      (let [v (e/parse-next
               (java.io.PushbackReader. (java.io.StringReader. "(+ 1 2 3)")))]
@@ -595,20 +600,21 @@
   (is (not (meta (e/parse-string "x" {:location? seq?}))))
   (is (meta (e/parse-string "(x)" {:location? seq?}))))
 
-(deftest array-map-test
-  (is (instance? #?(:clj
-                    clojure.lang.PersistentArrayMap
-                    :cljs
-                    PersistentArrayMap
-                    :cljr clojure.lang.PersistentArrayMap)
-                 (e/parse-string "{:a 1 :b 2}")))
-  (is (instance? #?(:clj
-                    clojure.lang.PersistentHashMap
-                    :cljs
-                    PersistentHashMap
-                    :cljr
-                    clojure.lang.PersistentHashMap)
-                 (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}"))))
+#?(:cljd nil :default
+   (deftest array-map-test
+     (is (instance? #?(:clj
+                       clojure.lang.PersistentArrayMap
+                       :cljs
+                       PersistentArrayMap
+                       :cljr clojure.lang.PersistentArrayMap)
+                    (e/parse-string "{:a 1 :b 2}")))
+     (is (instance? #?(:clj
+                       clojure.lang.PersistentHashMap
+                       :cljs
+                       PersistentHashMap
+                       :cljr
+                       clojure.lang.PersistentHashMap)
+                    (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}")))))
 
 (deftest number-test
   (is (number? (e/parse-string "-100"))))
@@ -621,7 +627,7 @@
 
 (deftest string-delimiter-test
   (try (e/parse-string "\"")
-       (catch #?(:clj Exception :cljs :default :cljr Exception) e
+       (catch #?(:clj Exception :cljs :default :cljd cljd.core/ExceptionInfo :cljr Exception) e
          (is (= {:type :edamame/error,
                  :row 1, :col 2,
                  :edamame/expected-delimiter "\"",
@@ -632,7 +638,7 @@
 (defn source? [f]
   (re-matches #".*\.clj[cs]?$" (str f)))
 
-#?(:clj
+#?(:cljd nil :clj
    (deftest self-parse-test
      (let [file-list (filter source? (map str (concat (file-seq (io/file "src"))
                                                       (file-seq (io/file "test")))))]
@@ -655,7 +661,7 @@
         :col 1}
        (e/parse-string "foo/bar/baz"))))
 
-#?(:clj
+#?(:cljd nil :clj
    (deftest read-cond-with-plain-pushback-rdr-rest
      (with-open [rdr (java.io.PushbackReader. (java.io.StringReader. "#?(:cljs 2 :clj 1)"))]
        (let [opts (e/normalize-opts {:all true
@@ -696,7 +702,7 @@
     (is (true? (:foo (meta parsed))))
     (is (nil? (e/parse-string "#_:foo" {:uneval identity})))))
 
-#?(:clj
+#?(:cljd nil :clj
    (deftest map-set-test
      (is (= "{:a #{1 2 3 4 5 6 7 8 9 10}, :b 2, :c 3, :d 4, :e 5, :f 6, :h 7, :i 8, :j 9, :k 10, :l 11}" (str (e/parse-string "{:a #{1 2 3 4 5 6 7 8 9 10} :b 2 :c 3 :d 4 :e 5 :f 6 :h 7 :i 8 :j 9 :k 10 :l 11}"
                                                                                                                               {:map omap/ordered-map
@@ -710,14 +716,14 @@
 (deftest array-notation-test
   (is (= (symbol "byte/1") (e/parse-string "byte/1")))
   (is (= (symbol "byte/9") (e/parse-string "byte/9")))
-  (is (thrown? Exception (e/parse-string "byte/0")))
-  (is (thrown? Exception (e/parse-string "byte/11")))
-  (is (thrown? Exception (e/parse-string "byte:/1")))
-  (is (thrown? Exception (e/parse-string "byte/")))
-  (is (thrown? Exception (e/parse-string "byte/1a"))))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/0")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/11")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte:/1")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/")))
+  (is (thrown? #?(:cljd cljd.core/ExceptionInfo :default Exception) (e/parse-string "byte/1a"))))
 
 (deftest issue-115-test
-  (is (= {:type :edamame/error, :row 1, :col 3} (try (e/parse-string "{:}") (catch Exception e (ex-data e))))))
+  (is (= {:type :edamame/error, :row 1, :col 3} (try (e/parse-string "{:}") (catch #?(:cljd cljd.core/ExceptionInfo :default Exception) e (ex-data e))))))
 
 (deftest parse-ns-test
   (is (= '{:current foo, :meta nil
@@ -754,8 +760,40 @@
                (e/parse-string edn-string))))))
 
 (deftest issue-117-test
-  (is (thrown-with-msg? Exception #"Invalid keyword: :::foo" (e/parse-string ":::foo" {:auto-resolve identity})))
+  (is (thrown-with-msg? #?(:cljd cljd.core/ExceptionInfo :default Exception) #"Invalid keyword: :::foo" (e/parse-string ":::foo" {:auto-resolve identity})))
   )
 
 (deftest issue-132-suppress-read-test
   (is (tagged-literal? (e/parse-string "#dude 1" {:suppress-read true}))))
+
+(deftest ratio-test
+  (is (= #?(:clj 1/2 :cljr 1/2 :default 0.5) (e/parse-string "1/2")))
+  (is (= #?(:clj -3/4 :cljr -3/4 :default -0.75) (e/parse-string "-3/4"))))
+
+(deftest big-decimal-test
+  (is (= #?(:clj 3.14M :cljr 3.14M :default 3.14) (e/parse-string "3.14M")))
+  (is (== 3 (e/parse-string "3M"))))
+
+(deftest big-int-test
+  (is (= "-100" (str (e/parse-string "-100N"))))
+  (is (= "100" (str (e/parse-string "100N")))))
+
+(deftest octal-escape-test
+  (is (= (str (char 0)) (e/parse-string "\"\\0\"")))
+  (is (= (str (char 7)) (e/parse-string "\"\\7\""))))
+
+(deftest newline-normalization-test
+  (is (= "a\nb" (e/parse-string "\"a\r\nb\"")))
+  (is (= "a\nb" (e/parse-string "\"a\rb\"")))
+  (is (= 2 (:row (meta (second (e/parse-string-all "x\r\ny" {:location? symbol?}))))))
+  (is (= 2 (:row (meta (second (e/parse-string-all "x\ry" {:location? symbol?}))))))
+  (is (= "(+ 1\n2)" (:source (meta (e/parse-next (e/source-reader "(+ 1\r\n2)")
+                                                 (e/normalize-opts {:source true :all true})))))))
+
+(deftest syntax-quote-special-symbol-test
+  (let [opts {:syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
+    (testing "ns is special on cljs and cljd"
+      (is (= '(quote #?(:clj user/ns :cljr user/ns :default ns))
+             (e/parse-string "`ns" opts))))
+    (is (= ''user/import* (e/parse-string "`import*" opts)))
+    (is (= ''user/def* (e/parse-string "`def*" opts)))))

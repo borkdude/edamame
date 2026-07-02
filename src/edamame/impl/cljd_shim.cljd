@@ -1,0 +1,287 @@
+(ns edamame.impl.cljd-shim
+  "The subset of clojure.tools.reader helpers that edamame needs on the
+  :cljd platform: char/number reading, the edn fallback, ns-keys and
+  reader conditionals. The reader itself lives in
+  edamame.impl.cljd-reader-types."
+  (:refer-clojure :exclude [list])
+  (:require
+   [edamame.impl.cljd-reader-types :refer [read-char peek-char unread
+                                           whitespace? numeric?]]))
+
+(def ^:private empty-list
+  ;; the () literal itself carries const-folded meta, strip it once
+  (with-meta () nil))
+
+(defn list
+  "cljd.core/list leaks const-folded meta from its empty-list literal."
+  ([] empty-list)
+  ([a] (conj empty-list a))
+  ([a b] (conj (conj empty-list b) a))
+  ([a b c] (conj (conj (conj empty-list c) b) a))
+  ([a b c & xs]
+   (with-meta (apply cljd.core/list a b c xs) nil)))
+
+;;;; char helpers
+
+(defn- macro-terminating? [ch]
+  (case ch
+    (\" \; \^ \( \) \[ \] \{ \} \\) true
+    false))
+
+(defn- macro? [ch]
+  (case ch
+    (\: \; \' \@ \^ \` \~ \( \) \[ \] \{ \} \\ \% \# \") true
+    false))
+
+(defn- not-constituent? [ch]
+  (or (identical? \@ ch)
+      (identical? \` ch)
+      (identical? \~ ch)))
+
+(defn- digit
+  "Digit value of char in base, or -1."
+  [ch base]
+  (let [c (int ch)
+        d (cond
+            (and (>= c 48) (<= c 57)) (- c 48)
+            (and (>= c 97) (<= c 122)) (+ 10 (- c 97))
+            (and (>= c 65) (<= c 90)) (+ 10 (- c 65))
+            :else 99)]
+    (if (< d base) d -1)))
+
+;;;; tokens
+
+(defn- read-token
+  "Read a logical token (used for char/symbolic-value literals)."
+  [rdr initch]
+  (loop [^StringBuffer sb (doto (StringBuffer) (.write initch))
+         ch (read-char rdr)]
+    (if (or (nil? ch)
+            (whitespace? ch)
+            (macro-terminating? ch)
+            (not-constituent? ch))
+      (do (when ch (unread rdr ch))
+          (.toString sb))
+      (recur (doto sb (.write ch)) (read-char rdr)))))
+
+;;;; char + escape reading (edn equivalents)
+
+(def ^:private upper-limit 55295) ;; 0xD7FF
+(def ^:private lower-limit 57344) ;; 0xE000
+
+(defn- read-unicode-char-token
+  "Read `length` digits of `base` from `token` starting at `offset`."
+  [^String token offset length base]
+  (let [l (+ offset length)]
+    (when-not (== (count token) l)
+      (throw (Exception. (str "Invalid unicode literal: " token))))
+    (loop [i offset uc 0]
+      (if (== i l)
+        (char uc)
+        (let [d (digit (nth token i) base)]
+          (if (== d -1)
+            (throw (Exception. (str "Invalid digit in unicode literal: " token)))
+            (recur (inc i) (+ d (* uc base)))))))))
+
+(defn- read-unicode-char-stream
+  [rdr initch base length exact?]
+  (loop [i 1 uc (digit initch base)]
+    (if (== uc -1)
+      (throw (Exception. (str "Invalid unicode digit: " initch)))
+      (if-not (== i length)
+        (let [ch (peek-char rdr)]
+          (if (or (whitespace? ch) (macro? ch) (nil? ch))
+            (if exact?
+              (throw (Exception. "Invalid unicode character length"))
+              (char uc))
+            (let [d (digit ch base)]
+              (if (== d -1)
+                (throw (Exception. (str "Invalid unicode digit: " ch)))
+                (do (read-char rdr)
+                    (recur (inc i) (+ d (* uc base))))))))
+        (char uc)))))
+
+(defn read-char*
+  "Reads a character literal. `backslash` is the already-consumed leading
+  backslash (unused); the actual character is read from `rdr`."
+  [rdr _backslash _opts]
+  (let [ch (read-char rdr)]
+   (if-not (nil? ch)
+    (let [token (if (or (macro-terminating? ch)
+                        (not-constituent? ch)
+                        (whitespace? ch))
+                  (str ch)
+                  (read-token rdr ch))
+          token-len (count token)]
+      (cond
+        (== 1 token-len) (nth token 0)
+        (= token "newline") \newline
+        (= token "space") \space
+        (= token "tab") \tab
+        (= token "backspace") \backspace
+        (= token "formfeed") \formfeed
+        (= token "return") \return
+        (= (nth token 0) \u)
+        (let [c (read-unicode-char-token token 1 4 16)
+              ic (int c)]
+          (if (and (> ic upper-limit) (< ic lower-limit))
+            (throw (Exception. (str "Invalid character literal: \\u" (subs token 1))))
+            c))
+        (= (nth token 0) \o)
+        (let [len (dec token-len)]
+          (if (> len 3)
+            (throw (Exception. (str "Invalid octal escape sequence length: " len)))
+            (let [uc (read-unicode-char-token token 1 len 8)]
+              (if (> (int uc) 0377)
+                (throw (Exception. "Octal escape sequence must be in range [0, 377]"))
+                uc))))
+        :else (throw (Exception. (str "Unsupported character: \\" token)))))
+    (throw (Exception. "EOF while reading character")))))
+
+(defn escape-char
+  "Reads a string escape sequence (after the backslash). Returns a string."
+  [_sb rdr]
+  (let [ch (read-char rdr)]
+    (case ch
+      \t "\t"
+      \r "\r"
+      \n "\n"
+      \\ "\\"
+      \" "\""
+      \b "\b"
+      \f "\f"
+      \u (let [ch (read-char rdr)]
+           (if (== -1 (digit ch 16))
+             (throw (Exception. (str "Invalid unicode escape: \\u" ch)))
+             (str (read-unicode-char-stream rdr ch 16 4 true))))
+      (if (numeric? ch)
+        (let [ch (read-unicode-char-stream rdr ch 8 3 false)]
+          (if (> (int ch) 0377)
+            (throw (Exception. "Octal escape sequence must be in range [0, 377]"))
+            (str ch)))
+        (throw (Exception. (str "Unsupported escape character: \\" ch)))))))
+
+(defn read-symbolic-value
+  "Reads ##Inf / ##-Inf / ##NaN (the leading ## already consumed)."
+  [rdr _ _opts]
+  (let [initch (read-char rdr)
+        token (read-token rdr initch)]
+    (case token
+      "Inf" (/ 1.0 0.0)
+      "-Inf" (/ -1.0 0.0)
+      "NaN" (/ 0.0 0.0)
+      (throw (Exception. (str "Invalid token: ##" token))))))
+
+;;;; edn fallback reader
+;; only reached for quote without the :quote opt and disabled dispatch macros
+
+(defn read [_opts rdr]
+  (let [ch (read-char rdr)]
+    (if (identical? \# ch)
+      (throw (Exception. (str "No dispatch macro for " (peek-char rdr))))
+      (symbol (read-token rdr ch)))))
+
+;;;; numbers
+
+;; anchored at def time: cljd re-matches rebuilds the RegExp on every call
+(def ^:private ^RegExp int-pattern
+  (RegExp. "^([-+]?)(?:(0)|([1-9][0-9]*)|0[xX]([0-9A-Fa-f]+)|0([0-7]+)|([1-9][0-9]?)[rR]([0-9A-Za-z]+)|0[0-9]+)(N)?$"))
+(def ^:private ^RegExp float-pattern
+  (RegExp. "^([-+]?[0-9]+(\\.[0-9]*)?([eE][-+]?[0-9]+)?)(M)?$"))
+(def ^:private ^RegExp ratio-pattern
+  (RegExp. "^([-+]?[0-9]+)/([0-9]+)$"))
+
+(defn number-literal? [reader initch]
+  (or (numeric? initch)
+      (and (or (identical? \+ initch) (identical? \- initch))
+           (numeric? (peek-char reader)))))
+
+(defn- parse-int-radix [^String s radix big?]
+  (if big?
+    (BigInt/parse s .radix radix)
+    (int/parse s .radix radix)))
+
+(defn- match-int [^RegExpMatch m]
+  (let [sign (.group m 1)
+        zero (.group m 2)
+        dec* (.group m 3)
+        hex (.group m 4)
+        oct (.group m 5)
+        radix-base (.group m 6)
+        radix-digits (.group m 7)
+        bign (.group m 8)
+        negate? (= "-" sign)
+        big? (some? bign)
+        [^String digits radix]
+        (cond
+          dec* [dec* 10]
+          hex [hex 16]
+          oct [oct 8]
+          radix-digits [radix-digits (int/parse radix-base)]
+          :else [nil nil])]
+    (cond
+      zero (if big? (BigInt/parse "0") 0)
+      (nil? digits) nil
+      :else (parse-int-radix (if negate? (str "-" digits) digits) radix big?))))
+
+(defn- match-float [^RegExpMatch m]
+  ;; cljd has no BigDecimal, a trailing M falls back to double
+  (double/parse (.group m 1)))
+
+(defn- match-ratio [^RegExpMatch m]
+  ;; cljd has no Ratio, divide like cljs
+  (/ (int/parse (.group m 1)) (int/parse (.group m 2))))
+
+(defn match-number [^String s]
+  (if-some [m (.firstMatch int-pattern s)]
+    (match-int m)
+    (if-some [m (.firstMatch float-pattern s)]
+      (match-float m)
+      (when-some [m (.firstMatch ratio-pattern s)]
+        (match-ratio m)))))
+
+;;;; utils
+
+(defn namespace-keys [ns keys]
+  (for [key keys]
+    (if (or (symbol? key) (keyword? key))
+      (let [key-ns (namespace key)
+            key-name (name key)
+            ->key (if (symbol? key) symbol keyword)]
+        (cond
+          (nil? key-ns) (->key ns key-name)
+          (= "_" key-ns) (->key key-name)
+          :else key))
+      key)))
+
+(deftype ReaderConditional [splicing? form mta]
+  IPrint
+  (-print [_ sink]
+    (.write ^StringSink sink (if splicing? "#?@" "#?"))
+    (-print form sink))
+  ILookup
+  (-lookup [this k] (-lookup this k nil))
+  (-lookup [_ k not-found]
+    (cond (= :splicing? k) splicing?
+          (= :form k) form
+          :else not-found))
+  IMeta
+  (-meta [_] mta)
+  IWithMeta
+  (-with-meta [_ m] (ReaderConditional. splicing? form m))
+  IEquiv
+  (-equiv [_ other]
+    (and (instance? ReaderConditional other)
+         (= splicing? (.-splicing? ^ReaderConditional other))
+         (= form (.-form ^ReaderConditional other))))
+  IHash
+  (-hash [_] (hash [splicing? form])))
+
+(defn reader-conditional [form splicing?]
+  (ReaderConditional. splicing? form nil))
+
+(defn reader-conditional? [x]
+  (instance? ReaderConditional x))
+
+(defn inspect [x]
+  (pr-str x))

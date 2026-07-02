@@ -11,6 +11,7 @@
             m1)
     #?(:clj (instance? java.util.regex.Pattern m1)
        :cljs (regexp? m1)
+       :cljd (dart/is? m1 RegExp)
        :cljr (instance? System.Text.RegularExpressions.Regex m1))
     (re-find m1 m2)
     :else (= m1 m2)))
