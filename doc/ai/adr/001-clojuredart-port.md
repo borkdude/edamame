@@ -16,7 +16,9 @@ CI via `script/test/cljd`. `:cljd-local` uses the local checkout at
 
 - `src/edamame/impl/reader_types.cljd` - self-contained string reader
   (indexing + pushback + char/number/util helpers) that replaces
-  clojure.tools.reader on cljd. line/col are 1-based. Includes source
+  clojure.tools.reader on cljd. line/col are 1-based. In parser.cljc all
+  tools.reader aliases (edn, r, i, utils, commons) point at this one
+  namespace on cljd, so call sites stay untouched. Includes source
   logging (readers know their string + index, so :source is a subs)
   and a ReaderConditional deftype with IPrint for :preserve printing.
 - `#?(:cljd ...)` reader-conditional arms across parser.cljc, core.cljc,
@@ -31,6 +33,10 @@ CI via `script/test/cljd`. `:cljd-local` uses the local checkout at
   - edge-cases-test: Dart RegExp has no inline `(?i)` flag, uses `[Ii]`.
   - thrown? assertions use cljd.core/ExceptionInfo since cljd ex-info
     is not a Dart Exception.
+  - array-map-test: gated off. ClojureDart has no PersistentArrayMap, so
+    all maps are hash maps and small map literals lose insertion order.
+    ACCEPTED: order is cosmetic for SCI, callers needing it can pass an
+    ordered map constructor via the :map opt. Real fix belongs upstream.
 
 ## Works (all SCI needs)
 
