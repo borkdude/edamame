@@ -77,6 +77,9 @@
   (-log-start! [_] (set! log-start idx))
   (-log-string [_] (subs s log-start idx)))
 
+(defn- normalize-newlines [^String s]
+  (-> s (.replaceAll "\r\n" "\n") (.replaceAll "\r" "\n")))
+
 (defn read-char [^StrRdr r] (-read-char r))
 (defn peek-char [^StrRdr r] (-peek-char r))
 (defn unread [^StrRdr r ch] (-unread r ch))
@@ -85,9 +88,11 @@
 (defn get-column-number [^StrRdr r] (-col r))
 (defn source-logging-reader? [^StrRdr r] (-logging? r))
 (defn current-index [^StrRdr r] (-index r))
-(defn source-string [^StrRdr r] (-source r))
 (defn log-start! [^StrRdr r] (-log-start! r))
-(defn log-string [^StrRdr r] (-log-string r))
+(defn log-string [^StrRdr r] (normalize-newlines (-log-string r)))
+
+(defn source-subs [^StrRdr r ^int start ^int end]
+  (normalize-newlines (subs (-source r) start end)))
 
 (defn read-line [r]
   (loop [^StringBuffer sb (StringBuffer)]

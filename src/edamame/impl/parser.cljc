@@ -837,7 +837,7 @@
                    src (when log?
                          #?(:clj (.trim (subs (str buf) offset))
                             :cljs (.trim (subs (str buf) offset))
-                            :cljd (.trim (subs (r/source-string reader) offset (r/current-index reader)))
+                            :cljd (.trim (r/source-subs reader offset (r/current-index reader)))
                             :cljr (.Trim (subs (str buf) offset))))
                    loc? (and ir? (or (and iobj??
                                           (or (not location?)

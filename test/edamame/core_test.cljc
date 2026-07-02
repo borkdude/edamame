@@ -782,7 +782,9 @@
   (is (= "a\nb" (e/parse-string "\"a\r\nb\"")))
   (is (= "a\nb" (e/parse-string "\"a\rb\"")))
   (is (= 2 (:row (meta (second (e/parse-string-all "x\r\ny" {:location? symbol?}))))))
-  (is (= 2 (:row (meta (second (e/parse-string-all "x\ry" {:location? symbol?})))))))
+  (is (= 2 (:row (meta (second (e/parse-string-all "x\ry" {:location? symbol?}))))))
+  (is (= "(+ 1\n2)" (:source (meta (e/parse-next (e/source-reader "(+ 1\r\n2)")
+                                                 (e/normalize-opts {:source true :all true})))))))
 
 (deftest syntax-quote-special-symbol-test
   (let [opts {:syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
