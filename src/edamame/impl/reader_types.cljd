@@ -120,7 +120,7 @@
 (defn log-string [r] (-log-string r))
 
 (defn read-line [r]
-  (loop [sb (StringBuffer)]
+  (loop [^StringBuffer sb (StringBuffer)]
     (let [c (read-char r)]
       (if (or (nil? c) (identical? \newline c))
         (.toString sb)
@@ -151,7 +151,7 @@
 (defn- read-token
   "Read a logical token (used for char/symbolic-value literals)."
   [rdr initch]
-  (loop [sb (doto (StringBuffer) (.write initch))
+  (loop [^StringBuffer sb (doto (StringBuffer) (.write initch))
          ch (read-char rdr)]
     (if (or (nil? ch)
             (whitespace? ch)

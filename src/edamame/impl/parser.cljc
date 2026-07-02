@@ -104,10 +104,11 @@
 (defn- read-token
   "Read in a single logical token from the reader"
   ^String [#?(:clj rdr :cljs ^not-native rdr :cljd rdr :cljr rdr) _kind initch]
-  (loop [sb #?(:clj (StringBuilder.)
-               :cljs (StringBuffer.)
-               :cljd (StringBuffer)
-               :cljr (StringBuilder.))
+  (loop [#?(:cljd ^StringBuffer sb :default sb)
+         #?(:clj (StringBuilder.)
+            :cljs (StringBuffer.)
+            :cljd (StringBuffer)
+            :cljr (StringBuilder.))
          ch initch]
     (if (or (whitespace? ch)
             (macro-terminating? ch)
@@ -187,10 +188,11 @@
 
 (defn- read-number
   [ctx #?(:clj rdr :cljs ^not-native rdr :cljd rdr :cljr rdr) initch]
-  (loop [sb (doto #?(:clj (StringBuilder.)
-                     :cljs (StringBuffer.)
-                     :cljd (StringBuffer)
-                     :cljr (StringBuilder.)) #?(:clj (.append initch) :cljs (.append initch) :cljd (.write initch) :cljr (.Append (str initch))))
+  (loop [#?(:cljd ^StringBuffer sb :default sb)
+         (doto #?(:clj (StringBuilder.)
+                  :cljs (StringBuffer.)
+                  :cljd (StringBuffer)
+                  :cljr (StringBuilder.)) #?(:clj (.append initch) :cljs (.append initch) :cljd (.write initch) :cljr (.Append (str initch))))
          ch (r/read-char rdr)]
     (if (or (whitespace? ch)
             ;; why isn't this macro-terminating in tools.reader?
@@ -215,10 +217,11 @@
         row (when ir? (r/get-line-number reader))
         col (when ir? (r/get-column-number reader))
         opened (r/read-char reader)]
-    (loop [sb #?(:clj (StringBuilder.)
-                 :cljs (StringBuffer.)
-                 :cljd (StringBuffer)
-                 :cljr (StringBuilder.))
+    (loop [#?(:cljd ^StringBuffer sb :default sb)
+           #?(:clj (StringBuilder.)
+              :cljs (StringBuffer.)
+              :cljd (StringBuffer)
+              :cljr (StringBuilder.))
            ch (r/read-char reader)]
       (case ch
         nil (throw-reader ctx
