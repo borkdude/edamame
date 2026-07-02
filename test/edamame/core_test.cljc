@@ -280,10 +280,8 @@
 (deftest quote-test
   (is (= '(quote foo) (e/parse-string "'foo" {:dispatch {\' (fn [val]
                                                               (list 'quote val))}})))
-  #?(:cljd nil
-     :default
-     (do (is (= (symbol "'") (e/parse-string "'")))
-         (is (= (symbol "'foo") (e/parse-string "'foo"))))))
+  (is (= (symbol "'") (e/parse-string "'")))
+  (is (= (symbol "'foo") (e/parse-string "'foo"))))
 
 (deftest fn-test
   #?(:clj (is (= 'fn*

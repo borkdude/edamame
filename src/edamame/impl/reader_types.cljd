@@ -269,10 +269,14 @@
       "NaN" (/ 0.0 0.0)
       (throw (Exception. (str "Invalid token: ##" token))))))
 
-;;;; edn fallback reader (rare: unhandled dispatch macros)
+;;;; edn fallback reader
+;; only reached for quote without the :quote opt and disabled dispatch macros
 
-(defn read [_opts _reader]
-  (throw (Exception. "edn fallback reader not supported on ClojureDart yet")))
+(defn read [_opts rdr]
+  (let [ch (read-char rdr)]
+    (if (identical? \# ch)
+      (throw (Exception. (str "No dispatch macro for " (peek-char rdr))))
+      (symbol (read-token rdr ch)))))
 
 ;;;; numbers
 

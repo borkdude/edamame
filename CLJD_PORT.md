@@ -27,7 +27,6 @@ local/root for tensegritics/clojuredart - adjust path or switch to a git sha.)
   builds. Worth reporting to ClojureDart.
 - Tests: clj/cljs-only tests are gated with `#?(:cljd nil ...)` so cljd
   test discovery skips them. Cljd-specific shields in core_test.cljc:
-  - quote-test: `'` without :quote opt needs the edn fallback reader.
   - edge-cases-test: Dart RegExp has no inline `(?i)` flag, uses `[Ii]`.
   - thrown? assertions use cljd.core/ExceptionInfo since cljd ex-info
     is not a Dart Exception.
@@ -37,13 +36,23 @@ local/root for tensegritics/clojuredart - adjust path or switch to a git sha.)
 numbers, strings, chars, keywords, symbols, colls, location metadata,
 reader conditionals (incl :default and :preserve printing), syntax-quote,
 namespaced maps, deref/quote/var/fn-literals, regex via :regex, tagged
-literals, uneval, :auto-resolve, :source (source-logging reader).
+literals, uneval, :auto-resolve, :source (source-logging reader), edn
+fallback. No known gaps.
 
-## Remaining gap
+## edn fallback
 
-edn fallback `read` in reader_types.cljd - STUBBED, throws. Only hit by
-`'` without the :quote opt and some unhandled dispatch macros. SCI passes
-full opts so unlikely to hit. Implement if SCI turns out to need it.
+`read` in reader_types.cljd is a minimal tools.reader.edn stand-in. The
+fallback is only reachable in two cases: `'` without the :quote opt
+(quote is a symbol constituent in edn, reads as a symbol) and dispatch
+macros disabled by opts (throws "No dispatch macro"). All other dispatch
+chars are handled by parse-sharp before the catch-all.
+
+`cljd.reader` (in the ClojureDart repo) was considered as the fallback:
+it is a full ClojureDart reader with sync read-string and chunked stream
+support, but it tracks no line/col so it cannot replace edamame parsing,
+and its semantics diverge from tools.reader.edn (`'foo` reads as
+`(quote foo)` instead of the symbol `'foo`), which would make cljd
+behave differently from clj/cljs.
 
 See also the gotchas: cljd const-folds (Object.) -> use ^:unique; keywords
 not reference-equal -> kw-identical? uses =; cljd ExceptionInfo is not a Dart
