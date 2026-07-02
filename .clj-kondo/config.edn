@@ -1,4 +1,4 @@
 {:linters {:unresolved-symbol {:exclude [(clojure.test/is [thrown-with-data?])
                                          (cljs.test/is [thrown-with-data?])]}}
  ;; cljd.core protocols are unknown to clj-kondo
- :config-in-ns {edamame.impl.reader-types {:linters {:unresolved-symbol {:level :off}}}}}
+ :config-in-ns {edamame.impl.cljd-shim {:linters {:unresolved-symbol {:level :off}}}}}

@@ -4,23 +4,23 @@
   {:no-doc true}
   #?(:cljd (:refer-clojure :exclude [list]))
   (:require
-   #?(:cljd [edamame.impl.reader-types :as edn]
+   #?(:cljd [edamame.impl.cljd-shim :as edn]
       :cljs [cljs.tools.reader.edn :as edn]
       :cljr [clojure.tools.reader.edn :as edn]
       :clj  [clojure.tools.reader.edn :as edn])
-   #?(:cljd [edamame.impl.reader-types :as r]
+   #?(:cljd [edamame.impl.cljd-shim :as r]
       :cljs [cljs.tools.reader.reader-types :as r]
       :cljr [clojure.tools.reader.reader-types :as r]
       :clj  [clojure.tools.reader.reader-types :as r])
-   #?(:cljd [edamame.impl.reader-types :as i]
+   #?(:cljd [edamame.impl.cljd-shim :as i]
       :cljs [cljs.tools.reader.impl.inspect :as i]
       :cljr [clojure.tools.reader.impl.inspect :as i]
       :clj  [clojure.tools.reader.impl.inspect :as i])
-   #?(:cljd [edamame.impl.reader-types :as utils :refer [namespace-keys reader-conditional list]]
+   #?(:cljd [edamame.impl.cljd-shim :as utils :refer [namespace-keys reader-conditional list]]
       :cljs [cljs.tools.reader.impl.utils :refer [namespace-keys reader-conditional]]
       :cljr [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys whitespace?]]
       :clj [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys]])
-   #?(:cljd [edamame.impl.reader-types :as commons]
+   #?(:cljd [edamame.impl.cljd-shim :as commons]
       :cljs [cljs.tools.reader.impl.commons :as commons]
       :cljr [clojure.tools.reader.impl.commons :as commons]
       :clj [clojure.tools.reader.impl.commons :as commons])

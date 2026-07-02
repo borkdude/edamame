@@ -1,4 +1,4 @@
-(ns edamame.impl.reader-types
+(ns edamame.impl.cljd-shim
   "Self-contained reader for ClojureDart: a string-backed, indexing,
   push-back reader plus the subset of clojure.tools.reader helpers that
   edamame needs (char/number reading, ns-keys, reader conditionals).

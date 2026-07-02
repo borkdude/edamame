@@ -1,7 +1,7 @@
 (ns edamame.impl.read-fn
   {:no-doc true}
   #?(:cljd (:refer-clojure :exclude [list]))
-  #?(:cljd (:require [edamame.impl.reader-types :refer [list]])))
+  #?(:cljd (:require [edamame.impl.cljd-shim :refer [list]])))
 
 (defn walk*
   "Preserves metadata, unlike clojure.walk/walk."

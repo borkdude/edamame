@@ -14,7 +14,7 @@ CI via `script/test/cljd`. `:cljd-local` uses the local checkout at
 
 ## What is cljd-specific
 
-- `src/edamame/impl/reader_types.cljd` - self-contained string reader
+- `src/edamame/impl/cljd_shim.cljd` - self-contained string reader
   (indexing + pushback + char/number/util helpers) that replaces
   clojure.tools.reader on cljd. line/col are 1-based. In parser.cljc all
   tools.reader aliases (edn, r, i, utils, commons) point at this one
@@ -23,7 +23,7 @@ CI via `script/test/cljd`. `:cljd-local` uses the local checkout at
   and a ReaderConditional deftype with IPrint for :preserve printing.
 - `#?(:cljd ...)` reader-conditional arms across parser.cljc, core.cljc,
   syntax_quote.cljc, read_fn.cljc, macros.cljc.
-- `reader-types/list` replaces `cljd.core/list` in parser, read-fn and
+- `cljd-shim/list` replaces `cljd.core/list` in parser, read-fn and
   syntax-quote via `:refer-clojure :exclude`. Upstream cljd bug: the `()`
   literal inside `cljd.core/list` carries const-folded compiler meta
   (:line 3436 :tag PersistentList etc) which leaks into every list it
@@ -48,7 +48,7 @@ fallback. No known gaps.
 
 ## edn fallback
 
-`read` in reader_types.cljd is a minimal tools.reader.edn stand-in. The
+`read` in cljd_shim.cljd is a minimal tools.reader.edn stand-in. The
 fallback is only reachable in two cases: `'` without the :quote opt
 (quote is a symbol constituent in edn, reads as a symbol) and dispatch
 macros disabled by opts (throws "No dispatch macro"). All other dispatch

@@ -5,7 +5,7 @@
   #?(:cljd (:refer-clojure :exclude [list]))
   (:require
    [clojure.string :as str]
-   #?(:cljd [edamame.impl.reader-types :refer [list]])))
+   #?(:cljd [edamame.impl.cljd-shim :refer [list]])))
 
 #?(:cljd
    (defn- special-symbol? [s]
