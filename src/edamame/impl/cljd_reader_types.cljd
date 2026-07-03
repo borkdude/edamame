@@ -91,7 +91,7 @@
 (defn log-start! [^StrRdr r] (-log-start! r))
 (defn log-string [^StrRdr r] (normalize-newlines (-log-string r)))
 
-(defn source-subs [^StrRdr r ^int start ^int end]
+(defn ^String source-subs [^StrRdr r ^int start ^int end]
   (normalize-newlines (subs (-source r) start end)))
 
 (defn read-line [r]
