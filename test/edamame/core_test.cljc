@@ -12,6 +12,7 @@
    [clojure.string :as str]
    [clojure.test :as t :refer [deftest is testing]]
    [edamame.core :as e]
+   #?@(:cljd [[edamame.impl.cljd-reader-types :as cljd-rt]] :default [])
    #?(:cljd [edamame.test-utils.macros :refer [thrown-with-data?]]
       :default [edamame.test-utils])))
 
@@ -797,3 +798,23 @@
              (e/parse-string "`ns" opts))))
     (is (= ''user/import* (e/parse-string "`import*" opts)))
     (is (= ''user/def* (e/parse-string "`def*" opts)))))
+
+(deftest zero-literal-test
+  (is (= 0 (e/parse-string "0")))
+  (is (= 0 (e/parse-string "-0")))
+  (is (= 0 (e/parse-string "+0")))
+  (is (= [0 1 2] (e/parse-string "[0 1 2]"))))
+
+#?(:cljd
+   (deftest plain-reader-non-indexing-test
+     (let [rdr (cljd-rt/string-push-back-reader "(+ 1 2) (+ 3 4)")
+           opts (e/normalize-opts {:location? seq?})]
+       (is (not (cljd-rt/indexing-reader? rdr)))
+       (let [form (e/parse-next rdr opts)]
+         (is (= '(+ 1 2) form))
+         (is (nil? (meta form))))
+       (let [ir (cljd-rt/indexing-push-back-reader rdr)]
+         (is (cljd-rt/indexing-reader? ir))
+         (let [form (e/parse-next ir opts)]
+           (is (= '(+ 3 4) form))
+           (is (= {:row 1 :col 9 :end-row 1 :end-col 16} (meta form))))))))
