@@ -109,9 +109,15 @@
   ([^String s indexing? logging?]
    (StrRdr. s (.-length s) 0 1 1 0 indexing? logging? 0)))
 
-(defn string-push-back-reader [s] (new-rdr s true))
-(defn indexing-push-back-reader [r] r) ;; identity: StrRdr already indexes
-(defn push-back-reader [x] (new-rdr x true))
+(defn string-push-back-reader [s] (new-rdr s false))
+(defn push-back-reader [x] (new-rdr x false))
+
+;; StrRdr always tracks position, indexing? only controls reporting
+(defn indexing-push-back-reader [r]
+  (if (string? r)
+    (new-rdr r true)
+    (StrRdr. (-source r) (.-length ^String (-source r)) (-index r)
+             (-line r) (-col r) 0 true (-logging? r) 0)))
 
 (defn source-logging-push-back-reader [s]
   (if (string? s)
