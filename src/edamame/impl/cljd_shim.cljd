@@ -212,7 +212,8 @@
         bign (.group m 8)
         negate? (= "-" sign)
         big? (some? bign)
-        [^String digits radix]
+        ;; no String hint: the cast would throw on nil before the zero branch
+        [digits radix]
         (cond
           dec* [dec* 10]
           hex [hex 16]
