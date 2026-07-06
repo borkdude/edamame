@@ -4,11 +4,12 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
-## Unreleased
+## 1.6.41
 
 - ClojureDart: fix parsing zero literals [#144](https://github.com/borkdude/edamame/pull/144)
 - ClojureDart: make plain readers non-indexing, matching tools.reader [#144](https://github.com/borkdude/edamame/pull/144)
 - ClojureDart: add String return hint to source-subs
+- ClojureDart: bump ClojureDart and remove empty list metadata workaround
 
 ## 1.6.40
 
