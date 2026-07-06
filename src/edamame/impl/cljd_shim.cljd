@@ -3,23 +3,9 @@
   :cljd platform: char/number reading, the edn fallback, ns-keys and
   reader conditionals. The reader itself lives in
   edamame.impl.cljd-reader-types."
-  (:refer-clojure :exclude [list])
   (:require
    [edamame.impl.cljd-reader-types :refer [read-char peek-char unread
                                            whitespace? numeric?]]))
-
-(def ^:private empty-list
-  ;; the () literal itself carries const-folded meta, strip it once
-  (with-meta () nil))
-
-(defn list
-  "cljd.core/list leaks const-folded meta from its empty-list literal."
-  ([] empty-list)
-  ([a] (conj empty-list a))
-  ([a b] (conj (conj empty-list b) a))
-  ([a b c] (conj (conj (conj empty-list c) b) a))
-  ([a b c & xs]
-   (with-meta (apply cljd.core/list a b c xs) nil)))
 
 ;;;; char helpers
 
