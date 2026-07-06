@@ -2,7 +2,6 @@
   "This code is largely inspired by rewrite-clj(sc), so thanks to all
   who contribured to those projects."
   {:no-doc true}
-  #?(:cljd (:refer-clojure :exclude [list]))
   (:require
    #?(:cljd [edamame.impl.cljd-shim :as edn]
       :cljs [cljs.tools.reader.edn :as edn]
@@ -16,7 +15,7 @@
       :cljs [cljs.tools.reader.impl.inspect :as i]
       :cljr [clojure.tools.reader.impl.inspect :as i]
       :clj  [clojure.tools.reader.impl.inspect :as i])
-   #?(:cljd [edamame.impl.cljd-shim :as utils :refer [namespace-keys reader-conditional list]]
+   #?(:cljd [edamame.impl.cljd-shim :as utils :refer [namespace-keys reader-conditional]]
       :cljs [cljs.tools.reader.impl.utils :refer [namespace-keys reader-conditional]]
       :cljr [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys whitespace?]]
       :clj [clojure.tools.reader.impl.utils :as utils :refer [namespace-keys]])

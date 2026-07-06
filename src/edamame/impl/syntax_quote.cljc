@@ -2,10 +2,8 @@
   "Taken and adapted from
   https://github.com/clojure/tools.reader/blob/master/src/main/clojure/clojure/tools/reader.clj"
   {:no-doc true}
-  #?(:cljd (:refer-clojure :exclude [list]))
   (:require
-   [clojure.string :as str]
-   #?(:cljd [edamame.impl.cljd-shim :refer [list]])))
+   [clojure.string :as str]))
 
 ;; cljd special forms per cljd.reader, plus catch finally &
 #?(:cljd

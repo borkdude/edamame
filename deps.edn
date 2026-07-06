@@ -5,7 +5,7 @@
  {:cljd {:extra-paths ["test"]
          :extra-deps {tensegritics/clojuredart
                       {:git/url "https://github.com/tensegritics/ClojureDart.git"
-                       :git/sha "4cdb4be7240bcb3e62c65d7fa160175c70336c3b"}
+                       :git/sha "79759559c2cf4280832e596949a81226db336014"}
                       io.github.borkdude/deflet {:mvn/version "0.1.0"}}
          :main-opts ["-m" "cljd.build"]}
   ;; local ClojureDart checkout, compose as -M:cljd:cljd-local
