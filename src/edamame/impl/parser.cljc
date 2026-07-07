@@ -96,22 +96,34 @@
                   (Character/isWhitespace ~(with-meta c
                                              {:tag 'java.lang.Character}))))))
 
+#?(:cljd nil
+   :clj
+   (definterface IFastOps
+     (readToken [initch])
+     (finishToken [^long start ^long end])
+     (readString [])
+     (skipWhitespace [])))
+
 (defn- read-token
   "Read in a single logical token from the reader"
   ^String [#?(:clj rdr :cljs ^not-native rdr :cljd rdr :cljr rdr) _kind initch]
-  (loop [#?(:cljd ^StringBuffer sb :default sb)
-         #?(:clj (StringBuilder.)
-            :cljs (StringBuffer.)
-            :cljd (StringBuffer)
-            :cljr (StringBuilder.))
-         ch initch]
-    (if (or (whitespace? ch)
-            (macro-terminating? ch)
-            (nil? ch))
-      (do (when ch
-            (r/unread rdr ch))
-          (str sb))
-      (recur #?(:clj (.append sb ch) :cljs (.append sb ch) :cljd (doto sb (.write ch)) :cljr (.Append sb (str ch))) (r/read-char rdr)))))
+  (or #?(:cljd nil
+         :clj (when (instance? IFastOps rdr)
+                (.readToken ^IFastOps rdr initch))
+         :default nil)
+      (loop [#?(:cljd ^StringBuffer sb :default sb)
+             #?(:clj (StringBuilder.)
+                :cljs (StringBuffer.)
+                :cljd (StringBuffer)
+                :cljr (StringBuilder.))
+             ch initch]
+        (if (or (whitespace? ch)
+                (macro-terminating? ch)
+                (nil? ch))
+          (do (when ch
+                (r/unread rdr ch))
+              (str sb))
+          (recur #?(:clj (.append sb ch) :cljs (.append sb ch) :cljd (doto sb (.write ch)) :cljr (.Append sb (str ch))) (r/read-char rdr))))))
 
 (defn str-len [^String s]
   #?(:clj (.length s)
@@ -198,7 +210,7 @@
   (let [tools-reader-opts (:tools.reader/opts ctx)]
     (edn/read tools-reader-opts reader)))
 
-(defn- parse-string*
+(defn- parse-string-generic
   [ctx #?(:cljs ^not-native reader :default reader)]
   (let [ir? (r/indexing-reader? reader)
         row (when ir? (r/get-line-number reader))
@@ -223,9 +235,23 @@
         \" (str sb)
         (recur (doto sb #?(:clj (.append ch) :cljs (.append ch) :cljd (.write ch) :cljr (.Append (str ch)))) (r/read-char reader))))))
 
+(defn- parse-string*
+  [ctx #?(:cljs ^not-native reader :default reader)]
+  (or #?(:cljd nil
+         :clj (when (instance? IFastOps reader)
+                (.readString ^IFastOps reader))
+         :default nil)
+      (parse-string-generic ctx reader)))
+
 ;;;; end tools.reader
 
 (defrecord Loc [row col])
+
+;; expected: the expected closing delimiter char of the innermost
+;; collection being parsed; char/row/col: its opening delimiter and
+;; location. One ctx field so entering a collection costs a single
+;; record copy.
+(defrecord Delims [expected char row col])
 
 (defn location [#?(:cljs ^not-native reader :default reader)]
   (->Loc
@@ -250,12 +276,29 @@
   "Skips whitespace. Returns :none or :some depending on whitespace
   read. If end of stream is reached, returns nil."
   [_ctx #?(:cljs ^not-native reader :default reader)]
-  (loop [read :none]
-    (when-let [c (r/read-char reader)]
-      (if (whitespace? c)
-        (recur :some)
-        (do (r/unread reader c)
-            read)))))
+  #?(:cljd
+     (loop [read :none]
+       (when-let [c (r/read-char reader)]
+         (if (whitespace? c)
+           (recur :some)
+           (do (r/unread reader c)
+               read))))
+     :clj
+     (if (instance? IFastOps reader)
+       (.skipWhitespace ^IFastOps reader)
+       (loop [read :none]
+         (when-let [c (r/read-char reader)]
+           (if (whitespace? c)
+             (recur :some)
+             (do (r/unread reader c)
+                 read)))))
+     :default
+     (loop [read :none]
+       (when-let [c (r/read-char reader)]
+         (if (whitespace? c)
+           (recur :some)
+           (do (r/unread reader c)
+               read))))))
 
 (def non-match (symbol "non-match"))
 
@@ -273,13 +316,13 @@
          row (when ir? (r/get-line-number reader))
          col (when ir? (r/get-column-number reader))
          opened (r/read-char reader)
-         ctx (-> ctx
-                 (assoc ::expected-delimiter delimiter)
-                 (assoc ::opened-delimiter {:char opened :row row :col col}))]
+         ctx (assoc ctx :delims (->Delims delimiter opened row col))
+         read-cond? (:read-cond ctx)]
      (loop [vals (transient into)]
        (let [;; if next-val is uneval, we get back the expected delimiter...
              next-val (parse-next ctx reader)
-             cond-splice? (some-> next-val meta :edamame/read-cond-splicing)]
+             cond-splice? (and read-cond?
+                               (some-> next-val meta :edamame/read-cond-splicing))]
          (cond
            (identical? eof next-val)
            (throw-reader ctx
@@ -379,8 +422,8 @@
                       (when-not (identical? expected-delimiter
                                             next-val)
                         (if (identical? eof next-val)
-                          (let [delimiter (::expected-delimiter ctx)
-                                {:keys [:row :col :char]} (::opened-delimiter ctx)]
+                          (let [{:keys [:expected :row :col :char]} (:delims ctx)
+                                delimiter expected]
                             (throw-reader ctx
                                           reader
                                           (str "EOF while reading, expected " delimiter " to match " char " at [" row "," col "]")
@@ -425,9 +468,7 @@
                 row (when ir? (r/get-line-number reader))
                 col (when ir? (r/get-column-number reader))
                 opened (r/read-char reader)
-                ctx (-> ctx
-                        (assoc ::expected-delimiter \))
-                        (assoc ::opened-delimiter {:char opened :row row :col col}))
+                ctx (assoc ctx :delims (->Delims \) opened row col))
                 match (parse-first-matching-condition ctx reader)]
             (if (non-match? match) continue
                 (attach-splice match splice? true))))))
@@ -517,11 +558,11 @@
             ctx reader
             "Regex not allowed. Use the `:regex` option"))
       \( (if-let [v (:fn ctx)]
-           (if (::fn-literal ctx)
+           (if (:fn-literal ctx)
              (throw-reader
               ctx reader
               "Nested fn literals not allowed.")
-             (let [fn-expr (parse-next (assoc ctx ::fn-literal true) reader)]
+             (let [fn-expr (parse-next (assoc ctx :fn-literal true) reader)]
                (if (true? v)
                  (read-fn fn-expr)
                  (v fn-expr))))
@@ -679,8 +720,7 @@
 ;; that doesn't do any checking, but saw no significant speedup.
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
-  (let [ir? (r/indexing-reader? reader)
-        sharp? (= \# c)]
+  (let [sharp? (#?(:cljd = :default identical?) \# c)]
     (if sharp? (do
                  (r/read-char reader) ;; ignore sharp
                  (parse-sharp ctx reader))
@@ -751,9 +791,11 @@
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
           \{ (parse-map ctx reader)
-          (\} \] \)) (let [expected (::expected-delimiter ctx)]
+          (\} \] \)) (let [delims (:delims ctx)
+                           expected (:expected delims)]
                        (if (not= expected c)
-                         (let [loc (when ir? (location reader))]
+                         (let [loc (when (r/indexing-reader? reader)
+                                     (location reader))]
                            (r/read-char reader) ;; ignore unexpected
                            ;; delimiter to be able to
                            ;; continue reading, fix for
@@ -762,9 +804,9 @@
                                          (str "Unmatched delimiter: " c
                                               (when expected
                                                 (str ", expected: " expected
-                                                     (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
+                                                     (when-let [{:keys [:row :col :char]} delims]
                                                        (str " to match " char " at " [row col])))))
-                                         (let [{:keys [:char :row :col]} (::opened-delimiter ctx)]
+                                         (let [{:keys [:char :row :col]} delims]
                                            {:edamame/opened-delimiter (str char)
                                             :edamame/opened-delimiter-loc {:row row :col col}
                                             :edamame/expected-delimiter (str expected)})
@@ -804,7 +846,8 @@
    (let [ir? (r/indexing-reader? reader)]
      (if-let [c (and (skip-whitespace ctx reader)
                      (r/peek-char reader))]
-       (let [loc (when ir? (location reader))
+       (let [start-row (when ir? (r/get-line-number reader))
+             start-col (when ir? (r/get-column-number reader))
              log? (:source ctx)
              #?(:cljd buf :default ^StringBuilder buf) (when log? #?(:cljd nil :default (buf reader)))
              offset (when log? #?(:clj (.length buf)
@@ -839,15 +882,13 @@
                             :cljd (.trim (r/source-subs reader offset (r/current-index reader)))
                             :cljr (.Trim (subs (str buf) offset))))
                    loc? (and ir? (or (and iobj??
-                                          (or (not location?)
-                                              (location? obj)))
+                                          (location? obj))
                                      postprocess))
-                   end-loc (when (and ir? loc? end-loc?)
-                             (location reader))
-                   row (when loc? (:row loc))
-                   end-row (when end-loc? (:row end-loc))
-                   col (when loc? (:col loc))
-                   end-col (when end-loc? (:col end-loc))
+                   end? (and ir? loc? end-loc?)
+                   row (when loc? start-row)
+                   end-row (when end? (r/get-line-number reader))
+                   col (when loc? start-col)
+                   end-col (when end? (r/get-column-number reader))
                    postprocess-fn (when postprocess
                                     #(postprocess
                                       (cond->
@@ -864,23 +905,234 @@
                            (desugar-meta obj postprocess-fn)
                            (desugar-meta obj)) obj)
                    obj (cond postprocess-fn (postprocess-fn obj)
-                             loc? (vary-meta obj
-                                             #(cond->
-                                                  (-> %
-                                                      (assoc (:row-key ctx) row)
-                                                      (assoc (:col-key ctx) col))
-                                                end-loc? (-> (assoc (:end-row-key ctx) end-row)
-                                                             (assoc (:end-col-key ctx) end-col))
-                                                src (assoc (:source-key ctx) src)))
+                             loc? (let [m (meta obj)
+                                        m (-> m
+                                              (assoc (:row-key ctx) row)
+                                              (assoc (:col-key ctx) col))
+                                        m (if end-loc?
+                                            (-> m
+                                                (assoc (:end-row-key ctx) end-row)
+                                                (assoc (:end-col-key ctx) end-col))
+                                            m)
+                                        m (if src
+                                            (assoc m (:source-key ctx) src)
+                                            m)]
+                                    (with-meta obj m))
                              :else obj)]
                obj))))
        eof))))
 
+#?(:cljd nil
+   :clj
+   ;; Single deftype replacing the IndexingPushbackReader ->
+   ;; PushbackReader -> StringReader stack of tools.reader: reads with
+   ;; .charAt and keeps line/column bookkeeping in unboxed mutable
+   ;; fields. Semantics (incl. \return\newline normalization and unread
+   ;; behavior) mirror tools.reader's readers.
+   (deftype IndexingStringReader
+       [^String s
+        ^long s-len
+        ^:unsynchronized-mutable ^long s-pos
+        ^:unsynchronized-mutable pushback
+        ^:unsynchronized-mutable ^long line
+        ^:unsynchronized-mutable ^long column
+        ^:unsynchronized-mutable line-start?
+        ^:unsynchronized-mutable prev
+        ^:unsynchronized-mutable ^long prev-column
+        ^:unsynchronized-mutable normalize?]
+     r/Reader
+     (read-char [_]
+       (let [ch (if-some [pb pushback]
+                  (do (set! pushback nil) pb)
+                  (when (< s-pos s-len)
+                    (let [c (.charAt s (unchecked-int s-pos))]
+                      (set! s-pos (unchecked-inc s-pos))
+                      c)))]
+         (when ch
+           (let [ch (if normalize?
+                      (do (set! normalize? false)
+                          (if (or (identical? \newline ch)
+                                  (identical? \formfeed ch))
+                            ;; second char of \r\n / \r\f, skip it
+                            (if-some [pb pushback]
+                              (do (set! pushback nil) pb)
+                              (when (< s-pos s-len)
+                                (let [c (.charAt s (unchecked-int s-pos))]
+                                  (set! s-pos (unchecked-inc s-pos))
+                                  c)))
+                            ch))
+                      ch)
+                 ch (if (identical? \return ch)
+                      (do (set! normalize? true)
+                          \newline)
+                      ch)]
+             (set! prev line-start?)
+             (set! line-start? (or (nil? ch) (identical? \newline ch)))
+             (when line-start?
+               (set! prev-column column)
+               (set! column 0)
+               (set! line (unchecked-inc line)))
+             (set! column (unchecked-inc column))
+             ch))))
+     (peek-char [_]
+       (if-some [pb pushback]
+         pb
+         (when (< s-pos s-len)
+           (.charAt s (unchecked-int s-pos)))))
+     r/IPushbackReader
+     (unread [_ ch]
+       (if line-start?
+         (do (set! line (unchecked-dec line))
+             (set! column prev-column))
+         (set! column (unchecked-dec column)))
+       (set! line-start? prev)
+       (let [ch (if normalize?
+                  (do (set! normalize? false)
+                      (if (identical? \newline ch)
+                        \return
+                        ch))
+                  ch)]
+         (when ch
+           (when pushback
+             (throw (RuntimeException. "Pushback buffer is full")))
+           (set! pushback ch))))
+     r/IndexingReader
+     (get-line-number [_] (int line))
+     (get-column-number [_] (int column))
+     (get-file-name [_] nil)
+     IFastOps
+     ;; Token fast path: a token never contains newlines, so it is a
+     ;; substring of s and bookkeeping is a column increment. Returns
+     ;; nil when the fast path doesn't apply (caller falls back to the
+     ;; generic char-by-char loop).
+     (readToken [this initch]
+       (if (or (nil? initch)
+               (whitespace? initch)
+               (macro-terminating? initch))
+         (do (when initch (r/unread this initch))
+             "")
+         (when (and (nil? pushback)
+                    (pos? s-pos)
+                    (.equals ^Object initch
+                             (Character/valueOf (.charAt s (unchecked-int (unchecked-dec s-pos))))))
+           (let [start (unchecked-dec s-pos)]
+             (loop [pos s-pos]
+               (if (< pos s-len)
+                 (let [ci (unchecked-int (.charAt s (unchecked-int pos)))]
+                   (if (or (case ci
+                             ;; macro-terminating? and \,
+                             (34 59 64 94 96 126 40 41 91 93 123 125 92 44) true
+                             false)
+                           (Character/isWhitespace (char ci)))
+                     (.finishToken this start pos)
+                     (recur (unchecked-inc pos))))
+                 (.finishToken this start pos)))))))
+     (finishToken [_ start end]
+       (let [n (unchecked-subtract end s-pos)]
+         (when (pos? n)
+           (set! prev false)
+           (set! line-start? false)
+           (set! column (unchecked-add column n))
+           (set! s-pos end))
+         (.substring s (unchecked-int start) (unchecked-int end))))
+     ;; String fast path, entered with the reader positioned at the
+     ;; opening double quote: strings without escapes and without
+     ;; \return are substrings of s. One scan to the closing quote,
+     ;; tracking newlines for the line/column bookkeeping. Returns nil
+     ;; when the fast path doesn't apply (nothing consumed, caller
+     ;; falls back to the generic loop).
+     (readString [_]
+       (when (and (nil? pushback)
+                  (not normalize?))
+         (let [start s-pos]
+           (loop [pos (unchecked-inc start)
+                  ln line
+                  last-nl -1]
+             (if (< pos s-len)
+               (let [ci (unchecked-int (.charAt s (unchecked-int pos)))]
+                 (cond
+                   (== ci 34) ;; closing quote: commit
+                   (do (set! line ln)
+                       (if (neg? last-nl)
+                         (set! column (unchecked-add column (unchecked-subtract (unchecked-inc pos) start)))
+                         (set! column (unchecked-inc (unchecked-subtract pos last-nl))))
+                       (set! prev (== last-nl (unchecked-dec pos)))
+                       (set! line-start? false)
+                       (set! s-pos (unchecked-inc pos))
+                       (.substring s (unchecked-int (unchecked-inc start)) (unchecked-int pos)))
+                   (== ci 92) nil ;; backslash: escapes
+                   (== ci 13) nil ;; \return: normalization
+                   (== ci 10) ;; \newline
+                   (recur (unchecked-inc pos) (unchecked-inc ln) pos)
+                   :else
+                   (recur (unchecked-inc pos) ln last-nl)))
+               nil)))))
+     ;; Whitespace fast path with the same line/column bookkeeping as
+     ;; read-char, including treating \return[\newline|\formfeed] as a
+     ;; single logical newline.
+     (skipWhitespace [this]
+       (loop [read :none]
+         (cond
+           (some? pushback)
+           (if (whitespace? pushback)
+             (do (r/read-char this) (recur :some))
+             read)
+           normalize?
+           (if-some [c (r/read-char this)]
+             (if (whitespace? c)
+               (recur :some)
+               (do (r/unread this c) read))
+             nil)
+           :else
+           (loop [pos s-pos
+                  ln line
+                  col column
+                  pcol prev-column
+                  ls line-start?
+                  pv prev
+                  read read]
+             (if (< pos s-len)
+               (let [ci (unchecked-int (.charAt s (unchecked-int pos)))]
+                 (cond
+                   (== ci 13) ;; \return: logical newline, skip paired \newline/\formfeed
+                   (let [pos1 (unchecked-inc pos)
+                         pos2 (if (and (< pos1 s-len)
+                                       (let [c2 (unchecked-int (.charAt s (unchecked-int pos1)))]
+                                         (or (== c2 10) (== c2 12))))
+                                (unchecked-inc pos1)
+                                pos1)]
+                     (recur pos2 (unchecked-inc ln) 1 col true ls :some))
+                   (== ci 10) ;; \newline
+                   (recur (unchecked-inc pos) (unchecked-inc ln) 1 col true ls :some)
+                   (or (== ci 44) ;; \,
+                       (Character/isWhitespace (char ci)))
+                   (recur (unchecked-inc pos) ln (unchecked-inc col) pcol false ls :some)
+                   :else
+                   (do (set! s-pos pos)
+                       (set! line ln)
+                       (set! column col)
+                       (set! prev-column pcol)
+                       (set! line-start? ls)
+                       (set! prev pv)
+                       read)))
+               (do (set! s-pos pos)
+                   (set! line ln)
+                   (set! column col)
+                   (set! prev-column pcol)
+                   (set! line-start? ls)
+                   (set! prev pv)
+                   nil))))))
+     java.io.Closeable
+     (close [_])))
+
 (defn string-reader
   "Create reader for strings."
   [s]
-  (r/indexing-push-back-reader
-   (r/string-push-back-reader s)))
+  #?(:cljd (r/indexing-push-back-reader
+            (r/string-push-back-reader s))
+     :clj (IndexingStringReader. s (.length ^String s) 0 nil 1 1 true nil 0 false)
+     :default (r/indexing-push-back-reader
+               (r/string-push-back-reader s))))
 
 (defrecord Options [dispatch deref syntax-quote unquote
                     unquote-splicing quote fn var
@@ -890,7 +1142,13 @@
                     source source-key
                     postprocess location?
                     end-location
-                    ns-state suppress-read])
+                    ns-state suppress-read
+                    ;; :map is deliberately not a field: on ClojureDart
+                    ;; a record field named map conflicts with Dart's
+                    ;; Map.map method
+                    read-cond features auto-resolve auto-resolve-ns
+                    readers uneval set
+                    delims fn-literal gensyms])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
@@ -927,6 +1185,7 @@
                        :var true} opts)
                opts)
         opts (cond-> opts
+               (not (:location? opts)) (assoc :location? (fn [_] true))
                (not (:row-key opts)) (assoc :row-key :row)
                (not (:col-key opts)) (assoc :col-key :col)
                (not (:end-row-key opts)) (assoc :end-row-key :end-row)
@@ -941,7 +1200,7 @@
         src? (:source opts)
         r (if src? (r/source-logging-push-back-reader s)
               (string-reader s))
-        ctx (assoc opts ::expected-delimiter nil)
+        ctx (assoc opts :delims nil)
         v (parse-next ctx r)]
     (if (identical? eof v) nil v)))
 
@@ -950,8 +1209,7 @@
         src? (:source opts)
         r (if src? (r/source-logging-push-back-reader s)
               (string-reader s))
-        ctx (assoc opts
-                   ::expected-delimiter nil)]
+        ctx (assoc opts :delims nil)]
     (loop [ret (transient [])]
       (let [next-val (parse-next ctx r)]
         (if (identical? eof next-val)
@@ -960,7 +1218,9 @@
 
 (defn reader
   [x]
-  #?(:clj (r/indexing-push-back-reader (r/push-back-reader x))
+  #?(:clj (if (string? x)
+            (string-reader x)
+            (r/indexing-push-back-reader (r/push-back-reader x)))
      :cljs (let [string-reader (r/string-reader x)
                  buf-len 1
                  pushback-reader (r/PushbackReader. string-reader
