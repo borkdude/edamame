@@ -227,6 +227,12 @@
 
 (defrecord Loc [row col])
 
+;; expected: the expected closing delimiter char of the innermost
+;; collection being parsed; char/row/col: its opening delimiter and
+;; location. One ctx field so entering a collection costs a single
+;; record copy.
+(defrecord Delims [expected char row col])
+
 (defn location [#?(:cljs ^not-native reader :default reader)]
   (->Loc
    (r/get-line-number reader)
@@ -273,9 +279,7 @@
          row (when ir? (r/get-line-number reader))
          col (when ir? (r/get-column-number reader))
          opened (r/read-char reader)
-         ctx (-> ctx
-                 (assoc ::expected-delimiter delimiter)
-                 (assoc ::opened-delimiter {:char opened :row row :col col}))]
+         ctx (assoc ctx :delims (->Delims delimiter opened row col))]
      (loop [vals (transient into)]
        (let [;; if next-val is uneval, we get back the expected delimiter...
              next-val (parse-next ctx reader)
@@ -379,8 +383,8 @@
                       (when-not (identical? expected-delimiter
                                             next-val)
                         (if (identical? eof next-val)
-                          (let [delimiter (::expected-delimiter ctx)
-                                {:keys [:row :col :char]} (::opened-delimiter ctx)]
+                          (let [{:keys [:expected :row :col :char]} (:delims ctx)
+                                delimiter expected]
                             (throw-reader ctx
                                           reader
                                           (str "EOF while reading, expected " delimiter " to match " char " at [" row "," col "]")
@@ -425,9 +429,7 @@
                 row (when ir? (r/get-line-number reader))
                 col (when ir? (r/get-column-number reader))
                 opened (r/read-char reader)
-                ctx (-> ctx
-                        (assoc ::expected-delimiter \))
-                        (assoc ::opened-delimiter {:char opened :row row :col col}))
+                ctx (assoc ctx :delims (->Delims \) opened row col))
                 match (parse-first-matching-condition ctx reader)]
             (if (non-match? match) continue
                 (attach-splice match splice? true))))))
@@ -517,11 +519,11 @@
             ctx reader
             "Regex not allowed. Use the `:regex` option"))
       \( (if-let [v (:fn ctx)]
-           (if (::fn-literal ctx)
+           (if (:fn-literal ctx)
              (throw-reader
               ctx reader
               "Nested fn literals not allowed.")
-             (let [fn-expr (parse-next (assoc ctx ::fn-literal true) reader)]
+             (let [fn-expr (parse-next (assoc ctx :fn-literal true) reader)]
                (if (true? v)
                  (read-fn fn-expr)
                  (v fn-expr))))
@@ -751,7 +753,8 @@
           \( (parse-list ctx reader)
           \[ (parse-to-delimiter ctx reader \])
           \{ (parse-map ctx reader)
-          (\} \] \)) (let [expected (::expected-delimiter ctx)]
+          (\} \] \)) (let [delims (:delims ctx)
+                           expected (:expected delims)]
                        (if (not= expected c)
                          (let [loc (when ir? (location reader))]
                            (r/read-char reader) ;; ignore unexpected
@@ -762,9 +765,9 @@
                                          (str "Unmatched delimiter: " c
                                               (when expected
                                                 (str ", expected: " expected
-                                                     (when-let [{:keys [:row :col :char]} (::opened-delimiter ctx)]
+                                                     (when-let [{:keys [:row :col :char]} delims]
                                                        (str " to match " char " at " [row col])))))
-                                         (let [{:keys [:char :row :col]} (::opened-delimiter ctx)]
+                                         (let [{:keys [:char :row :col]} delims]
                                            {:edamame/opened-delimiter (str char)
                                             :edamame/opened-delimiter-loc {:row row :col col}
                                             :edamame/expected-delimiter (str expected)})
@@ -890,7 +893,15 @@
                     source source-key
                     postprocess location?
                     end-location
-                    ns-state suppress-read])
+                    ns-state suppress-read
+                    ;; :map is deliberately not a field: on ClojureDart
+                    ;; a record field named map conflicts with Dart's
+                    ;; Map.map method. Leaving it in the extmap costs
+                    ;; nothing measurable: it is read once per map
+                    ;; literal, not per node.
+                    read-cond features auto-resolve auto-resolve-ns
+                    readers uneval set
+                    delims fn-literal gensyms])
 
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
@@ -941,7 +952,7 @@
         src? (:source opts)
         r (if src? (r/source-logging-push-back-reader s)
               (string-reader s))
-        ctx (assoc opts ::expected-delimiter nil)
+        ctx (assoc opts :delims nil)
         v (parse-next ctx r)]
     (if (identical? eof v) nil v)))
 
@@ -950,8 +961,7 @@
         src? (:source opts)
         r (if src? (r/source-logging-push-back-reader s)
               (string-reader s))
-        ctx (assoc opts
-                   ::expected-delimiter nil)]
+        ctx (assoc opts :delims nil)]
     (loop [ret (transient [])]
       (let [next-val (parse-next ctx r)]
         (if (identical? eof next-val)
