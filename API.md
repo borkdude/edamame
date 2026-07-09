@@ -27,7 +27,7 @@
 
 
 Singleton value to be used as return value in `:read-cond` fn to indicate to continue parsing the next form
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L158-L160">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L168-L170">Source</a></sub></p>
 
 ## <a name="edamame.core/get-column-number">`get-column-number`</a>
 ``` clojure
@@ -35,7 +35,7 @@ Singleton value to be used as return value in `:read-cond` fn to indicate to con
 (get-column-number reader)
 ```
 Function.
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L108-L109">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L117-L118">Source</a></sub></p>
 
 ## <a name="edamame.core/get-line-number">`get-line-number`</a>
 ``` clojure
@@ -43,7 +43,7 @@ Function.
 (get-line-number reader)
 ```
 Function.
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L105-L106">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L114-L115">Source</a></sub></p>
 
 ## <a name="edamame.core/iobj?">`iobj?`</a>
 ``` clojure
@@ -53,7 +53,7 @@ Function.
 Function.
 
 Returns true if obj can carry metadata.
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L144-L149">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L156-L159">Source</a></sub></p>
 
 ## <a name="edamame.core/normalize-opts">`normalize-opts`</a>
 ``` clojure
@@ -64,7 +64,7 @@ Function.
 
 Expands `opts` into normalized opts, e.g. `:all true` is expanded
   into explicit options.
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L111-L115">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L120-L124">Source</a></sub></p>
 
 ## <a name="edamame.core/parse-next">`parse-next`</a>
 ``` clojure
@@ -76,7 +76,7 @@ Function.
 
 Parses next form from reader. Accepts same opts as [`parse-string`](#edamame.core/parse-string),
   but must be normalized with [`normalize-opts`](#edamame.core/normalize-opts) first.
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L117-L130">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L126-L142">Source</a></sub></p>
 
 ## <a name="edamame.core/parse-next+string">`parse-next+string`</a>
 ``` clojure
@@ -89,7 +89,7 @@ Function.
 Parses next form from reader. Accepts same opts as [`parse-string`](#edamame.core/parse-string),
   but must be normalized with [`normalize-opts`](#edamame.core/normalize-opts) first.
   Returns read value + string read (whitespace-trimmed).
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L132-L142">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L144-L154">Source</a></sub></p>
 
 ## <a name="edamame.core/parse-ns-form">`parse-ns-form`</a>
 ``` clojure
@@ -101,7 +101,7 @@ Function.
 Parses `ns-form`, an s-expression, into map with:
   - `:name`: the name of the namespace
   - `:aliases`: a map of aliases to lib names
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L151-L156">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L161-L166">Source</a></sub></p>
 
 ## <a name="edamame.core/parse-string">`parse-string`</a>
 ``` clojure
@@ -165,6 +165,12 @@ Parses first EDN value from string.
   auto-resolving keywords. Use `:current` as the alias for the current
   namespace.
 
+  `:auto-resolve-ns`: when `true`, track `ns` forms while parsing and
+  use their aliases to auto-resolve keywords like `::str/foo`, without
+  providing `:auto-resolve` explicitly. Combines with `:auto-resolve`:
+  tracked `ns` aliases are tried first, falling back to the
+  `:auto-resolve` map.
+
   `:readers`: data readers.
 
   `:postprocess`: a function that is called with a map containing
@@ -179,10 +185,12 @@ Parses first EDN value from string.
 
   `:uneval`: a function of a map with `:uneval` and `:next` to preserve `#_` expressions by combining them with next value.
 
+  `:suppress-read`: counterpart to *suppress-read* in clojure
+
   Additional arguments to tools.reader may be passed with
   `:tools.reader/opts`, like `:readers` for passing reader tag functions.
   
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L8-L83">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L9-L92">Source</a></sub></p>
 
 ## <a name="edamame.core/parse-string-all">`parse-string-all`</a>
 ``` clojure
@@ -194,7 +202,7 @@ Function.
 
 Like [`parse-string`](#edamame.core/parse-string) but parses all values from string and returns them
   in a vector.
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L85-L91">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L94-L100">Source</a></sub></p>
 
 ## <a name="edamame.core/reader">`reader`</a>
 ``` clojure
@@ -205,7 +213,7 @@ Function.
 
 Coerces x into indexing pushback-reader to be used with
   parse-next. Accepts string or `java.io.Reader`
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L93-L97">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L102-L106">Source</a></sub></p>
 
 ## <a name="edamame.core/source-reader">`source-reader`</a>
 ``` clojure
@@ -216,4 +224,4 @@ Function.
 
 Coerces x into source-logging-reader to be used with
   parse-next. Accepts string or `java.io.Reader`
-<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L99-L103">Source</a></sub></p>
+<p><sub><a href="https://github.com/borkdude/edamame/blob/master/src/edamame/core.cljc#L108-L112">Source</a></sub></p>

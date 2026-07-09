@@ -61,6 +61,12 @@
   auto-resolving keywords. Use `:current` as the alias for the current
   namespace.
 
+  `:auto-resolve-ns`: when `true`, track `ns` forms while parsing and
+  use their aliases to auto-resolve keywords like `::str/foo`, without
+  providing `:auto-resolve` explicitly. Combines with `:auto-resolve`:
+  tracked `ns` aliases are tried first, falling back to the
+  `:auto-resolve` map.
+
   `:readers`: data readers.
 
   `:postprocess`: a function that is called with a map containing
