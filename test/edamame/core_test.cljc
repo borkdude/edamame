@@ -698,6 +698,11 @@
                                {:auto-resolve-ns true :all true})))
     (is (= '[(ns foo (:require [clojure.set :refer :all])) (quote foo/union)]
            (e/parse-string-all "(ns foo (:require [clojure.set :refer :all])) `union"
+                               {:auto-resolve-ns true :all true}))))
+  (testing "renamed refer'd symbol resolves via the renamed name only"
+    (is (= '[(ns foo (:require [clojure.set :refer [union] :rename {union set-union}]))
+             (quote clojure.set/union) (quote foo/union)]
+           (e/parse-string-all "(ns foo (:require [clojure.set :refer [union] :rename {union set-union}])) `set-union `union"
                                {:auto-resolve-ns true :all true})))))
 
 (deftest uneval-test
