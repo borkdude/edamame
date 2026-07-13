@@ -691,6 +691,13 @@
   (testing "bare syntax-quoted symbol is qualified with the current ns"
     (is (= '[(ns foo) (quote foo/bar) (quote baz)]
            (e/parse-string-all "(ns foo) `bar 'baz"
+                               {:auto-resolve-ns true :all true}))))
+  (testing "refer'd syntax-quoted symbol is qualified with the referring ns"
+    (is (= '[(ns foo (:require [clojure.set :refer [union]])) (quote clojure.set/union) (quote foo/bar)]
+           (e/parse-string-all "(ns foo (:require [clojure.set :refer [union]])) `union `bar"
+                               {:auto-resolve-ns true :all true})))
+    (is (= '[(ns foo (:require [clojure.set :refer :all])) (quote foo/union)]
+           (e/parse-string-all "(ns foo (:require [clojure.set :refer :all])) `union"
                                {:auto-resolve-ns true :all true})))))
 
 (deftest uneval-test

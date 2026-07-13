@@ -831,7 +831,13 @@
                                               (try (ns-parser/parse-ns-form obj)
                                                    (catch Exception _ nil)))]
                          (when-let [ns-state (:ns-state ctx)]
-                           (reset! ns-state (assoc (:aliases ns-parsed) :current (:current ns-parsed))))))
+                           (reset! ns-state (assoc (:aliases ns-parsed)
+                                                   :current (:current ns-parsed)
+                                                   :refers (reduce (fn [acc {:keys [lib refer]}]
+                                                                     (if (sequential? refer)
+                                                                       (reduce #(assoc %1 %2 lib) acc refer)
+                                                                       acc))
+                                                                   {} (:requires ns-parsed)))))))
                    postprocess (:postprocess ctx)
                    location? (:location? ctx)
                    end-loc? (:end-location ctx)
