@@ -703,6 +703,15 @@
     (is (= '[(ns foo (:require [clojure.set :refer [union] :rename {union set-union}]))
              (quote clojure.set/union) (quote foo/union)]
            (e/parse-string-all "(ns foo (:require [clojure.set :refer [union] :rename {union set-union}])) `set-union `union"
+                               {:auto-resolve-ns true :all true}))))
+  (testing "method, constructor and dotted symbols are left as-is"
+    (is (= '[(ns foo) (quote .toString) (quote foo.bar) (quote java.util.Date) (quote Bar.)]
+           (e/parse-string-all "(ns foo) `.toString `foo.bar `java.util.Date `Bar."
+                               {:auto-resolve-ns true :all true}))))
+  (testing "imported classes qualify to the full classname"
+    (is (= '[(ns foo (:import [java.util Date UUID] java.io.File))
+             (quote java.util.Date) (quote java.io.File) (quote java.util.UUID.) (quote foo/Undefined)]
+           (e/parse-string-all "(ns foo (:import [java.util Date UUID] java.io.File)) `Date `File `UUID. `Undefined"
                                {:auto-resolve-ns true :all true})))))
 
 (deftest uneval-test
