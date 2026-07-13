@@ -833,9 +833,14 @@
                          (when-let [ns-state (:ns-state ctx)]
                            (reset! ns-state (assoc (:aliases ns-parsed)
                                                    :current (:current ns-parsed)
-                                                   :refers (reduce (fn [acc {:keys [lib refer]}]
+                                                   ;; in-scope name -> fully qualified symbol
+                                                   :refers (reduce (fn [acc {:keys [lib refer rename]}]
                                                                      (if (sequential? refer)
-                                                                       (reduce #(assoc %1 %2 lib) acc refer)
+                                                                       (reduce (fn [acc sym]
+                                                                                 (assoc acc
+                                                                                        (get rename sym sym)
+                                                                                        (symbol (str lib) (str sym))))
+                                                                               acc refer)
                                                                        acc))
                                                                    {} (:requires ns-parsed)))))))
                    postprocess (:postprocess ctx)

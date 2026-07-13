@@ -7,7 +7,7 @@ For a list of breaking changes, check [here](#breaking-changes)
 ## Unreleased
 
 - Speed up parsing by holding parse context in record fields instead of the extmap: ~10% faster on JVM, ~4% on ClojureScript
-- With `:auto-resolve-ns`, qualify refer'd syntax-quoted symbols (e.g. `` `union `` with `[clojure.set :refer [union]]`) with the referring namespace
+- With `:auto-resolve-ns`, qualify refer'd syntax-quoted symbols (e.g. `` `union `` with `[clojure.set :refer [union]]`) with the referring namespace, honoring `:rename`
 
 ## 1.6.41
 

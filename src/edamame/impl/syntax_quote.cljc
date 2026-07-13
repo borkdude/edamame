@@ -111,14 +111,13 @@
                                     (if-let [expanded-alias (ns-state alias)]
                                       (symbol (str expanded-alias) sym-name)
                                       sym)
-                                    ;; bare symbol: qualify with the referring
-                                    ;; ns when refer'd, else with the current ns
-                                    ;; if known, matching Clojure's syntax-quote
-                                    (if-let [refer-ns (get (:refers ns-state) sym)]
-                                      (symbol (str refer-ns) sym-name)
-                                      (if-let [current (:current ns-state)]
-                                        (symbol (str current) sym-name)
-                                        sym))))
+                                    ;; bare symbol: qualified symbol from the
+                                    ;; refers map when refer'd, else the current
+                                    ;; ns if known, matching Clojure's syntax-quote
+                                    (or (get (:refers ns-state) sym)
+                                        (if-let [current (:current ns-state)]
+                                          (symbol (str current) sym-name)
+                                          sym))))
                                 identity))]
                     (f form)))))
     (unquote? form) (second form)
