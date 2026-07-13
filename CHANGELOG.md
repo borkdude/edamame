@@ -4,10 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
-## Unreleased
+## 1.6.42
 
 - Speed up parsing by holding parse context in record fields instead of the extmap: ~10% faster on JVM, ~4% on ClojureScript
-- With `:auto-resolve-ns`, qualify refer'd syntax-quoted symbols (e.g. `` `union `` with `[clojure.set :refer [union]]`) with the referring namespace, honoring `:rename`
+- Respect `:refer` + `rename` in `:auto-resolve-ns`
 - With `:auto-resolve-ns`, qualify syntax-quoted imported classes (e.g. `` `Date `` with `(:import [java.util Date])`) with the full classname
 - With `:auto-resolve-ns`, leave method, constructor and dotted syntax-quoted symbols (`` `.toString ``, `` `Bar. ``, `` `foo.bar ``) as-is, matching Clojure
 
