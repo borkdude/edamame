@@ -842,7 +842,11 @@
                                                                                         (symbol (str lib) (str sym))))
                                                                                acc refer)
                                                                        acc))
-                                                                   {} (:requires ns-parsed)))))))
+                                                                   {} (:requires ns-parsed))
+                                                   ;; simple classname -> fully qualified classname
+                                                   :imports (reduce (fn [acc {:keys [classname full-classname]}]
+                                                                      (assoc acc classname full-classname))
+                                                                    {} (:imports ns-parsed)))))))
                    postprocess (:postprocess ctx)
                    location? (:location? ctx)
                    end-loc? (:end-location ctx)

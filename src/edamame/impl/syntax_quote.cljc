@@ -111,13 +111,25 @@
                                     (if-let [expanded-alias (ns-state alias)]
                                       (symbol (str expanded-alias) sym-name)
                                       sym)
-                                    ;; bare symbol: qualified symbol from the
-                                    ;; refers map when refer'd, else the current
-                                    ;; ns if known, matching Clojure's syntax-quote
-                                    (or (get (:refers ns-state) sym)
-                                        (if-let [current (:current ns-state)]
-                                          (symbol (str current) sym-name)
-                                          sym))))
+                                    ;; bare symbol, matching Clojure's syntax-quote:
+                                    ;; method, constructor and dotted symbols are
+                                    ;; left as-is, except a trailing dot on an
+                                    ;; imported class which resolves the class part.
+                                    ;; Then refers, imports and the current ns.
+                                    (cond
+                                      (str/starts-with? sym-name ".") sym
+                                      (str/ends-with? sym-name ".")
+                                      (if-let [c (get (:imports ns-state)
+                                                      (symbol (subs sym-name 0 (dec (count sym-name)))))]
+                                        (symbol (str c "."))
+                                        sym)
+                                      (str/includes? sym-name ".") sym
+                                      :else
+                                      (or (get (:refers ns-state) sym)
+                                          (some-> (get (:imports ns-state) sym) str symbol)
+                                          (if-let [current (:current ns-state)]
+                                            (symbol (str current) sym-name)
+                                            sym)))))
                                 identity))]
                     (f form)))))
     (unquote? form) (second form)
