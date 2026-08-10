@@ -318,7 +318,7 @@
       (is (str/includes? parsed "(quote user/apply)"))))
   (testing "sibling function literals get their own params"
     (let [parsed (pr-str (e/parse-string "`[#(f %) #(f %)]" {:all true}))]
-      (is (= 2 (count (set (re-seq #"p1__\d+__auto__" parsed)))))))
+      (is (= 2 (count (set (re-seq #"p1__\d+__\d+__auto__" parsed)))))))
   (testing "a % symbol the reader did not generate still resolves"
     (let [opts {:all true
                 :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
