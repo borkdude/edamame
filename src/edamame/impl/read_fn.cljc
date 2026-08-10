@@ -31,13 +31,13 @@
   "Expands a function literal to (fn* [%1 ...] ...).
 
   Inside a syntax quote the params are named p1__id#, p2__id# and
-  rest__id# instead, with id unique per literal:
-  Clojure's reader marks the params it generates with a trailing #, which
-  is what makes the syntax quote auto-gensym them rather than resolve them
-  as free symbols. The names are fixed, so reading stays deterministic."
-  ([expr] (read-fn expr nil))
-  ([expr id]
+  rest__id# instead, like in Clojure: the trailing # makes the syntax
+  quote auto-gensym them rather than resolve them as free symbols, and
+  the id keeps two literals in one syntax quote apart."
+  ([expr] (read-fn expr false))
+  ([expr syntax-quoted?]
    (let [state (volatile! {:max-fixed 0 :var-args? false})
+         id (when syntax-quoted? (name (gensym "")))
          arg-sym (fn [n] (if id
                            (symbol (str "p" n "__" id "#"))
                            (symbol (str "%" n))))
