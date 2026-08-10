@@ -736,14 +736,15 @@
                                   true))]
                     (do
                       (r/read-char reader) ;; ignore @
-                      (let [next-val (parse-next ctx reader)]
+                      ;; an unquoted form is not walked by the syntax quote
+                      (let [next-val (parse-next (assoc ctx :syntax-quoting false) reader)]
                         (if (true? v)
                           (list 'clojure.core/unquote-splicing next-val)
                           (v next-val))))
                     (throw-reader
                      ctx reader
                      "Syntax unquote splice not allowed. Use the `:syntax-quote` option"))
-                  (let [next-val (parse-next ctx reader)]
+                  (let [next-val (parse-next (assoc ctx :syntax-quoting false) reader)]
                     (if (true? v)
                       (list 'clojure.core/unquote next-val)
                       (v next-val))))))

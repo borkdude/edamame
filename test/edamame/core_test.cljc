@@ -316,6 +316,13 @@
       (is (str/includes? parsed "__auto__"))
       (is (not (str/includes? parsed "user/%")))
       (is (str/includes? parsed "(quote user/apply)"))))
+  (testing "an unquoted function literal is read as usual"
+    (let [opts {:all true
+                :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
+      (is (str/includes? (pr-str (e/parse-string "`(foo ~#(inc %))" opts))
+                         "%1"))
+      (is (= (e/parse-string "`(foo ~#(inc %))" opts)
+             (e/parse-string "`(foo ~#(inc %))" opts)))))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr Exception)
                         #"Nested" (e/parse-string "(#(+ (#(inc %) 2)) 3)"
                                                   {:all true})))
