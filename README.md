@@ -11,7 +11,7 @@ Configurable EDN/Clojure parser with location metadata.
 
 - You want to include locations in feedback about Clojure and EDN files
 - You want to parse Clojure-like expressions without any evaluation
-- Function literal are read deterministically: `#(inc %)` => `(fn* [%1] (inc %1))`
+- Function literal are read deterministically: `#(inc %)` => `(fn* [%1#] (inc %1#))`
 - Highly configurable
 - Auto-resolve aliased keywords based on the `ns` form
 
@@ -100,7 +100,7 @@ Examples:
 ;;=> (quote bar)
 
 (parse-string "#(* % %1 %2)" {:fn true})
-;;=> (fn [%1 %2] (* %1 %1 %2))
+;;=> (fn [%1# %2#] (* %1# %1# %2#))
 
 (parse-string "#=(+ 1 2 3)" {:read-eval true})
 ;;=> (read-eval (+ 1 2 3))
@@ -112,7 +112,7 @@ Examples:
 ;;=> (var foo)
 
 (parse-string "#(alter-var-root #'foo %)" {:all true})
-;;=> (fn [%1] (alter-var-root (var foo) %1))
+;;=> (fn [%1#] (alter-var-root (var foo) %1#))
 ```
 
 Note that standard behavior is overridable with functions:

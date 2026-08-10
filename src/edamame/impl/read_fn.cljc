@@ -28,41 +28,35 @@
   (walk* (partial postwalk* f) f form))
 
 (defn read-fn
-  "Expands a function literal to (fn* [%1 ...] ...).
+  "Expands a function literal to (fn* [%1# ...] ...).
 
-  Inside a syntax quote the params are named p1__id#, p2__id# and
-  rest__id# instead, like in Clojure: the trailing # makes the syntax
-  quote auto-gensym them rather than resolve them as free symbols, and
-  the id keeps two literals in one syntax quote apart."
-  ([expr] (read-fn expr false))
-  ([expr syntax-quoted?]
-   (let [state (volatile! {:max-fixed 0 :var-args? false})
-         id (when syntax-quoted? (name (gensym "")))
-         arg-sym (fn [n] (if id
-                           (symbol (str "p" n "__" id "#"))
-                           (symbol (str "%" n))))
-         var-args-sym (if id (symbol (str "rest__" id "#")) '%&)
-         expr (postwalk* (fn [elt]
-                           (if (and (symbol? elt) (not (namespace elt)))
-                             (if-let [[_ m] (re-matches #"^%(.*)" (name elt))]
-                               (cond (empty? m)
-                                     (do (vswap! state update :max-fixed max 1)
-                                         (arg-sym 1))
-                                     (= "&" m)
-                                     (do (vswap! state assoc :var-args? true)
-                                         var-args-sym)
-                                     :else (let [n #?(:clj (Integer/parseInt m)
-                                                      :cljs (js/parseInt m)
-                                                      :cljd (int/parse m)
-                                                      :cljr (Int32/Parse m))]
-                                             (vswap! state update :max-fixed max n)
-                                             (arg-sym n)))
-                               elt)
-                             elt))
-                         expr)
-         {:keys [:max-fixed :var-args?]} @state
-         fixed-names (map arg-sym (range 1 (inc max-fixed)))
-         arg-list (vec (concat fixed-names (when var-args?
-                                             ['& var-args-sym])))
-         form (list 'fn* arg-list expr)]
-     form)))
+  The params end in # so that a syntax quote gensyms them, like it does
+  for x#, instead of resolving them as free symbols and namespace
+  qualifying them. Their names are fixed, so reading stays deterministic."
+  [expr]
+  (let [state (volatile! {:max-fixed 0 :var-args? false})
+        arg-sym (fn [n] (symbol (str "%" n "#")))
+        var-args-sym '%&#
+        expr (postwalk* (fn [elt]
+                          (if (and (symbol? elt) (not (namespace elt)))
+                            (if-let [[_ m] (re-matches #"^%(.*)" (name elt))]
+                              (cond (empty? m)
+                                    (do (vswap! state update :max-fixed max 1)
+                                        (arg-sym 1))
+                                    (= "&" m)
+                                    (do (vswap! state assoc :var-args? true)
+                                        var-args-sym)
+                                    :else (let [n #?(:clj (Integer/parseInt m)
+                                                     :cljs (js/parseInt m)
+                                                     :cljd (int/parse m)
+                                                     :cljr (Int32/Parse m))]
+                                            (vswap! state update :max-fixed max n)
+                                            (arg-sym n)))
+                              elt)
+                            elt))
+                        expr)
+        {:keys [:max-fixed :var-args?]} @state
+        fixed-names (map arg-sym (range 1 (inc max-fixed)))
+        arg-list (vec (concat fixed-names (when var-args?
+                                            ['& var-args-sym])))]
+    (list 'fn* arg-list expr)))
