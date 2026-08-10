@@ -30,17 +30,18 @@
 (defn read-fn
   "Expands a function literal to (fn* [%1 ...] ...).
 
-  Inside a syntax quote the params are named p1#, p2# and rest# instead:
+  Inside a syntax quote the params are named p1__id#, p2__id# and
+  rest__id# instead, with id unique per literal:
   Clojure's reader marks the params it generates with a trailing #, which
   is what makes the syntax quote auto-gensym them rather than resolve them
   as free symbols. The names are fixed, so reading stays deterministic."
-  ([expr] (read-fn expr false))
-  ([expr syntax-quoted?]
+  ([expr] (read-fn expr nil))
+  ([expr id]
    (let [state (volatile! {:max-fixed 0 :var-args? false})
-         arg-sym (fn [n] (if syntax-quoted?
-                           (symbol (str "p" n "#"))
+         arg-sym (fn [n] (if id
+                           (symbol (str "p" n "__" id "#"))
                            (symbol (str "%" n))))
-         var-args-sym (if syntax-quoted? 'rest# '%&)
+         var-args-sym (if id (symbol (str "rest__" id "#")) '%&)
          expr (postwalk* (fn [elt]
                            (if (and (symbol? elt) (not (namespace elt)))
                              (if-let [[_ m] (re-matches #"^%(.*)" (name elt))]
