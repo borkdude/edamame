@@ -328,6 +328,15 @@
                          "%1"))
       (is (= (e/parse-string "`(foo ~#(inc %))" opts)
              (e/parse-string "`(foo ~#(inc %))" opts)))))
+  (testing "an unquote escapes one level of syntax quote, not all of them"
+    (let [opts {:all true
+                :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}
+          parse #(pr-str (e/parse-string % opts))]
+      ;; still walked by the outer syntax quote, so still gensymed
+      (is (str/includes? (parse "``~#(inc %)") "__auto__"))
+      (is (not (str/includes? (parse "``~#(inc %)") "user/%")))
+      ;; fully escaped
+      (is (str/includes? (parse "``~~#(inc %)") "%1"))))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr Exception)
                         #"Nested" (e/parse-string "(#(+ (#(inc %) 2)) 3)"
                                                   {:all true})))
