@@ -93,6 +93,12 @@
     (list 'quote
           (let [sym-name (name form)]
             (cond (special-symbol? form) form
+                  ;; a function literal reads deterministically as
+                  ;; (fn* [%1] ...): its params are locals of that
+                  ;; expansion, so they are not resolved as free symbols
+                  (and (nil? (namespace form))
+                       (re-matches #"%(\d+|&)?" sym-name))
+                  form
                   (str/ends-with? sym-name "#")
                   (if-let [generated (get @gensyms form)]
                     generated

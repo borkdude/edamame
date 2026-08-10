@@ -302,6 +302,16 @@
   (is (= '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))
          (e/parse-string "#(apply + % %1 %3 %&)"
                          {:all true})))
+  (testing "params of a function literal are not resolved in a syntax quote"
+    (let [parsed (pr-str (e/parse-string
+                          "`#(apply + % %1 %&)"
+                          {:all true
+                           :syntax-quote
+                           {:resolve-symbol #(symbol "user" (name %))}}))]
+      (is (str/includes? parsed "(quote %1)"))
+      (is (str/includes? parsed "(quote %&)"))
+      (is (str/includes? parsed "(quote user/apply)"))
+      (is (not (str/includes? parsed "user/%")))))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr Exception)
                         #"Nested" (e/parse-string "(#(+ (#(inc %) 2)) 3)"
                                                   {:all true})))
