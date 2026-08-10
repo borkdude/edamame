@@ -714,9 +714,13 @@
           \` (if-let [v (:syntax-quote ctx)]
                (do
                  (r/read-char reader) ;; skip `
-                 (let [next-val (parse-next (-> ctx
-                                                (update :syntax-quote-depth (fnil inc 0))
-                                                (update :fn-literal-ids #(or % (atom 0))))
+                 ;; only the built-in syntax quote walks the form, so only
+                 ;; then do function literal params need gensym marking
+                 (let [walks? (or (true? v) (map? v))
+                       next-val (parse-next (cond-> ctx
+                                              walks?
+                                              (-> (update :syntax-quote-depth (fnil inc 0))
+                                                  (update :fn-literal-ids #(or % (atom 0)))))
                                             reader)]
                    (if (or (true? v) (map? v))
                      (let [gensyms (atom {})
