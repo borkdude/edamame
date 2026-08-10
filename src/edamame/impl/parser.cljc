@@ -525,7 +525,7 @@
               "Nested fn literals not allowed.")
              (let [fn-expr (parse-next (assoc ctx :fn-literal true) reader)]
                (if (true? v)
-                 (read-fn fn-expr)
+                 (read-fn fn-expr (:syntax-quoting ctx))
                  (v fn-expr))))
            (throw-reader
             ctx reader
@@ -712,7 +712,7 @@
           \` (if-let [v (:syntax-quote ctx)]
                (do
                  (r/read-char reader) ;; skip `
-                 (let [next-val (parse-next ctx reader)]
+                 (let [next-val (parse-next (assoc ctx :syntax-quoting true) reader)]
                    (if (or (true? v) (map? v))
                      (let [gensyms (atom {})
                            ctx (assoc ctx :gensyms gensyms)
