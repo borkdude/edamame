@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## 1.6.43
+
+- Do not resolve function literal params in a syntax quote
+
 ## 1.6.42
 
 - Speed up parsing by holding parse context in record fields instead of the extmap: ~10% faster on JVM, ~4% on ClojureScript
