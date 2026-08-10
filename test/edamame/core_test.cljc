@@ -316,6 +316,11 @@
       (is (str/includes? parsed "__auto__"))
       (is (not (str/includes? parsed "user/%")))
       (is (str/includes? parsed "(quote user/apply)"))))
+  (testing "a % symbol the reader did not generate still resolves"
+    (let [opts {:all true
+                :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
+      (is (str/includes? (pr-str (e/parse-string "`(%1 1)" opts)) "user/%1"))
+      (is (str/includes? (pr-str (e/parse-string "`(%& 1)" opts)) "user/%&"))))
   (testing "an unquoted function literal is read as usual"
     (let [opts {:all true
                 :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
