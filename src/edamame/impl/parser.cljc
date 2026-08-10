@@ -525,7 +525,7 @@
               "Nested fn literals not allowed.")
              (let [fn-expr (parse-next (assoc ctx :fn-literal true) reader)]
                (if (true? v)
-                 (read-fn fn-expr (pos? (or (:syntax-quote-depth ctx) 0)))
+                 (read-fn fn-expr)
                  (v fn-expr))))
            (throw-reader
             ctx reader
@@ -712,13 +712,7 @@
           \` (if-let [v (:syntax-quote ctx)]
                (do
                  (r/read-char reader) ;; skip `
-                 ;; only the built-in syntax quote walks the form, so only
-                 ;; then do function literal params need gensym marking
-                 (let [walks? (or (true? v) (map? v))
-                       next-val (parse-next (cond-> ctx
-                                              walks?
-                                              (update :syntax-quote-depth (fnil inc 0)))
-                                            reader)]
+                 (let [next-val (parse-next ctx reader)]
                    (if (or (true? v) (map? v))
                      (let [gensyms (atom {})
                            ctx (assoc ctx :gensyms gensyms)
@@ -742,15 +736,14 @@
                                   true))]
                     (do
                       (r/read-char reader) ;; ignore @
-                      ;; an unquoted form is not walked by the syntax quote
-                      (let [next-val (parse-next (update ctx :syntax-quote-depth (fn [d] (max 0 (dec (or d 0))))) reader)]
+                      (let [next-val (parse-next ctx reader)]
                         (if (true? v)
                           (list 'clojure.core/unquote-splicing next-val)
                           (v next-val))))
                     (throw-reader
                      ctx reader
                      "Syntax unquote splice not allowed. Use the `:syntax-quote` option"))
-                  (let [next-val (parse-next (update ctx :syntax-quote-depth (fn [d] (max 0 (dec (or d 0))))) reader)]
+                  (let [next-val (parse-next ctx reader)]
                     (if (true? v)
                       (list 'clojure.core/unquote next-val)
                       (v next-val))))))

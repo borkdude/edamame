@@ -15,7 +15,7 @@
   `:deref`: parse forms starting with `@`. If `true`, the resulting
   expression will be parsed as `(deref expr)`.
 
-  `:fn`: parse function literals (`#(inc %)`). If `true`, will be parsed as `(fn [%1] (inc %))`.
+  `:fn`: parse function literals (`#(inc %)`). If `true`, will be parsed as `(fn [%1#] (inc %1#))`.
 
   `:quote`: parse quoted expression `'foo`. If `true`, will be parsed as `(quote foo)`.
 
