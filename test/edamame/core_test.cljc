@@ -302,6 +302,44 @@
   (is (= '(fn* [%1 %2 %3 & %&] (apply + %1 %1 %3 %&))
          (e/parse-string "#(apply + % %1 %3 %&)"
                          {:all true})))
+  (testing "reading a function literal is deterministic"
+    (is (= (e/parse-string "#(apply + % %1 %&)" {:all true})
+           (e/parse-string "#(apply + % %1 %&)" {:all true}))))
+  (testing "params of a function literal auto-gensym in a syntax quote"
+    (let [parsed (pr-str (e/parse-string
+                          "`#(apply + % %1 %&)"
+                          {:all true
+                           :syntax-quote
+                           {:resolve-symbol #(symbol "user" (name %))}}))]
+      ;; like Clojure: the params the reader generates carry a trailing #,
+      ;; so they auto-gensym instead of resolving as free symbols
+      (is (str/includes? parsed "__auto__"))
+      (is (not (str/includes? parsed "user/%")))
+      (is (str/includes? parsed "(quote user/apply)"))))
+  (testing "sibling function literals get their own params"
+    (let [parsed (pr-str (e/parse-string "`[#(f %) #(f %)]" {:all true}))]
+      (is (= 2 (count (set (re-seq #"p1__\d+__\d+__auto__" parsed)))))))
+  (testing "a % symbol the reader did not generate still resolves"
+    (let [opts {:all true
+                :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
+      (is (str/includes? (pr-str (e/parse-string "`(%1 1)" opts)) "user/%1"))
+      (is (str/includes? (pr-str (e/parse-string "`(%& 1)" opts)) "user/%&"))))
+  (testing "an unquoted function literal is read as usual"
+    (let [opts {:all true
+                :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}]
+      (is (str/includes? (pr-str (e/parse-string "`(foo ~#(inc %))" opts))
+                         "%1"))
+      (is (= (e/parse-string "`(foo ~#(inc %))" opts)
+             (e/parse-string "`(foo ~#(inc %))" opts)))))
+  (testing "an unquote escapes one level of syntax quote, not all of them"
+    (let [opts {:all true
+                :syntax-quote {:resolve-symbol #(symbol "user" (name %))}}
+          parse #(pr-str (e/parse-string % opts))]
+      ;; still walked by the outer syntax quote, so still gensymed
+      (is (str/includes? (parse "``~#(inc %)") "__auto__"))
+      (is (not (str/includes? (parse "``~#(inc %)") "user/%")))
+      ;; fully escaped
+      (is (str/includes? (parse "``~~#(inc %)") "%1"))))
   (is (thrown-with-msg? #?(:clj Exception :cljs js/Error :cljd cljd.core/ExceptionInfo :cljr Exception)
                         #"Nested" (e/parse-string "(#(+ (#(inc %) 2)) 3)"
                                                   {:all true})))
