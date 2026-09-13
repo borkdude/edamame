@@ -929,12 +929,25 @@
                            (desugar-meta obj)) obj)
                    obj (cond postprocess-fn (postprocess-fn obj)
                              loc? (with-meta obj
-                                    (cond-> (assoc (meta obj)
-                                                   (:row-key ctx) row
-                                                   (:col-key ctx) col)
-                                      end-loc? (assoc (:end-row-key ctx) end-row
-                                                      (:end-col-key ctx) end-col)
-                                      src (assoc (:source-key ctx) src)))
+                                    (let [m (meta obj)
+                                          ;; most forms have no metadata yet: build the
+                                          ;; location map in one go
+                                          m (if (nil? m)
+                                              (if end-loc?
+                                                {(:row-key ctx) row
+                                                 (:col-key ctx) col
+                                                 (:end-row-key ctx) end-row
+                                                 (:end-col-key ctx) end-col}
+                                                {(:row-key ctx) row
+                                                 (:col-key ctx) col})
+                                              (cond-> (assoc m
+                                                             (:row-key ctx) row
+                                                             (:col-key ctx) col)
+                                                end-loc? (assoc (:end-row-key ctx) end-row
+                                                                (:end-col-key ctx) end-col)))]
+                                      (if src
+                                        (assoc m (:source-key ctx) src)
+                                        m)))
                              :else obj)]
                obj))))
        eof))))
