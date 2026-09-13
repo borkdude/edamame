@@ -124,13 +124,14 @@
         "^:m" "^{:a 1}" "^String" ";comment\n" ";comment\r\n" "#!shebang\n"
         "sym" "ns/sym" "foo." ".bar" ":kw" "::kw" "::foo/kw" ":a/b"
         "1" "-2" "3.5" "1/2" "0x10" "1N" "##Inf" "nil" "true"
-        " " "," "\t" "\n" "\r" "\r\n" "\f" "\r\f"])
+        " " "," "\t" "\n" "\r" "\r\n" "\f" "\r\f"
+        "\"héllo\"" "λ" "\"😀\"" " " " " "　"])
 
      (deftest reader-ops-match-tools-reader-test
        (let [rnd (java.util.Random. 42)
              mismatch (first
                        (for [_ (range 10000)
-                             :let [s (rand-string rnd "ab1 \t,\r\n\f\\\"();" 20)
+                             :let [s (rand-string rnd "ab1 \t,\r\n\f\\\"();é  　😀" 20)
                                    ops (rand-ops rnd 40)
                                    expected (run-ops (tools-reader s) ops)
                                    actual (run-ops (e/reader s) ops)]
@@ -149,7 +150,7 @@
            (is (nil? (first-mismatch inputs)))))
        (testing "random characters"
          (let [rnd (java.util.Random. 43)
-               inputs (vec (repeatedly 3000 #(rand-string rnd "(){}[]\"\\;#:^'`~@% a1,\r\n\f\t" 30)))]
+               inputs (vec (repeatedly 3000 #(rand-string rnd "(){}[]\"\\;#:^'`~@% a1,\r\n\f\té  　😀" 30)))]
            (is (nil? (first-mismatch inputs)))))
        (testing "clojure.core"
          (is (nil? (first-mismatch [(slurp (io/file "test-resources" "clojure" "core.clj"))])))))
