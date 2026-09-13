@@ -8,10 +8,10 @@
   :license {:name "Eclipse Public License 1.0"
             :url "http://opensource.org/licenses/eclipse-1.0.php"}
   :source-paths ["src"]
-  :dependencies [[org.clojure/clojure "1.9.0"]
+  :dependencies [[org.clojure/clojure "1.10.3"]
                  [org.clojure/tools.reader "1.5.2"]]
-  :profiles {:clojure-1.9.0 {:dependencies [[org.clojure/clojure "1.9.0"]]}
-             :clojure-1.10.1 {:dependencies [[org.clojure/clojure "1.10.1"]]}
+  :profiles {:clojure-1.10.3 {:dependencies [[org.clojure/clojure "1.10.3"]]}
+             :clojure-1.12.6 {:dependencies [[org.clojure/clojure "1.12.6"]]}
              :test {:jvm-opts ["-Djdk.attach.allowAttachSelf"]
                     :dependencies [[org.clojure/clojurescript "1.10.520"]
                                    [clj-commons/conch "0.9.2"]
