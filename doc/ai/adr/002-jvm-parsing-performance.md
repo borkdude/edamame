@@ -127,6 +127,32 @@ extract the reader core without `IFastOps` and drop items 3-5, `read-token`,
 unchanged. The differential test against the tools.reader stack is the
 safety net either way.
 
+## Parser fixes without the reader (2026-09-13)
+
+Branch `parse-fixes` off master. fast-edn parses a 2.4MB EDN file 6.8x
+faster than edamame with `unwrapped-reader`. A profile of edamame on that file
+spread the time over number parsing (tools.reader's regex `match-number`), map
+literal construction (`take-nth`, `apply distinct?`, `apply array-map`),
+per-form work in `parse-next` and `dispatch`, and symbol and keyword scanning.
+
+Cumulative JVM numbers against master (average of two master runs):
+
+| Commit | EDN, no location | EDN, location | core.clj, sci opts | core.clj, default opts |
+|---|---|---|---|---|
+| master | 95.2ms | 109.8ms | 7.76ms | 9.57ms |
+| Numbers without regex (JVM only) | 84.3ms | 98.0ms | 7.89ms | 9.40ms |
+| Map literals via a transient | 72.3ms | 85.1ms | 7.81ms | 9.17ms |
+| Per-form overhead in `parse-next` and `dispatch` | 73.9ms | 79.5ms | 7.41ms | 9.16ms |
+
+A fourth commit that scanned symbol and keyword tokens once measured within
+the run-to-run spread over three rounds and is reverted on the branch.
+
+Verification: a snapshot records a sha256 of the normalized parse result for
+12846 corpus files and 8000 seeded random inputs under three option sets.
+Normalized means metadata as data, number and map classes, array map entry
+order, and error class, message and data. The branch matches master on every
+entry except four that also differ between two master runs.
+
 ## Notes for future performance work
 
 ### Measuring
@@ -178,5 +204,13 @@ safety net either way.
   only the host pass. `:default` alone is not enough.
 - sci's resolve-test opens a network connection to www.clojure.org and
   errors in a sandbox without network. Not an edamame regression.
+- A parse snapshot has to be deterministic before it can compare branches.
+  Diff two runs of the same code first. Noise came from identity hash codes
+  printed by `str` on arbitrary objects, and from the iteration order of hash
+  maps whose keys hash by identity, like regex literals.
+- edamame leaks its internal eof sentinel at the end of input. `` ` `` then
+  `@` returns a form containing it, `#?(` throws "Feature should be a keyword:
+  java.lang.Object@...", and `#` then `~` puts it in a "No reader function for
+  tag" message. Pre-existing, not fixed.
 
 General JVM Clojure tricks extracted to the `clojure-performance` skill.
