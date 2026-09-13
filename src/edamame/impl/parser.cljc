@@ -652,15 +652,24 @@
         c (count elements)]
     (if-let [mf (:map ctx)]
       (apply mf elements)
-      (do (when (pos? c)
-            (when (odd? c)
-              (throw-odd-map ctx reader start-loc elements))
-            (let [ks (take-nth 2 elements)]
-              (when-not (apply distinct? ks)
-                (throw-dup-keys ctx reader start-loc :map ks))))
-          (if (<= c 16)
-            (apply #?(:cljd hash-map :default array-map) elements)
-            (apply hash-map elements))))))
+      (do (when (odd? c)
+            (throw-odd-map ctx reader start-loc elements))
+          #?(:cljd
+             (do (when (pos? c)
+                   (let [ks (take-nth 2 elements)]
+                     (when-not (apply distinct? ks)
+                       (throw-dup-keys ctx reader start-loc :map ks))))
+                 (apply hash-map elements))
+             :default
+             (loop [i 0
+                    m (transient {})]
+               (if (< i c)
+                 (let [m (assoc! m (nth elements i) (nth elements (inc i)))]
+                   ;; a key that is already present leaves the count unchanged
+                   (if (== (count m) (inc (quot i 2)))
+                     (recur (+ i 2) m)
+                     (throw-dup-keys ctx reader start-loc :map (take-nth 2 elements))))
+                 (persistent! m))))))))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :
