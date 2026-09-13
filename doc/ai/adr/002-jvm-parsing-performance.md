@@ -29,6 +29,20 @@ Done so far:
   compares both readers on random reader ops and random parser input.
 - sci builds its own tools.reader stack in `eval-string` and `load-string`,
   so it only benefits once it calls `edamame.core/reader` for strings.
+- bb experiment, 2026-09-13: bb branch `edamame-reader`
+  (https://github.com/babashka/babashka/compare/master...edamame-reader)
+  with sci branch `edamame-reader`
+  (https://github.com/babashka/sci/compare/master...edamame-reader). sci
+  reads strings through `edamame.core/reader` and pins edamame
+  `1.6.44-unwrapped-reader-SNAPSHOT`. That jar only exists in the local
+  ~/.m2: `lein do clean, install` on `unwrapped-reader` with that version in
+  `resources/EDAMAME_VERSION`. Native bb, meander `require` (median of 10):
+  211ms -> 203ms. Parsing all 27 meander sources in bb: 22.5ms -> 13.2ms.
+  The last sci commit adds timers printed with `SCI_PARSE_STATS=1`. Of the
+  204ms require, sci `parse-next` takes 18ms and edamame `parse-next` 12.7ms,
+  over 952 forms. The other ~186ms is analysis and evaluation. sci's
+  `parse-next` rebuilds its edamame options for every form, about 5ms of the
+  18ms.
 
 ## Context
 
