@@ -643,6 +643,15 @@
                        PersistentArrayMap
                        :cljr clojure.lang.PersistentArrayMap)
                     (e/parse-string "{:a 1 :b 2}")))
+     (testing "a map of 8 entries stays an array map and keeps its key order"
+       (let [m (e/parse-string "{:h 1 :g 2 :f 3 :e 4 :d 5 :c 6 :b 7 :a 8}")]
+         (is (instance? #?(:clj
+                           clojure.lang.PersistentArrayMap
+                           :cljs
+                           PersistentArrayMap
+                           :cljr clojure.lang.PersistentArrayMap)
+                        m))
+         (is (= [:h :g :f :e :d :c :b :a] (keys m)))))
      (is (instance? #?(:clj
                        clojure.lang.PersistentHashMap
                        :cljs
@@ -650,6 +659,49 @@
                        :cljr
                        clojure.lang.PersistentHashMap)
                     (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}")))))
+
+(deftest map-literal-duplicate-key-test
+  (testing "a duplicate key in an array map, in a map that grows into a hash map, and in a hash map"
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :g"
+         {:row 1 :col 1}
+         (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :g 8}")))
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :a"
+         {:row 1 :col 1}
+         (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :a 9}")))
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :i"
+         {:row 1 :col 1}
+         (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9 :i 10}"))))
+  (testing "nil and false as duplicate keys"
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key"
+         {:row 1 :col 1}
+         (e/parse-string "{nil 1 nil 2}")))
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: false"
+         {:row 1 :col 1}
+         (e/parse-string "{false 1 false 2}"))))
+  (testing "the error points at the start of the map"
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :a"
+         {:row 2 :col 2}
+         (e/parse-string "[\n {:a 1 :a 2}]"))))
+  (testing "keys that look alike but are not equal"
+    (is (= {"a" 1 :a 2 'a 3} (e/parse-string "{\"a\" 1 :a 2 a 3}"))))
+  #?(:cljd nil
+     :clj (testing "equal numbers of different classes are duplicate keys, like in Clojure"
+            (is (thrown-with-data?
+                 #"Map literal contains duplicate key: 1"
+                 {:row 1 :col 1}
+                 (e/parse-string "{1 1 1N 2}")))
+            (is (= 2 (count (e/parse-string "{1 1 1.0 2}"))))))
+  (testing "a map literal with an odd number of forms"
+    (is (thrown-with-data?
+         #"The map literal starting with :a contains 1 form\(s\)"
+         {:row 1 :col 1}
+         (e/parse-string "{:a}")))))
 
 (deftest number-test
   (is (number? (e/parse-string "-100"))))
