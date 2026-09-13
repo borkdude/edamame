@@ -48,8 +48,8 @@ jobs:
       - name: Download dependencies
         if: steps.cache-deps.outputs.cache-hit != 'true'
         run: |
-          lein with-profiles +clojure-1.9.0,+test deps
-          lein with-profiles +clojure-1.10.1,+test deps
+          lein with-profiles +clojure-1.10.3,+test deps
+          lein with-profiles +clojure-1.12.6,+test deps
       
       - name: Save dependency cache
         if: steps.cache-deps.outputs.cache-hit != 'true'
