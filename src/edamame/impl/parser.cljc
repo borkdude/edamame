@@ -139,7 +139,7 @@
 (defn parse-symbol
   "Parses a string into a vector of the namespace and symbol"
   [^String token]
-  (when-not (or (= "" token)
+  (when-not (or (== 0 (str-len token))
                 (#?(:clj .endsWith :cljs .endsWith :cljd .endsWith :cljr .EndsWith) token ":")
                 (#?(:clj .startsWith :cljs .startsWith :cljd .startsWith :cljr .StartsWith) token "::"))
     (let [ns-idx #?(:clj (.indexOf token "/") :cljs (.indexOf token "/") :cljd (.indexOf token "/") :cljr (.IndexOf token "/"))]
@@ -156,8 +156,8 @@
                              (or (= "/" sym )
                                  (== -1 #?(:clj (.indexOf sym "/") :cljs (.indexOf sym "/") :cljd (.indexOf sym "/") :cljr (.IndexOf sym "/")))))
                     [ns sym]))))))
-        (when (or (= "/" token)
-                  (== -1 #?(:clj (.indexOf token "/") :cljs (.indexOf token "/") :cljd (.indexOf token "/") :cljr (.IndexOf token "/"))))
+        (when (or (== -1 ns-idx)
+                  (= "/" token))
           [nil token])))))
 
 #?(:cljd
@@ -679,7 +679,7 @@
     (when (whitespace? init-c)
       (throw-reader ctx reader "Invalid token: :"))
     (let [^String token (read-token reader :keyword init-c)]
-      (if (str/blank? token)
+      (if #?(:clj (== 0 (str-len token)) :default (str/blank? token))
         (throw-reader ctx reader "Invalid keyword: :")
         (let [s (parse-symbol token)]
           (if s
@@ -695,7 +695,7 @@
                     (let [f (get-auto-resolve ctx reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")
                           kns (auto-resolve ctx f :current reader token "Use `:auto-resolve` + `:current` to resolve current namespace.")]
                       (keyword (str kns) (subs token-name 1)))))
-                (keyword token)))
+                #?(:clj (keyword (s 0) (s 1)) :default (keyword token))))
             (throw-reader ctx reader (str "Invalid keyword: :"  token "."))))))))
 
 (defn desugar-meta
