@@ -175,9 +175,9 @@
 
 #?(:clj
    (defn- simple-number
-     "Returns s as a Long when it is a decimal int without leading zero and at
-     most 18 digits, as a Double when it is a decimal float without exponent,
-     otherwise nil."
+     "Returns s as a Long for decimal integers of at most 18 digits with no
+     leading zeros, or as a Double for decimals with a decimal point and no
+     exponent or suffix. Accepts an optional sign. Returns nil otherwise."
      [^String s]
      (let [len (.length s)
            c0 (if (pos? len) (int (.charAt s 0)) 0)
