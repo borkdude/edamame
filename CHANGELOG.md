@@ -4,6 +4,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
+## Unreleased
+
+- Throw EOF errors for reader macros with missing forms at the end of input
+
 ## 1.6.43
 
 - Do not resolve function literal params in a syntax quote

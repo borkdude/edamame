@@ -271,6 +271,16 @@
 (defn throw-eof-while-reading [ctx reader]
   (throw-reader ctx reader "EOF while reading"))
 
+(defn parse-next-or-throw-eof
+  "Parses the next form. Throws an EOF error at the end of input."
+  ([ctx #?(:cljs ^not-native reader :default reader)]
+   (parse-next-or-throw-eof ctx reader nil))
+  ([ctx #?(:cljs ^not-native reader :default reader) desugar]
+   (let [v (parse-next ctx reader desugar)]
+     (when (identical? eof v)
+       (throw-eof-while-reading ctx reader))
+     v)))
+
 (defn parse-to-delimiter
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
    (parse-to-delimiter ctx reader delimiter []))
@@ -360,6 +370,14 @@
           (throw-dup-keys ctx reader start-loc :set coll))
         the-set))))
 
+(defn throw-eof-in-reader-conditional [ctx #?(:cljs ^not-native reader :default reader)]
+  (let [{:keys [:expected :row :col :char]} (:delims ctx)]
+    (throw-reader ctx
+                  reader
+                  (str "EOF while reading, expected " expected " to match " char " at [" row "," col "]")
+                  {:edamame/expected-delimiter (str expected)
+                   :edamame/opened-delimiter (str char)})))
+
 (defn parse-first-matching-condition [ctx #?(:cljs ^not-native reader :default reader)]
   (let [features (:features ctx)
         features? (some? features)]
@@ -368,6 +386,8 @@
         (if (identical? expected-delimiter k)
           match
           (do
+            (when (identical? eof k)
+              (throw-eof-in-reader-conditional ctx reader))
             (when-not (keyword? k)
               (throw-reader ctx
                             reader
@@ -383,13 +403,7 @@
                       (when-not (identical? expected-delimiter
                                             next-val)
                         (if (identical? eof next-val)
-                          (let [{:keys [:expected :row :col :char]} (:delims ctx)
-                                delimiter expected]
-                            (throw-reader ctx
-                                          reader
-                                          (str "EOF while reading, expected " delimiter " to match " char " at [" row "," col "]")
-                                          {:edamame/expected-delimiter (str delimiter)
-                                           :edamame/opened-delimiter (str char)}))
+                          (throw-eof-in-reader-conditional ctx reader)
                           (recur)))))
                   match)
                 (do
@@ -420,15 +434,17 @@
     (when splice? (r/read-char reader))
     (skip-whitespace ctx reader)
     (cond (kw-identical? :preserve opt)
-          (reader-conditional (parse-next ctx reader) splice?)
+          (reader-conditional (parse-next-or-throw-eof ctx reader) splice?)
           (fn? opt)
-          (let [ret (opt (attach-splice (parse-next ctx reader) splice? true))]
+          (let [ret (opt (attach-splice (parse-next-or-throw-eof ctx reader) splice? true))]
             (attach-splice ret splice? false))
           :else
           (let [ir? (r/indexing-reader? reader)
                 row (when ir? (r/get-line-number reader))
                 col (when ir? (r/get-column-number reader))
                 opened (r/read-char reader)
+                _ (when (nil? opened)
+                    (throw-eof-while-reading ctx reader))
                 ctx (assoc ctx :delims (->Delims \) opened row col))
                 match (parse-first-matching-condition ctx reader)]
             (if (non-match? match) continue
@@ -494,7 +510,7 @@
                  (when-not current-ns?
                    (read-symbol ctx reader))
                  (read-symbol ctx reader))
-        the-map (parse-next ctx reader)]
+        the-map (parse-next-or-throw-eof ctx reader)]
     (if auto-resolved?
       (let [ns (if current-ns? :current (symbol (name prefix)))
             f (get-auto-resolve ctx reader ns)
@@ -533,9 +549,7 @@
       \' (if-let [v (:var ctx)]
            (do
              (r/read-char reader) ;; ignore quote
-             (let [next-val (parse-next ctx reader)]
-               (when (identical? eof next-val)
-                 (throw-eof-while-reading ctx reader))
+             (let [next-val (parse-next-or-throw-eof ctx reader)]
                (if (true? v)
                  (list 'var next-val)
                  (v next-val))))
@@ -545,7 +559,7 @@
       \= (if-let [v (:read-eval ctx)]
            (do
              (r/read-char reader) ;; ignore =
-             (let [next-val (parse-next ctx reader)]
+             (let [next-val (parse-next-or-throw-eof ctx reader)]
                (if (true? v)
                  (list 'edamame.core/read-eval next-val)
                  (v next-val))))
@@ -581,10 +595,9 @@
            (read-symbolic-value reader nil nil))
       \^ (do
            (r/read-char reader) ;; ignore ^
-           (let [meta-val (parse-next ctx reader true)
-                 val-val (vary-meta (parse-next ctx reader)
-                                    merge meta-val)]
-             val-val))
+           (let [meta-val (parse-next-or-throw-eof ctx reader true)]
+             (vary-meta (parse-next-or-throw-eof ctx reader)
+                        merge meta-val)))
       ;; catch-all
       (if (dispatch-macro? c)
         (do (r/unread reader \#)
@@ -592,11 +605,11 @@
         ;; reader tag
         (let [suppress? (:suppress-read ctx)]
           (if suppress?
-            (tagged-literal (parse-next ctx reader)
+            (tagged-literal (parse-next-or-throw-eof ctx reader)
                             ;; read form
-                            (parse-next ctx reader))
-            (let [sym (parse-next ctx reader)
-                  data (parse-next ctx reader)
+                            (parse-next-or-throw-eof ctx reader))
+            (let [sym (parse-next-or-throw-eof ctx reader)
+                  data (parse-next-or-throw-eof ctx reader)
                   f (or (when-let [readers (:readers ctx)]
                           (readers sym))
                         #?(:cljs (*cljs-data-readers* sym)
@@ -691,7 +704,7 @@
           \@ (if-let [v (:deref ctx)]
                (do
                  (r/read-char reader) ;; skip @
-                 (let [next-val (parse-next ctx reader)]
+                 (let [next-val (parse-next-or-throw-eof ctx reader)]
                    (if (true? v)
                      (list 'clojure.core/deref next-val)
                      (v next-val))))
@@ -701,9 +714,7 @@
           \' (if-let [v (:quote ctx)]
                (do
                  (r/read-char reader) ;; skip '
-                 (let [next-val (parse-next ctx reader)]
-                   (when (identical? eof next-val)
-                     (throw-eof-while-reading ctx reader))
+                 (let [next-val (parse-next-or-throw-eof ctx reader)]
                    (if (true? v)
                      (list 'quote next-val)
                      (v next-val))))
@@ -712,7 +723,7 @@
           \` (if-let [v (:syntax-quote ctx)]
                (do
                  (r/read-char reader) ;; skip `
-                 (let [next-val (parse-next ctx reader)]
+                 (let [next-val (parse-next-or-throw-eof ctx reader)]
                    (if (or (true? v) (map? v))
                      (let [gensyms (atom {})
                            ctx (assoc ctx :gensyms gensyms)
@@ -736,14 +747,14 @@
                                   true))]
                     (do
                       (r/read-char reader) ;; ignore @
-                      (let [next-val (parse-next ctx reader)]
+                      (let [next-val (parse-next-or-throw-eof ctx reader)]
                         (if (true? v)
                           (list 'clojure.core/unquote-splicing next-val)
                           (v next-val))))
                     (throw-reader
                      ctx reader
                      "Syntax unquote splice not allowed. Use the `:syntax-quote` option"))
-                  (let [next-val (parse-next ctx reader)]
+                  (let [next-val (parse-next-or-throw-eof ctx reader)]
                     (if (true? v)
                       (list 'clojure.core/unquote next-val)
                       (v next-val))))))
@@ -779,10 +790,9 @@
           \; (parse-comment reader)
           \^ (do
                (r/read-char reader) ;; ignore ^
-               (let [meta-val (parse-next ctx reader true)
-                     val-val (vary-meta (parse-next ctx reader)
-                                        merge meta-val)]
-                 val-val))
+               (let [meta-val (parse-next-or-throw-eof ctx reader true)]
+                 (vary-meta (parse-next-or-throw-eof ctx reader)
+                            merge meta-val)))
           \: (parse-keyword ctx reader)
           \" (parse-string* ctx reader)
           \\ (read-char* reader (r/read-char reader) nil)
