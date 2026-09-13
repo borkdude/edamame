@@ -704,7 +704,8 @@
          {:row 1 :col 1}
          (e/parse-string "{nil 1 nil 2}")))
     (is (thrown-with-data?
-         #"Map literal contains duplicate key: false"
+         ;; ClojureCLR prints false as False
+         #"Map literal contains duplicate key: [Ff]alse"
          {:row 1 :col 1}
          (e/parse-string "{false 1 false 2}"))))
   (testing "the error points at the start of the map"
