@@ -22,6 +22,13 @@ Done so far:
 - Item 2 (record-field ctx + `Delims` + key renames): merged to master in
   https://github.com/borkdude/edamame/pull/146 . Measured in isolation off
   master: ~10% faster on JVM, ~4% on ClojureScript.
+- Items 1, 3, 4 and the `readString` part of 5 (`IndexingStringReader` with
+  the `IFastOps` fast paths): branch `unwrapped-reader`. Measured on
+  core.clj against the tools.reader stack: sci opts 8.87ms -> 4.56ms,
+  default opts 10.02ms -> 6.76ms. `test/edamame/string_reader_test.cljc`
+  compares both readers on random reader ops and random parser input.
+- sci builds its own tools.reader stack in `eval-string` and `load-string`,
+  so it only benefits once it calls `edamame.core/reader` for strings.
 
 ## Context
 
@@ -178,5 +185,11 @@ safety net either way.
   only the host pass. `:default` alone is not enough.
 - sci's resolve-test opens a network connection to www.clojure.org and
   errors in a sandbox without network. Not an edamame regression.
+- The `skipWhitespace` fast path on `perf` miscounts lines when the input
+  ends in `\r\n` or `\r\f`. tools.reader reads the end of input after the
+  pair and counts it as one more newline, the fast path skipped that read.
+  The random differential test found it. Fixed on `unwrapped-reader`.
+- `readString` on `perf` does not update `prev-column` for a newline inside
+  a string. Only a second unread can observe it. Fixed on `unwrapped-reader`.
 
 General JVM Clojure tricks extracted to the `clojure-performance` skill.
