@@ -4,9 +4,13 @@ For a list of breaking changes, check [here](#breaking-changes)
 
 [Edamame](https://github.com/borkdude/edamame): configurable EDN and Clojure parser with location metadata and more
 
-## Unreleased
+## 1.6.44
 
 - Throw EOF errors for reader macros with missing forms at the end of input
+- Speed up parsing plain decimal numbers on the JVM [#155](https://github.com/borkdude/edamame/pull/155)
+- Build map literals with transients [#159](https://github.com/borkdude/edamame/pull/159)
+- Reduce allocations when tracking source locations [#161](https://github.com/borkdude/edamame/pull/161)
+- Require Clojure 1.10 or newer [#158](https://github.com/borkdude/edamame/pull/158)
 
 ## 1.6.43
 
