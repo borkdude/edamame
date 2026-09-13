@@ -645,15 +645,15 @@
     (is (= {:line 2 :column 3 :end-line 2 :end-column 6}
            (meta (e/parse-string "\n  foo" {:row-key :line :col-key :column
                                             :end-row-key :end-line :end-col-key :end-column})))))
-  (testing "without end location"
+  (testing "end location is omitted when disabled"
     (is (= {:row 1 :col 1} (meta (e/parse-string "(x)" {:end-location false})))))
   (testing "location is merged with metadata from ^"
     (is (= {:foo true :row 1 :col 1 :end-row 1 :end-col 10}
            (meta (e/parse-string "^:foo (x)")))))
-  (testing "location wins over location keys in metadata from ^"
+  (testing "location overrides location keys in metadata from ^"
     (is (= {:bar 1 :row 1 :col 1 :end-row 1 :end-col 22}
            (meta (e/parse-string "^{:row 99 :bar 1} (x)")))))
-  (testing "location together with source"
+  (testing "metadata includes location and source"
     (is (= [{:source "(x)" :row 1 :col 2 :end-row 1 :end-col 5}
             {:source "y" :row 2 :col 2 :end-row 2 :end-col 3}]
            (map meta (e/parse-next (e/source-reader "[(x) \n y]")
