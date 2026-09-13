@@ -138,6 +138,19 @@
                         #"EOF while reading"
                         (e/parse-string "#'" {:var true}))))
 
+(deftest eof-after-reader-macro-test
+  (testing "a reader macro at the end of input throws an EOF error"
+    (doseq [s ["@" "`" "~" "~@" "^:foo" "#^:foo" "#=" "#foo" "#?" "#?(" "#:foo"]]
+      (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo)
+                            #"EOF while reading"
+                            (e/parse-string s {:all true :read-cond :allow :readers {'foo identity}}))
+          s)))
+  (testing "a reader conditional at the end of input throws an EOF error when preserved or passed to a function"
+    (doseq [opt [:preserve identity]]
+      (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo)
+                            #"EOF while reading"
+                            (e/parse-string "#?" {:read-cond opt}))))))
+
 (deftest fix-expression-test
   (let [incomplete "{:a (let [x 5"
         fix-expression (fn fix-expression [expr]
