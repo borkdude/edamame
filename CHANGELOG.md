@@ -7,9 +7,10 @@ For a list of breaking changes, check [here](#breaking-changes)
 ## 1.6.44
 
 - Throw EOF errors for reader macros with missing forms at the end of input
-- Speed up parsing plain decimal numbers on the JVM [#155](https://github.com/borkdude/edamame/pull/155)
-- Build map literals with transients [#159](https://github.com/borkdude/edamame/pull/159)
-- Reduce allocations when tracking source locations [#161](https://github.com/borkdude/edamame/pull/161)
+- Performance: speed up parsing plain decimal numbers on the JVM [#155](https://github.com/borkdude/edamame/pull/155)
+- Performance: build map literals with transients [#159](https://github.com/borkdude/edamame/pull/159)
+- Performance: reduce allocations when tracking source locations [#161](https://github.com/borkdude/edamame/pull/161)
+- Performance: build location metadata in one step for forms without metadata [#162](https://github.com/borkdude/edamame/pull/162)
 - Require Clojure 1.10 or newer [#158](https://github.com/borkdude/edamame/pull/158)
 
 ## 1.6.43
