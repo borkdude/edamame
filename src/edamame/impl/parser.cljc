@@ -173,6 +173,32 @@
      (def read-char* @#'edn/read-char*)
      (def read-symbolic-value  @#'edn/read-symbolic-value)))
 
+#?(:clj
+   (defn- simple-number
+     "Returns s as a Long when it is a decimal int without leading zero and at
+     most 18 digits, as a Double when it is a decimal float without exponent,
+     otherwise nil."
+     [^String s]
+     (let [len (.length s)
+           c0 (if (pos? len) (int (.charAt s 0)) 0)
+           start (if (or (== c0 45) (== c0 43)) 1 0)]
+       (when (< start len)
+         (loop [i start
+                dot -1]
+           (if (< i len)
+             (let [c (int (.charAt s i))]
+               (cond
+                 (and (>= c 48) (<= c 57)) (recur (inc i) dot)
+                 (and (== c 46) (neg? dot) (> i start)) (recur (inc i) i)
+                 :else nil))
+             (if (neg? dot)
+               (let [digits (- len start)]
+                 (when (and (<= digits 18)
+                            (or (== digits 1)
+                                (not (== 48 (int (.charAt s start))))))
+                   (Long/parseLong s)))
+               (Double/parseDouble s))))))))
+
 (defn- read-number
   [ctx #?(:clj rdr :cljs ^not-native rdr :cljd rdr :cljr rdr) initch]
   (loop [#?(:cljd ^StringBuffer sb :default sb)
@@ -190,7 +216,8 @@
             (nil? ch))
       (let [s (str sb)]
         (r/unread rdr ch)
-        (or (commons/match-number s)
+        (or #?(:clj (simple-number s))
+            (commons/match-number s)
             (throw-reader ctx rdr (str "Invalid number: " s))))
       (recur (doto sb #?(:clj (.append ch) :cljs (.append ch) :cljd (.write ch) :cljr (.Append (str ch)))) (r/read-char rdr)))))
 
