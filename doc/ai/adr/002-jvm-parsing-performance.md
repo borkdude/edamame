@@ -305,7 +305,7 @@ contain absolute paths to a session scratch directory, adjust before reuse.
 - edamame leaks its internal eof sentinel at the end of input. `` ` `` then
   `@` returns a form containing it, `#?(` throws "Feature should be a keyword:
   java.lang.Object@...", and `#` then `~` puts it in a "No reader function for
-  tag" message. Pre-existing, not fixed.
+  tag" message. Fixed in https://github.com/borkdude/edamame/pull/153 .
 - In a fresh checkout of sci or edamame without pubspec.yaml,
   `script/test/cljd` runs `clojure -M:cljd init`, which overwrites the
   tracked README.md, CHANGELOG.md and .gitignore with Dart templates. Running
