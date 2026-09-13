@@ -272,7 +272,7 @@
   (throw-reader ctx reader "EOF while reading"))
 
 (defn parse-next-or-throw-eof
-  "Like parse-next, but throws an EOF error at the end of input."
+  "Parses the next form. Throws an EOF error at the end of input."
   ([ctx #?(:cljs ^not-native reader :default reader)]
    (parse-next-or-throw-eof ctx reader nil))
   ([ctx #?(:cljs ^not-native reader :default reader) desugar]
