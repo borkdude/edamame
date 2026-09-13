@@ -302,7 +302,9 @@
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter]
    (parse-to-delimiter ctx reader delimiter []))
   ([ctx #?(:cljs ^not-native reader :default reader) delimiter into]
-   (let [ir? (r/indexing-reader? reader)
+   (let [ir? #?(:clj (or (instance? clojure.tools.reader.reader_types.IndexingReader reader)
+                         (r/indexing-reader? reader))
+                :default (r/indexing-reader? reader))
          row (when ir? (r/get-line-number reader))
          col (when ir? (r/get-column-number reader))
          opened (r/read-char reader)
@@ -717,8 +719,7 @@
 ;; that doesn't do any checking, but saw no significant speedup.
 (defn dispatch
   [ctx #?(:cljs ^not-native reader :default reader) c]
-  (let [ir? (r/indexing-reader? reader)
-        sharp? (= \# c)]
+  (let [sharp? (#?(:clj identical? :cljs identical? :default =) \# c)]
     (if sharp? (do
                  (r/read-char reader) ;; ignore sharp
                  (parse-sharp ctx reader))
@@ -791,8 +792,9 @@
           \{ (parse-map ctx reader)
           (\} \] \)) (let [delims (:delims ctx)
                            expected (:expected delims)]
-                       (if (not= expected c)
-                         (let [loc (when ir? (location reader))]
+                       (if-not (#?(:clj identical? :cljs identical? :default =) expected c)
+                         (let [loc (when (r/indexing-reader? reader)
+                                     (location reader))]
                            (r/read-char reader) ;; ignore unexpected
                            ;; delimiter to be able to
                            ;; continue reading, fix for
@@ -840,10 +842,13 @@
 (defn parse-next
   ([ctx reader] (parse-next ctx reader nil))
   ([ctx reader desugar]
-   (let [ir? (r/indexing-reader? reader)]
+   (let [ir? #?(:clj (or (instance? clojure.tools.reader.reader_types.IndexingReader reader)
+                         (r/indexing-reader? reader))
+                :default (r/indexing-reader? reader))]
      (if-let [c (and (skip-whitespace ctx reader)
                      (r/peek-char reader))]
-       (let [loc (when ir? (location reader))
+       (let [start-row (when ir? (r/get-line-number reader))
+             start-col (when ir? (r/get-column-number reader))
              log? (:source ctx)
              #?(:cljd buf :default ^StringBuilder buf) (when log? #?(:cljd nil :default (buf reader)))
              offset (when log? #?(:clj (.length buf)
@@ -896,12 +901,11 @@
                                           (or (not location?)
                                               (location? obj)))
                                      postprocess))
-                   end-loc (when (and ir? loc? end-loc?)
-                             (location reader))
-                   row (when loc? (:row loc))
-                   end-row (when end-loc? (:row end-loc))
-                   col (when loc? (:col loc))
-                   end-col (when end-loc? (:col end-loc))
+                   end? (and ir? loc? end-loc?)
+                   row (when loc? start-row)
+                   end-row (when end? (r/get-line-number reader))
+                   col (when loc? start-col)
+                   end-col (when end? (r/get-column-number reader))
                    postprocess-fn (when postprocess
                                     #(postprocess
                                       (cond->
@@ -918,14 +922,13 @@
                            (desugar-meta obj postprocess-fn)
                            (desugar-meta obj)) obj)
                    obj (cond postprocess-fn (postprocess-fn obj)
-                             loc? (vary-meta obj
-                                             #(cond->
-                                                  (-> %
-                                                      (assoc (:row-key ctx) row)
-                                                      (assoc (:col-key ctx) col))
-                                                end-loc? (-> (assoc (:end-row-key ctx) end-row)
-                                                             (assoc (:end-col-key ctx) end-col))
-                                                src (assoc (:source-key ctx) src)))
+                             loc? (with-meta obj
+                                    (cond-> (assoc (meta obj)
+                                                   (:row-key ctx) row
+                                                   (:col-key ctx) col)
+                                      end-loc? (assoc (:end-row-key ctx) end-row
+                                                      (:end-col-key ctx) end-col)
+                                      src (assoc (:source-key ctx) src)))
                              :else obj)]
                obj))))
        eof))))
