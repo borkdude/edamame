@@ -173,6 +173,32 @@
      (def read-char* @#'edn/read-char*)
      (def read-symbolic-value  @#'edn/read-symbolic-value)))
 
+#?(:clj
+   (defn- simple-number
+     "Returns s as a Long for decimal integers of at most 18 digits with no
+     leading zeros, or as a Double for decimals with a decimal point and no
+     exponent or suffix. Accepts an optional sign. Returns nil otherwise."
+     [^String s]
+     (let [len (.length s)
+           c0 (if (pos? len) (int (.charAt s 0)) 0)
+           start (if (or (== c0 45) (== c0 43)) 1 0)]
+       (when (< start len)
+         (loop [i start
+                dot -1]
+           (if (< i len)
+             (let [c (int (.charAt s i))]
+               (cond
+                 (and (>= c 48) (<= c 57)) (recur (inc i) dot)
+                 (and (== c 46) (neg? dot) (> i start)) (recur (inc i) i)
+                 :else nil))
+             (if (neg? dot)
+               (let [digits (- len start)]
+                 (when (and (<= digits 18)
+                            (or (== digits 1)
+                                (not (== 48 (int (.charAt s start))))))
+                   (Long/parseLong s)))
+               (Double/parseDouble s))))))))
+
 (defn- read-number
   [ctx #?(:clj rdr :cljs ^not-native rdr :cljd rdr :cljr rdr) initch]
   (loop [#?(:cljd ^StringBuffer sb :default sb)
@@ -190,7 +216,8 @@
             (nil? ch))
       (let [s (str sb)]
         (r/unread rdr ch)
-        (or (commons/match-number s)
+        (or #?(:clj (simple-number s))
+            (commons/match-number s)
             (throw-reader ctx rdr (str "Invalid number: " s))))
       (recur (doto sb #?(:clj (.append ch) :cljs (.append ch) :cljd (.write ch) :cljr (.Append (str ch)))) (r/read-char rdr)))))
 
@@ -638,15 +665,24 @@
         c (count elements)]
     (if-let [mf (:map ctx)]
       (apply mf elements)
-      (do (when (pos? c)
-            (when (odd? c)
-              (throw-odd-map ctx reader start-loc elements))
-            (let [ks (take-nth 2 elements)]
-              (when-not (apply distinct? ks)
-                (throw-dup-keys ctx reader start-loc :map ks))))
-          (if (<= c 16)
-            (apply #?(:cljd hash-map :default array-map) elements)
-            (apply hash-map elements))))))
+      (do (when (odd? c)
+            (throw-odd-map ctx reader start-loc elements))
+          #?(:cljd
+             (do (when (pos? c)
+                   (let [ks (take-nth 2 elements)]
+                     (when-not (apply distinct? ks)
+                       (throw-dup-keys ctx reader start-loc :map ks))))
+                 (apply hash-map elements))
+             :default
+             (loop [i 0
+                    m (transient {})]
+               (if (< i c)
+                 (let [m (assoc! m (nth elements i) (nth elements (inc i)))]
+                   ;; a key that is already present leaves the count unchanged
+                   (if (== (count m) (inc (quot i 2)))
+                     (recur (+ i 2) m)
+                     (throw-dup-keys ctx reader start-loc :map (take-nth 2 elements))))
+                 (persistent! m))))))))
 
 (defn parse-keyword [ctx #?(:cljs ^not-native reader :default reader)]
   (r/read-char reader) ;; ignore :

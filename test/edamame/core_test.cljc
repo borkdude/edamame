@@ -643,6 +643,15 @@
                        PersistentArrayMap
                        :cljr clojure.lang.PersistentArrayMap)
                     (e/parse-string "{:a 1 :b 2}")))
+     (testing "a map of 8 entries stays an array map and keeps its key order"
+       (let [m (e/parse-string "{:h 1 :g 2 :f 3 :e 4 :d 5 :c 6 :b 7 :a 8}")]
+         (is (instance? #?(:clj
+                           clojure.lang.PersistentArrayMap
+                           :cljs
+                           PersistentArrayMap
+                           :cljr clojure.lang.PersistentArrayMap)
+                        m))
+         (is (= [:h :g :f :e :d :c :b :a] (keys m)))))
      (is (instance? #?(:clj
                        clojure.lang.PersistentHashMap
                        :cljs
@@ -651,8 +660,75 @@
                        clojure.lang.PersistentHashMap)
                     (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9}")))))
 
+(deftest map-literal-duplicate-key-test
+  (testing "a duplicate key in an array map, in a map that grows into a hash map, and in a hash map"
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :g"
+         {:row 1 :col 1}
+         (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :g 8}")))
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :a"
+         {:row 1 :col 1}
+         (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :a 9}")))
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :i"
+         {:row 1 :col 1}
+         (e/parse-string "{:a 1 :b 2 :c 3 :d 4 :e 5 :f 6 :g 7 :h 8 :i 9 :i 10}"))))
+  (testing "nil and false as duplicate keys"
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key"
+         {:row 1 :col 1}
+         (e/parse-string "{nil 1 nil 2}")))
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: false"
+         {:row 1 :col 1}
+         (e/parse-string "{false 1 false 2}"))))
+  (testing "the error points at the start of the map"
+    (is (thrown-with-data?
+         #"Map literal contains duplicate key: :a"
+         {:row 2 :col 2}
+         (e/parse-string "[\n {:a 1 :a 2}]"))))
+  (testing "keys that look alike but are not equal"
+    (is (= {"a" 1 :a 2 'a 3} (e/parse-string "{\"a\" 1 :a 2 a 3}"))))
+  #?(:cljd nil
+     :clj (testing "equal numbers of different classes are duplicate keys, like in Clojure"
+            (is (thrown-with-data?
+                 #"Map literal contains duplicate key: 1"
+                 {:row 1 :col 1}
+                 (e/parse-string "{1 1 1N 2}")))
+            (is (= 2 (count (e/parse-string "{1 1 1.0 2}"))))))
+  (testing "a map literal with an odd number of forms"
+    (is (thrown-with-data?
+         #"The map literal starting with :a contains 1 form\(s\)"
+         {:row 1 :col 1}
+         (e/parse-string "{:a}")))))
+
 (deftest number-test
   (is (number? (e/parse-string "-100"))))
+
+#?(:cljd nil :clj
+   (deftest number-like-clojure-test
+     (let [read-result (fn [f s]
+                         (try (let [v (f s)]
+                                ;; raw bits keep the sign of -0.0
+                                [(class v) (if (double? v) (Double/doubleToRawLongBits v) v)])
+                              (catch Exception _ :invalid)))]
+       (doseq [s [;; zero and sign
+                  "0" "-0" "+0" "+5" "0.0" "-0.0"
+                  ;; a leading zero reads an int as octal, but not a double
+                  "00" "017" "-017" "08" "01.5" "00.0"
+                  ;; the longest ints the fast path reads, and one digit more
+                  "999999999999999999" "-999999999999999999" "1000000000000000000"
+                  ;; long boundaries
+                  "9223372036854775807" "-9223372036854775808"
+                  "9223372036854775808" "-9223372036854775809"
+                  ;; doubles
+                  "1." "-1." "+1.5" "1234567890123456789012.5"
+                  ;; formats read by the regex fallback
+                  "1e5" "1.5e3" "1.5M" "5N" "0x1F" "-0X1f" "2r101" "36rZZ" "1/2" "-3/4"
+                  ;; invalid numbers
+                  "1.2.3" "1..2" "1-2" "1+" "1a" "0x" "1e" "1/"]]
+         (is (= (read-result read-string s) (read-result e/parse-string s)) s)))))
 
 (deftest at-separator-test
   (is (= '[foo (clojure.core/deref bar)]
