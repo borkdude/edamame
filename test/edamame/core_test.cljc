@@ -654,7 +654,7 @@
 (deftest number-test
   (is (number? (e/parse-string "-100"))))
 
-#?(:clj
+#?(:cljd nil :clj
    (deftest number-like-clojure-test
      (let [read-result (fn [f s]
                          (try (let [v (f s)]
