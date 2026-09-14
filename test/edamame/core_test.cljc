@@ -647,6 +647,12 @@
                                             :end-row-key :end-line :end-col-key :end-column})))))
   (testing "end location is omitted when disabled"
     (is (= {:row 1 :col 1} (meta (e/parse-string "(x)" {:end-location false})))))
+  (testing "location keys must be distinct"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"distinct"
+                          (e/parse-string "(x)" {:row-key :pos :col-key :pos}))))
+  (testing "parse-next requires normalized opts"
+    (is (thrown-with-msg? #?(:clj clojure.lang.ExceptionInfo :cljs ExceptionInfo :cljd cljd.core/ExceptionInfo :cljr clojure.lang.ExceptionInfo) #"normalize-opts"
+                          (e/parse-next (e/reader "(x)") {}))))
   (testing "location is merged with metadata from ^"
     (is (= {:foo true :row 1 :col 1 :end-row 1 :end-col 10}
            (meta (e/parse-string "^:foo (x)")))))
