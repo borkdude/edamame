@@ -976,6 +976,9 @@
                     readers uneval set
                     delims fn-literal gensyms])
 
+(defn options? [x]
+  (instance? Options x))
+
 (defn normalize-opts [opts]
   (let [opts (if-let [dispatch (:dispatch opts)]
                (into (dissoc opts :dispatch)
@@ -1017,6 +1020,11 @@
                (not (:end-col-key opts)) (assoc :end-col-key :end-col)
                (not (:source-key opts)) (assoc :source-key :source)
                (not (contains? opts :end-location)) (assoc :end-location true))
+        _ (when-not (if (:end-location opts)
+                      (distinct? (:row-key opts) (:col-key opts)
+                                 (:end-row-key opts) (:end-col-key opts))
+                      (distinct? (:row-key opts) (:col-key opts)))
+            (throw (ex-info "Location keys must be distinct" {})))
         opts (assoc opts :ns-state (atom nil))]
     (map->Options opts)))
 

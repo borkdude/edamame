@@ -128,6 +128,8 @@
   but must be normalized with `normalize-opts` first."
   ([reader] (parse-next reader (p/normalize-opts {})))
   ([reader normalized-opts]
+   (when-not (p/options? normalized-opts)
+     (throw (ex-info "parse-next requires opts normalized with edamame.core/normalize-opts" {})))
    (when (rt/source-logging-reader? reader)
      #?(:cljd (rt/log-start! reader)
         :default
